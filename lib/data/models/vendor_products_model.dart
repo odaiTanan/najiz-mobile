@@ -1,0 +1,140 @@
+class VendorProductsModel {
+  final VendorProductsVendor vendor;
+  final List<VendorProductsCategory> categories;
+  final List<VendorProductItem> products;
+
+  const VendorProductsModel({
+    required this.vendor,
+    required this.categories,
+    required this.products,
+  });
+
+  factory VendorProductsModel.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    return VendorProductsModel(
+      vendor: VendorProductsVendor.fromJson(
+        data['vendor'] is Map<String, dynamic>
+            ? data['vendor'] as Map<String, dynamic>
+            : <String, dynamic>{},
+      ),
+      categories: _asList(data['categories'])
+          .map(VendorProductsCategory.fromJson)
+          .toList(),
+      products: _asList(data['products']).map(VendorProductItem.fromJson).toList(),
+    );
+  }
+}
+
+class VendorProductsVendor {
+  final int id;
+  final String name;
+  final String? image;
+  final String? logo;
+  final String? description;
+  final double? rating;
+  final String? classificationName;
+
+  const VendorProductsVendor({
+    required this.id,
+    required this.name,
+    this.image,
+    this.logo,
+    this.description,
+    this.rating,
+    this.classificationName,
+  });
+
+  factory VendorProductsVendor.fromJson(Map<String, dynamic> json) {
+    return VendorProductsVendor(
+      id: _asInt(json['id']),
+      name: (json['name'] ?? '').toString(),
+      image: json['image']?.toString(),
+      logo: json['logo']?.toString(),
+      description: json['description']?.toString(),
+      rating: _asNullableDouble(json['rating']),
+      classificationName: (json['classification'] is Map)
+          ? (json['classification']['name']?.toString())
+          : null,
+    );
+  }
+}
+
+class VendorProductsCategory {
+  final int id;
+  final String name;
+
+  const VendorProductsCategory({
+    required this.id,
+    required this.name,
+  });
+
+  factory VendorProductsCategory.fromJson(Map<String, dynamic> json) {
+    return VendorProductsCategory(
+      id: _asInt(json['id']),
+      name: (json['name'] ?? '').toString(),
+    );
+  }
+}
+
+class VendorProductItem {
+  final int id;
+  final int? vendorId;
+  final int? categoryId;
+  final String name;
+  final String? description;
+  final String? image;
+  final double? price;
+  final int? stock;
+
+  const VendorProductItem({
+    required this.id,
+    this.vendorId,
+    this.categoryId,
+    required this.name,
+    this.description,
+    this.image,
+    this.price,
+    this.stock,
+  });
+
+  factory VendorProductItem.fromJson(Map<String, dynamic> json) {
+    return VendorProductItem(
+      id: _asInt(json['id']),
+      vendorId: _asNullableInt(json['vendor_id']),
+      categoryId: _asNullableInt(json['category_id']),
+      name: (json['name'] ?? '').toString(),
+      description: json['description']?.toString(),
+      image: json['image']?.toString(),
+      price: _asNullableDouble(json['price']),
+      stock: _asNullableInt(json['stock']),
+    );
+  }
+}
+
+List<Map<String, dynamic>> _asList(dynamic data) {
+  if (data is! List) return const [];
+  return data
+      .whereType<Map>()
+      .map((e) => e.map((key, value) => MapEntry(key.toString(), value)))
+      .toList();
+}
+
+int _asInt(dynamic value) {
+  if (value is int) return value;
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+int? _asNullableInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  return int.tryParse(value.toString());
+}
+
+double? _asNullableDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}

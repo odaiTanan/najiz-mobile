@@ -1,0 +1,237 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/constants/app_strings.dart';
+import 'package:najiz_go_express/core/utils/validators.dart';
+import 'package:najiz_go_express/features/auth/controllers/signup_controller.dart';
+import 'package:najiz_go_express/features/auth/widgets/auth_button.dart';
+import 'package:najiz_go_express/features/auth/widgets/auth_header.dart';
+import 'package:najiz_go_express/features/auth/widgets/auth_text_field.dart';
+
+class SignupScreen extends StatelessWidget {
+  const SignupScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.put(SignupController());
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Form(
+            key: controller.formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: () => Get.back(),
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                const SizedBox(height: 4),
+                AuthHeader(
+                  title: 'انضم إلى NajizGo Express',
+                  subtitle:
+                      'أدخل بياناتك للبدء. سنرسل رمز OTP إلى رقم جوالك للتحقق.',
+                ),
+                const SizedBox(height: 18),
+                AuthTextField(
+                  label: 'الاسم الكامل',
+                  hintText: 'الاسم الكامل',
+                  controller: controller.nameController,
+                  validator: Validators.fullName,
+                  prefixIcon: const Icon(Icons.person_outline),
+                ),
+                const SizedBox(height: 14),
+                AuthTextField(
+                  label: 'عنوان البريد الإلكتروني',
+                  hintText: 'مثال: name@example.com',
+                  controller: controller.emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: Validators.email,
+                  prefixIcon: const Icon(Icons.email_outlined),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'رقم الجوال',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 76,
+                      child: TextFormField(
+                        controller: controller.countryCodeController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: AppColors.inputBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        controller: controller.phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        validator: Validators.syrianMobileLocal,
+                        decoration: InputDecoration(
+                          hintText: '',
+                          prefixIcon: const Icon(Icons.phone_iphone_outlined),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: AppColors.inputBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Obx(
+                  () => AuthTextField(
+                    label: AppStrings.password,
+                    hintText: 'أدخل كلمة المرور',
+                    controller: controller.passwordController,
+                    obscureText: controller.isPasswordHidden.value,
+                    validator: Validators.password8,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    onChanged: controller.onPasswordChanged,
+                    suffixIcon: IconButton(
+                      onPressed: controller.togglePasswordVisibility,
+                      icon: Icon(
+                        controller.isPasswordHidden.value
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                Obx(() {
+                  final message = controller.passwordLiveMessage.value;
+                  if (message == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        color: controller.isPasswordStrong.value
+                            ? Colors.green
+                            : AppColors.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 14),
+                Obx(
+                  () => AuthTextField(
+                    label: AppStrings.confirmPassword,
+                    hintText: 'أعد إدخال كلمة المرور',
+                    controller: controller.confirmPasswordController,
+                    obscureText: controller.isConfirmPasswordHidden.value,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'يرجى تأكيد كلمة المرور';
+                      }
+                      if (value != controller.passwordController.text) {
+                        return 'كلمتا المرور غير متطابقتين';
+                      }
+                      return null;
+                    },
+                    suffixIcon: IconButton(
+                      onPressed: controller.toggleConfirmPasswordVisibility,
+                      icon: Icon(
+                        controller.isConfirmPasswordHidden.value
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Obx(
+                  () => AuthButton(
+                    text: 'إنشاء حساب',
+                    isLoading: controller.isLoading.value,
+                    onPressed: controller.signUp,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'لديك حساب بالفعل؟ ',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      InkWell(
+                        onTap: () => Get.back(),
+                        child: const Text(
+                          'سجّل الدخول هنا',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Obx(() {
+                  final err = controller.errorMessage.value;
+                  if (err == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Text(
+                      err,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
