@@ -34,6 +34,23 @@ class TaxiBookingController extends GetxController {
 
   final pricing = Rxn<TaxiPricingModel>();
   final selectedCategoryId = RxnInt();
+  static const String _mapsApiKey = String.fromEnvironment(
+    'MAPS_API_KEY',
+    defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
+  );
+
+  Map<String, dynamic>? _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
 
   @override
   void onInit() {
@@ -144,52 +161,212 @@ class TaxiBookingController extends GetxController {
   }) async {
     final q = query.trim();
     if (q.isEmpty) return false;
-    final url = Uri.https(
-      'nominatim.openstreetmap.org',
-      '/search',
-      {
-        'format': 'jsonv2',
-        'q': q,
-        'countrycodes': 'sy',
-        'limit': '1',
-        'addressdetails': '1',
-        'accept-language': 'ar',
-      },
-    );
     try {
-      final response = await http.get(
-        url,
-        headers: const {
-          'Accept': 'application/json',
-          'User-Agent': 'najiz_go_express/1.0',
-        },
-      );
-      if (response.statusCode != 200) {
-        errorMessage.value = 'تعذر تنفيذ البحث';
-        return false;
-      }
-      final results = jsonDecode(response.body);
-      if (results is! List || results.isEmpty) {
+      final suggestions = await fetchLocationSuggestions(query: q);
+      if (suggestions.isEmpty) {
         errorMessage.value = 'لا توجد نتائج داخل سوريا';
         return false;
       }
-      final first = results.first as Map<String, dynamic>;
-      final lat = double.tryParse(first['lat']?.toString() ?? '');
-      final lng = double.tryParse(first['lon']?.toString() ?? '');
+      return await selectSuggestion(
+        suggestion: suggestions.first,
+        asPickup: asPickup,
+      );
+    } catch (_) {
+      errorMessage.value = 'فشل البحث عن الموقع';
+      return false;
+    }
+  }
+
+  Future<List<PlaceSuggestion>> fetchLocationSuggestions({
+    required String query,
+  }) async {
+    final q = query.trim();
+    if (q.length < 2 || _mapsApiKey.trim().isEmpty) return const [];
+    final biasLocation = '${pickupLat.value},${pickupLng.value}';
+    final sessionToken = _newPlacesSessionToken();
+    final localParams = <String, String>{
+      'input': q,
+      'key': _mapsApiKey,
+      'language': 'ar',
+      'region': 'sy',
+      'components': 'country:sy',
+      'location': biasLocation,
+      'origin': biasLocation,
+      'radius': '45000',
+      'strictbounds': 'true',
+      'sessiontoken': sessionToken,
+    };
+
+    final responses = await Future.wait<List<PlaceSuggestion>>([
+      _fetchGoogleSuggestions(
+        endpoint: '/maps/api/place/autocomplete/json',
+        params: {...localParams, 'types': 'geocode'},
+      ),
+      _fetchGoogleSuggestions(
+        endpoint: '/maps/api/place/autocomplete/json',
+        params: localParams,
+      ),
+      _fetchGoogleSuggestions(
+        endpoint: '/maps/api/place/queryautocomplete/json',
+        params: localParams,
+      ),
+    ]);
+
+    final merged = <PlaceSuggestion>[];
+    final byPlaceId = <String>{};
+    final byDescription = <String>{};
+    for (final batch in responses) {
+      for (final item in batch) {
+        final placeKey = item.placeId.trim();
+        final textKey = item.description.trim().toLowerCase();
+        if (placeKey.isNotEmpty && byPlaceId.contains(placeKey)) continue;
+        if (textKey.isNotEmpty && byDescription.contains(textKey)) continue;
+        if (placeKey.isNotEmpty) byPlaceId.add(placeKey);
+        if (textKey.isNotEmpty) byDescription.add(textKey);
+        merged.add(item);
+      }
+    }
+
+    merged.sort((a, b) {
+      final aScore = _suggestionScore(a, q);
+      final bScore = _suggestionScore(b, q);
+      if (aScore != bScore) return bScore.compareTo(aScore);
+      return a.description.length.compareTo(b.description.length);
+    });
+
+    if (merged.length > 12) {
+      return merged.sublist(0, 12);
+    }
+    return merged;
+  }
+
+  Future<List<PlaceSuggestion>> _fetchGoogleSuggestions({
+    required String endpoint,
+    required Map<String, String> params,
+  }) async {
+    final url = Uri.https('maps.googleapis.com', endpoint, params);
+    try {
+      final response = await http.get(
+        url,
+        headers: const {'Accept': 'application/json'},
+      );
+      if (response.statusCode != 200) return const [];
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) return const [];
+      final status = (body['status'] ?? '').toString();
+      if (status != 'OK' && status != 'ZERO_RESULTS') return const [];
+      final predictions = body['predictions'];
+      if (predictions is! List) return const [];
+      return predictions
+          .whereType<Map>()
+          .map((raw) => PlaceSuggestion.fromJson(Map<String, dynamic>.from(raw)))
+          .where((item) => item.placeId.isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  int _suggestionScore(PlaceSuggestion item, String query) {
+    final q = query.trim().toLowerCase();
+    final primary = item.primaryText.toLowerCase();
+    final secondary = item.secondaryText.toLowerCase();
+    final description = item.description.toLowerCase();
+    var score = 0;
+    if (primary == q) score += 120;
+    if (primary.startsWith(q)) score += 90;
+    if (description.startsWith(q)) score += 70;
+    if (primary.contains(q)) score += 45;
+    if (description.contains(q)) score += 25;
+    if (secondary.contains('سوريا') || secondary.contains('دمشق')) score += 15;
+    if (item.distanceMeters != null) {
+      final km = item.distanceMeters! / 1000.0;
+      if (km <= 2) {
+        score += 28;
+      } else if (km <= 8) {
+        score += 18;
+      } else if (km <= 20) {
+        score += 9;
+      }
+    }
+    if (item.types.any((t) => t == 'street_address' || t == 'premise')) {
+      score += 12;
+    } else if (item.types.any((t) => t == 'route' || t == 'subpremise')) {
+      score += 8;
+    }
+    if (secondary.isNotEmpty) score += 5;
+    return score;
+  }
+
+  String _newPlacesSessionToken() {
+    final ms = DateTime.now().millisecondsSinceEpoch;
+    return 'taxi_$ms';
+  }
+
+  Future<bool> selectSuggestion({
+    required PlaceSuggestion suggestion,
+    required bool asPickup,
+  }) async {
+    if (suggestion.placeId.trim().isEmpty || _mapsApiKey.trim().isEmpty) {
+      return false;
+    }
+    final url = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/place/details/json',
+      {
+        'place_id': suggestion.placeId,
+        'fields': 'geometry/location,formatted_address,name',
+        'language': 'ar',
+        'key': _mapsApiKey,
+      },
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: const {'Accept': 'application/json'},
+      );
+      if (response.statusCode != 200) {
+        errorMessage.value = 'تعذر تحميل تفاصيل الموقع';
+        return false;
+      }
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) {
+        errorMessage.value = 'استجابة غير صالحة من خدمة المواقع';
+        return false;
+      }
+      final status = (body['status'] ?? '').toString();
+      if (status != 'OK') {
+        errorMessage.value = 'تعذر تحميل تفاصيل الموقع';
+        return false;
+      }
+      final result = _asMap(body['result']);
+      final geometry = _asMap(result?['geometry']);
+      final location = _asMap(geometry?['location']);
+      final lat = _asDouble(location?['lat']);
+      final lng = _asDouble(location?['lng']);
       if (lat == null || lng == null || !_isWithinSyria(lat: lat, lng: lng)) {
         errorMessage.value = 'النتيجة خارج سوريا';
         return false;
       }
+      final label =
+          (result?['formatted_address'] ?? result?['name'])?.toString().trim();
       selectingPickupOnMap.value = asPickup;
       errorMessage.value = null;
       if (asPickup) {
         await updatePickup(lat: lat, lng: lng);
+        if (label != null && label.isNotEmpty) {
+          pickupAddress.value = label;
+        }
       } else {
         await updateDropoff(lat: lat, lng: lng);
+        if (label != null && label.isNotEmpty) {
+          dropoffAddress.value = label;
+        }
       }
       return true;
     } catch (_) {
-      errorMessage.value = 'فشل البحث عن الموقع';
+      errorMessage.value = 'فشل تحديد الموقع';
       return false;
     }
   }
@@ -199,20 +376,27 @@ class TaxiBookingController extends GetxController {
     required double lng,
     required bool isPickup,
   }) async {
-    final url = Uri.parse(
-      'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lng',
+    final url = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/geocode/json',
+      {
+        'latlng': '$lat,$lng',
+        'language': 'ar',
+        'region': 'sy',
+        'key': _mapsApiKey,
+      },
     );
     try {
       final response = await http.get(
         url,
-        headers: const {
-          'Accept': 'application/json',
-          'User-Agent': 'najiz_go_express/1.0',
-        },
+        headers: const {'Accept': 'application/json'},
       );
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final label = (body['display_name'] as String?)?.trim();
+        final results = body['results'];
+        final label = (results is List && results.isNotEmpty)
+            ? (results.first['formatted_address'] as String?)?.trim()
+            : null;
         if (label != null && label.isNotEmpty) {
           if (isPickup) {
             pickupAddress.value = label;
@@ -273,6 +457,7 @@ class TaxiBookingController extends GetxController {
       final data = (response['data'] is Map)
           ? Map<String, dynamic>.from(response['data'] as Map)
           : <String, dynamic>{};
+      final taxiOrder = _asMap(data['taxi_order'] ?? data['taxiOrder']);
       final orderId = _asInt(data['id']);
       if (orderId == null) {
         throw HomeApiException('لم يتم استلام رقم طلب التاكسي');
@@ -286,6 +471,10 @@ class TaxiBookingController extends GetxController {
         pickupLng: pickupLng.value,
         destinationLat: dropoffLat.value!,
         destinationLng: dropoffLng.value!,
+        // Match backend: distance comes from taxi_order on create response.
+        estimatedDistanceKm:
+            _asDouble(taxiOrder?['distance'] ?? taxiOrder?['distance_km']) ??
+            selected.pricing.distanceKm,
       );
     } finally {
       isPlacingOrder.value = false;
@@ -298,6 +487,45 @@ class TaxiBookingController extends GetxController {
     const minLng = 35.5;
     const maxLng = 42.5;
     return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+  }
+}
+
+class PlaceSuggestion {
+  final String placeId;
+  final String description;
+  final String primaryText;
+  final String secondaryText;
+  final int? distanceMeters;
+  final List<String> types;
+
+  const PlaceSuggestion({
+    required this.placeId,
+    required this.description,
+    required this.primaryText,
+    required this.secondaryText,
+    this.distanceMeters,
+    this.types = const [],
+  });
+
+  factory PlaceSuggestion.fromJson(Map<String, dynamic> json) {
+    final structured = (json['structured_formatting'] is Map)
+        ? Map<String, dynamic>.from(json['structured_formatting'] as Map)
+        : const <String, dynamic>{};
+    final description = (json['description'] ?? '').toString().trim();
+    return PlaceSuggestion(
+      placeId: (json['place_id'] ?? '').toString().trim(),
+      description: description,
+      primaryText:
+          (structured['main_text'] ?? description).toString().trim(),
+      secondaryText: (structured['secondary_text'] ?? '').toString().trim(),
+      distanceMeters: _asInt(json['distance_meters']),
+      types: (json['types'] is List)
+          ? (json['types'] as List)
+                .map((e) => e.toString())
+                .where((e) => e.isNotEmpty)
+                .toList(growable: false)
+          : const [],
+    );
   }
 }
 

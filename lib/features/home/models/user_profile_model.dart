@@ -3,12 +3,14 @@ class UserProfileModel {
   final String? email;
   final String? phone;
   final String? address;
+  final String? avatarPath;
 
   const UserProfileModel({
     this.name,
     this.email,
     this.phone,
     this.address,
+    this.avatarPath,
   });
 
   factory UserProfileModel.fromBackend(
@@ -30,6 +32,8 @@ class UserProfileModel {
       email: pick(['email']) ?? fallback?['email'],
       phone: pick(['phone', 'mobile']) ?? fallback?['phone'],
       address: pick(['address', 'full_address']) ?? fallback?['address'],
+      avatarPath:
+          pick(['avatar', 'avatar_url', 'profile_image']) ?? fallback?['avatarPath'],
     );
   }
 }

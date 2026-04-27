@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
@@ -446,9 +446,9 @@ Future<void> _openLocationPicker(
 ) async {
   final lat = double.tryParse(controller.lat.value) ?? 33.5138;
   final lng = double.tryParse(controller.lng.value) ?? 36.2765;
-  final selected = await showDialog<LatLng>(
+  final selected = await showDialog<ll.LatLng>(
     context: context,
-    builder: (_) => _MapPickerDialog(initialPoint: LatLng(lat, lng)),
+    builder: (_) => _MapPickerDialog(initialPoint: ll.LatLng(lat, lng)),
   );
   if (selected == null) return;
   await controller.updateDeliveryLocation(
@@ -458,7 +458,7 @@ Future<void> _openLocationPicker(
 }
 
 class _MapPickerDialog extends StatefulWidget {
-  final LatLng initialPoint;
+  final ll.LatLng initialPoint;
 
   const _MapPickerDialog({required this.initialPoint});
 
@@ -467,7 +467,7 @@ class _MapPickerDialog extends StatefulWidget {
 }
 
 class _MapPickerDialogState extends State<_MapPickerDialog> {
-  late LatLng _selectedPoint;
+  late ll.LatLng _selectedPoint;
 
   @override
   void initState() {
@@ -505,37 +505,25 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
               ),
             ),
             Expanded(
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: widget.initialPoint,
-                  initialZoom: 14,
-                  onTap: (_, point) {
-                    setState(() {
-                      _selectedPoint = point;
-                    });
-                  },
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: LatLng(widget.initialPoint.latitude, widget.initialPoint.longitude),
+                  zoom: 14,
                 ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.najiz_go_express',
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                onTap: (point) {
+                  setState(() {
+                    _selectedPoint = ll.LatLng(point.latitude, point.longitude);
+                  });
+                },
+                markers: {
+                  Marker(
+                    markerId: const MarkerId('selected'),
+                    position: LatLng(_selectedPoint.latitude, _selectedPoint.longitude),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
                   ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: _selectedPoint,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: AppColors.primary,
-                          size: 36,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                },
               ),
             ),
             Padding(

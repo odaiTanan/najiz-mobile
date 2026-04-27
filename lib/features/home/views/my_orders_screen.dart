@@ -17,7 +17,7 @@ class MyOrdersScreen extends StatefulWidget {
 }
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
-  String _selectedType = 'food';
+  String _selectedType = 'all';
   String _selectedFilter = 'active';
 
   @override
@@ -36,8 +36,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF6F7FB),
         elevation: 0,
-        title: const Text('My Orders', style: TextStyle(fontWeight: FontWeight.w800)),
-        actions: const [Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.search))],
+        title: const Text('طلباتي', style: TextStyle(fontWeight: FontWeight.w800)),
       ),
       body: Obx(() {
         if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
@@ -59,9 +58,19 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         final typeOrders = controller.orders
             .where((o) => _matchesSelectedType(o.type, _selectedType))
             .toList(growable: false);
-        final active = typeOrders.where((o) => o.status != 'delivered' && o.status != 'cancelled').toList(growable: false);
-        final completed = typeOrders.where((o) => o.status == 'delivered').toList(growable: false);
-        final cancelled = typeOrders.where((o) => o.status == 'cancelled').toList(growable: false);
+        final active = typeOrders
+            .where((o) => o.status != 'delivered' && o.status != 'cancelled')
+            .toList(growable: false);
+        final completed = typeOrders
+            .where((o) => o.status == 'delivered')
+            .toList(growable: false);
+        final cancelled = typeOrders
+            .where((o) => o.status == 'cancelled')
+            .toList(growable: false);
+        final allOrders = [...typeOrders]..sort(_sortByNewest);
+        final activeSorted = [...active]..sort(_sortByNewest);
+        final completedSorted = [...completed]..sort(_sortByNewest);
+        final cancelledSorted = [...cancelled]..sort(_sortByNewest);
 
         return RefreshIndicator(
           onRefresh: controller.loadOrders,
@@ -72,11 +81,59 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               const SizedBox(height: 12),
               _FilterTabs(selected: _selectedFilter, onChanged: (v) => setState(() => _selectedFilter = v)),
               const SizedBox(height: 16),
-              if (_selectedFilter == 'active') ...[
+              if (_selectedFilter == 'all') ...[
+                const _Header('كل الطلبات'),
+                const SizedBox(height: 10),
+                if (allOrders.isEmpty) const _EmptyCard('لا يوجد طلبات'),
+                ...allOrders.map(
+                  (o) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: o.status == 'delivered'
+                        ? _CompletedOrderCard(
+                            order: o,
+                            onTap: () => _showOrderDetails(o),
+                          )
+                        : o.status == 'cancelled'
+                        ? _CancelledOrderCard(order: o)
+                        : _ActiveOrderCard(
+                            order: o,
+                            onTrack: () => _openTracking(o),
+                            onCancel: () async {
+                              if (o.status != 'pending') {
+                                Get.snackbar(
+                                  'تنبيه',
+                                  'الإلغاء متاح فقط للطلبات قيد الانتظار',
+                                );
+                                return;
+                              }
+                              final reason = await _showCancelOrderSheet(
+                                context,
+                                orderType: o.type,
+                              );
+                              if (reason == null) return;
+                              try {
+                                await controller.cancelOrder(
+                                  o.id,
+                                  cancellationReason: reason,
+                                );
+                                if (!mounted) return;
+                                Get.snackbar('نجاح', 'تم إلغاء الطلب');
+                              } catch (e) {
+                                final msg = e.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                );
+                                Get.snackbar('خطأ', msg);
+                              }
+                            },
+                          ),
+                  ),
+                ),
+              ] else if (_selectedFilter == 'active') ...[
                 const _Header('الطلبات النشطة'),
                 const SizedBox(height: 10),
-                if (active.isEmpty) const _EmptyCard('لا يوجد طلبات نشطة'),
-                ...active.map(
+                if (activeSorted.isEmpty) const _EmptyCard('لا يوجد طلبات نشطة'),
+                ...activeSorted.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _ActiveOrderCard(
@@ -87,8 +144,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           Get.snackbar('تنبيه', 'الإلغاء متاح فقط للطلبات قيد الانتظار');
                           return;
                         }
+                        final reason = await _showCancelOrderSheet(
+                          context,
+                          orderType: o.type,
+                        );
+                        if (reason == null) return;
                         try {
-                          await controller.cancelOrder(o.id);
+                          await controller.cancelOrder(
+                            o.id,
+                            cancellationReason: reason,
+                          );
                           if (!mounted) return;
                           Get.snackbar('نجاح', 'تم إلغاء الطلب');
                         } catch (e) {
@@ -102,8 +167,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 const SizedBox(height: 4),
                 const _Header('الطلبات المكتملة'),
                 const SizedBox(height: 10),
-                if (completed.isEmpty) const _EmptyCard('لا يوجد طلبات مكتملة'),
-                ...completed.map(
+                if (completedSorted.isEmpty) const _EmptyCard('لا يوجد طلبات مكتملة'),
+                ...completedSorted.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _CompletedOrderCard(
@@ -115,8 +180,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               ] else if (_selectedFilter == 'completed') ...[
                 const _Header('الطلبات المكتملة'),
                 const SizedBox(height: 10),
-                if (completed.isEmpty) const _EmptyCard('لا يوجد طلبات مكتملة'),
-                ...completed.map(
+                if (completedSorted.isEmpty) const _EmptyCard('لا يوجد طلبات مكتملة'),
+                ...completedSorted.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _CompletedOrderCard(
@@ -128,8 +193,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               ] else ...[
                 const _Header('الطلبات الملغية'),
                 const SizedBox(height: 10),
-                if (cancelled.isEmpty) const _EmptyCard('لا يوجد طلبات ملغية'),
-                ...cancelled.map((o) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _CancelledOrderCard(order: o))),
+                if (cancelledSorted.isEmpty) const _EmptyCard('لا يوجد طلبات ملغية'),
+                ...cancelledSorted.map((o) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _CancelledOrderCard(order: o))),
               ],
             ],
           ),
@@ -144,6 +209,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             token: widget.token,
             orderId: order.id,
             orderNumber: order.orderNumber,
+            orderType: order.type,
             initialStatus: order.status,
             initialDispatchStatus: order.dispatchStatus,
             pickupLat: order.lat,
@@ -218,6 +284,229 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 }
 
+Future<String?> _showCancelOrderSheet(
+  BuildContext context, {
+  required String orderType,
+}) {
+  return showModalBottomSheet<String?>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => _CancelOrderSheet(orderType: orderType),
+  );
+}
+
+class _CancelOrderSheet extends StatefulWidget {
+  const _CancelOrderSheet({required this.orderType});
+
+  final String orderType;
+
+  @override
+  State<_CancelOrderSheet> createState() => _CancelOrderSheetState();
+}
+
+class _CancelOrderSheetState extends State<_CancelOrderSheet> {
+  static const List<String> _taxiReasons = [
+    'الأجرة مرتفعة للغاية',
+    'السائق بعيد جدًا',
+    'غيرت رأيي',
+    'سبب مخصص',
+  ];
+  String? _selectedReason;
+  late final TextEditingController _customReasonController;
+
+  bool get _isTaxi => widget.orderType.toLowerCase() == 'taxi';
+  bool get _isCustomReason => _selectedReason == 'سبب مخصص';
+
+  @override
+  void initState() {
+    super.initState();
+    _customReasonController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _customReasonController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final customReason = _customReasonController.text.trim();
+    String? reason;
+    if (_isTaxi) {
+      if (_selectedReason == null) {
+        Get.snackbar('تنبيه', 'يرجى تحديد سبب الإلغاء');
+        return;
+      }
+      reason = _isCustomReason ? customReason : _selectedReason;
+      if (reason == null || reason.isEmpty) {
+        Get.snackbar('تنبيه', 'يرجى كتابة سبب الإلغاء');
+        return;
+      }
+    } else if (_selectedReason != null) {
+      reason = _isCustomReason ? customReason : _selectedReason;
+      if (reason != null && reason.isEmpty) {
+        reason = null;
+      }
+    }
+
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 12,
+          right: 12,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 54,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3E7EF),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'إلغاء الطلب',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _isTaxi
+                    ? 'حدد سببك للإلغاء'
+                    : 'يمكنك اختيار سبب الإلغاء (اختياري)',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              ..._taxiReasons.map(
+                (reason) => InkWell(
+                  onTap: () => setState(() => _selectedReason = reason),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedReason == reason
+                            ? AppColors.primary
+                            : const Color(0xFFE2E8F0),
+                      ),
+                      color: _selectedReason == reason
+                          ? const Color(0xFFFFF3E8)
+                          : Colors.white,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reason,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Icon(
+                          _selectedReason == reason
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          size: 20,
+                          color: _selectedReason == reason
+                              ? AppColors.primary
+                              : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (_isCustomReason) ...[
+                TextField(
+                  controller: _customReasonController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'السبب',
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.inputBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        side: const BorderSide(color: Color(0xFFD8DFEA)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text('عدم الإلغاء'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'إلغاء الطلب',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TypeTabs extends StatelessWidget {
   const _TypeTabs({required this.selected, required this.onChanged});
   final String selected;
@@ -226,10 +515,11 @@ class _TypeTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('taxi', 'Ride'),
-      ('shipping', 'Courier'),
-      ('food', 'Food'),
-      ('stores', 'Stores'),
+      ('all', 'الكل'),
+      ('taxi', 'تكسي'),
+      ('shipping', 'شحن'),
+      ('food', 'طعام'),
+      ('stores', 'متجر'),
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -264,11 +554,13 @@ class _FilterTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        _FilterChip(text: 'الكل', active: selected == 'all', onTap: () => onChanged('all')),
+        const SizedBox(width: 8),
         _FilterChip(text: 'نشط', active: selected == 'active', onTap: () => onChanged('active')),
         const SizedBox(width: 8),
-        _FilterChip(text: 'Completed', active: selected == 'completed', onTap: () => onChanged('completed')),
+        _FilterChip(text: 'مكتمل', active: selected == 'completed', onTap: () => onChanged('completed')),
         const SizedBox(width: 8),
-        _FilterChip(text: 'Cancelled', active: selected == 'cancelled', onTap: () => onChanged('cancelled')),
+        _FilterChip(text: 'ملغي', active: selected == 'cancelled', onTap: () => onChanged('cancelled')),
       ],
     );
   }
@@ -338,7 +630,7 @@ class _ActiveOrderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(order.orderNumber, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w800)),
                     Text(_dateHint(order.createdAt), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   ],
                 ),
@@ -418,7 +710,7 @@ class _CompletedOrderCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(order.orderNumber, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w700)),
                   Text('${_dateHint(order.createdAt)} • تم التوصيل', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
@@ -442,7 +734,7 @@ class _CancelledOrderCard extends StatelessWidget {
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF2D4D4))),
       child: Row(
         children: [
-          Expanded(child: Text(order.orderNumber, style: const TextStyle(fontWeight: FontWeight.w700))),
+          Expanded(child: Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w700))),
           const Text('ملغي', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
         ],
       ),
@@ -552,7 +844,43 @@ Widget _detailRow(String label, String value) {
 }
 
 bool _matchesSelectedType(String value, String selected) {
+  if (selected == 'all') return true;
   final v = value.toLowerCase();
   if (selected == 'stores') return v == 'stores' || v == 'store';
   return v == selected;
+}
+
+int _sortByNewest(UserOrder a, UserOrder b) {
+  final ad = DateTime.tryParse(a.createdAt);
+  final bd = DateTime.tryParse(b.createdAt);
+  if (ad == null && bd == null) return 0;
+  if (ad == null) return 1;
+  if (bd == null) return -1;
+  return bd.compareTo(ad);
+}
+
+String _orderDisplayTitle(UserOrder order) {
+  final prefix = switch (order.type.toLowerCase()) {
+    'shipping' => 'طلب شحن',
+    'taxi' => 'طلب تكسي',
+    'stores' || 'store' => 'طلب متجر',
+    _ => 'طلب طعام',
+  };
+  final compact = _compactOrderToken(order.orderNumber, order.id);
+  return '$prefix رقم $compact';
+}
+
+String _compactOrderToken(String orderNumber, int fallbackId) {
+  final chunks = RegExp(r'[A-Za-z0-9]+').allMatches(orderNumber);
+  if (chunks.isNotEmpty) {
+    final raw = chunks.last.group(0) ?? '';
+    if (raw.isNotEmpty) {
+      final upper = raw.toUpperCase();
+      if (upper.length > 8) {
+        return upper.substring(upper.length - 8);
+      }
+      return upper;
+    }
+  }
+  return fallbackId.toString();
 }

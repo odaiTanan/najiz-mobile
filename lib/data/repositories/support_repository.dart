@@ -22,7 +22,7 @@ class SupportRepository {
   }
 
   Future<SupportConversation> getUserConversation({required String token}) async {
-    final data = await _get(endpoint: '/chat/vendor-conversation', token: token);
+    final data = await _get(endpoint: '/chat/support-conversation', token: token);
     final map = _extractDataMap(data);
     final id = _asInt(map['id']) ?? _asInt(data['id']);
     if (id == null) throw HomeApiException('تعذر تحميل المحادثة');

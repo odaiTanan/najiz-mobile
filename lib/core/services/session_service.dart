@@ -8,6 +8,7 @@ class SessionService {
   static const _userPhoneKey = 'user_phone';
   static const _userEmailKey = 'user_email';
   static const _userAddressKey = 'user_address';
+  static const _userAvatarPathKey = 'user_avatar_path';
 
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -27,6 +28,8 @@ class SessionService {
     await prefs.remove(_userNameKey);
     await prefs.remove(_userPhoneKey);
     await prefs.remove(_userEmailKey);
+    await prefs.remove(_userAddressKey);
+    await prefs.remove(_userAvatarPathKey);
   }
 
   static Future<void> saveUserIdentity({
@@ -53,11 +56,22 @@ class SessionService {
       'phone': prefs.getString(_userPhoneKey),
       'email': prefs.getString(_userEmailKey),
       'address': prefs.getString(_userAddressKey),
+      'avatarPath': prefs.getString(_userAvatarPathKey),
     };
   }
 
   static Future<void> saveAddress(String address) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userAddressKey, address.trim());
+  }
+
+  static Future<void> saveAvatarPath(String? path) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized = path?.trim() ?? '';
+    if (normalized.isEmpty) {
+      await prefs.remove(_userAvatarPathKey);
+      return;
+    }
+    await prefs.setString(_userAvatarPathKey, normalized);
   }
 }

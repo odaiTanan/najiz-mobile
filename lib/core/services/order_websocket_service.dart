@@ -71,16 +71,23 @@ class OrderWebSocketService {
     await _debugAuthProbe(channelName);
     _orderChannel = _pusher!.subscribe(channelName);
     await _orderChannel!.bind('order.status.updated', (event) {
-      _handleOrderEvent(event?.data, onOrderUpdated);
+      _handleOrderEvent(event?.data, onOrderUpdated, false);
     });
     await _orderChannel!.bind('.order.status.updated', (event) {
-      _handleOrderEvent(event?.data, onOrderUpdated);
+      _handleOrderEvent(event?.data, onOrderUpdated, false);
+    });
+    await _orderChannel!.bind('driver.location.updated', (event) {
+      _handleOrderEvent(event?.data, onOrderUpdated, true);
+    });
+    await _orderChannel!.bind('.driver.location.updated', (event) {
+      _handleOrderEvent(event?.data, onOrderUpdated, true);
     });
   }
 
   void _handleOrderEvent(
     dynamic rawData,
     void Function(Map<String, dynamic> orderPayload) onOrderUpdated,
+    bool allowLocationOnly,
   ) {
     print('[WS][EVENT][RAW] $rawData');
     if (rawData == null) return;
@@ -90,7 +97,8 @@ class OrderWebSocketService {
     final orderData = nestedOrder.isNotEmpty ? nestedOrder : decoded;
     final hasStatus = orderData.containsKey('status');
     final hasDispatch = orderData.containsKey('dispatch_status');
-    if (!hasStatus && !hasDispatch) return;
+    final hasLatLng = orderData.containsKey('lat') && orderData.containsKey('lng');
+    if (!hasStatus && !hasDispatch && !(allowLocationOnly && hasLatLng)) return;
     onOrderUpdated(orderData);
     print(
       '[WS][EVENT][PARSED] status=${orderData['status']} dispatch=${orderData['dispatch_status']}',

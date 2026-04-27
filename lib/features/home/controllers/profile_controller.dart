@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
@@ -14,8 +15,10 @@ class ProfileController extends GetxController {
   final isLoading = false.obs;
   final isLoggingOut = false.obs;
   final profile = Rxn<UserProfileModel>();
+  final isUpdatingAvatar = false.obs;
 
   late final AuthStateManager _authState;
+  final ImagePicker _imagePicker = ImagePicker();
 
   bool get isGuest => _authState.isGuest;
 
@@ -51,6 +54,7 @@ class ProfileController extends GetxController {
         phone: model.phone,
         email: model.email,
       );
+      await SessionService.saveAvatarPath(model.avatarPath);
       if (model.address != null && model.address!.trim().isNotEmpty) {
         await SessionService.saveAddress(model.address!);
       }
@@ -67,6 +71,51 @@ class ProfileController extends GetxController {
       email: current?.email,
       phone: current?.phone,
       address: address,
+      avatarPath: current?.avatarPath,
+    );
+  }
+
+  Future<void> pickProfileImageFromGallery() async {
+    if (isUpdatingAvatar.value) return;
+    try {
+      isUpdatingAvatar.value = true;
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+        maxWidth: 1400,
+      );
+      if (picked == null) return;
+      await _saveAvatarPath(picked.path);
+      Get.snackbar('تم', 'تم تحديث الصورة الشخصية');
+    } catch (_) {
+      Get.snackbar('تعذر تغيير الصورة', 'تأكد من السماح بالوصول للصور');
+    } finally {
+      isUpdatingAvatar.value = false;
+    }
+  }
+
+  Future<void> clearProfileImage() async {
+    if (isUpdatingAvatar.value) return;
+    try {
+      isUpdatingAvatar.value = true;
+      await _saveAvatarPath(null);
+      Get.snackbar('تم', 'تم حذف الصورة الشخصية');
+    } catch (_) {
+      Get.snackbar('تعذر حذف الصورة', 'حاول مرة أخرى');
+    } finally {
+      isUpdatingAvatar.value = false;
+    }
+  }
+
+  Future<void> _saveAvatarPath(String? path) async {
+    await SessionService.saveAvatarPath(path);
+    final current = profile.value;
+    profile.value = UserProfileModel(
+      name: current?.name,
+      email: current?.email,
+      phone: current?.phone,
+      address: current?.address,
+      avatarPath: path,
     );
   }
 

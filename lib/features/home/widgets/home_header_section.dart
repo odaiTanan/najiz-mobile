@@ -4,6 +4,7 @@ import 'package:najiz_go_express/core/constants/app_colors.dart';
 class HomeHeaderSection extends StatelessWidget {
   final String? displayName;
   final bool isGuest;
+  final VoidCallback onProfileTap;
   final VoidCallback onNotificationsTap;
   final int unreadNotifications;
 
@@ -11,6 +12,7 @@ class HomeHeaderSection extends StatelessWidget {
     super.key,
     required this.displayName,
     required this.isGuest,
+    required this.onProfileTap,
     required this.onNotificationsTap,
     required this.unreadNotifications,
   });
@@ -26,15 +28,19 @@ class HomeHeaderSection extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF3E8),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF5E5D6)),
+        InkWell(
+          onTap: onProfileTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFF5E5D6)),
+            ),
+            child: const Icon(Icons.person, color: AppColors.primary, size: 18),
           ),
-          child: const Icon(Icons.person, color: AppColors.primary, size: 18),
         ),
         const SizedBox(width: 8),
         Expanded(

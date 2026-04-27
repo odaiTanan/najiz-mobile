@@ -60,12 +60,12 @@ class _HomeOfferBannerState extends State<HomeOfferBanner> {
   Widget build(BuildContext context) {
     if (widget.offers.isEmpty) {
       return Container(
-        height: 132,
+        height: 144,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           color: const Color(0xFF2F6D72),
         ),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -84,9 +84,9 @@ class _HomeOfferBannerState extends State<HomeOfferBanner> {
       );
     }
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: SizedBox(
-        height: 138,
+        height: 150,
         child: Stack(
           children: [
             PageView.builder(
@@ -134,12 +134,12 @@ class _OfferSlide extends StatelessWidget {
     return Stack(
       children: [
         SizedBox(
-          height: 138,
+          height: 150,
           width: double.infinity,
           child: NetworkImageWithFallback(url: offer.image, fit: BoxFit.cover),
         ),
         Container(
-          height: 138,
+          height: 150,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
@@ -150,7 +150,7 @@ class _OfferSlide extends StatelessWidget {
         ),
         Positioned.fill(
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

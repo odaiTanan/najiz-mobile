@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -8,6 +10,7 @@ import 'package:najiz_go_express/features/auth/views/signup_screen.dart';
 import 'package:najiz_go_express/features/home/controllers/profile_controller.dart';
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
+import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
 import 'package:najiz_go_express/features/home/views/wallet_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
@@ -77,33 +80,50 @@ class ProfileScreen extends StatelessWidget {
                           CircleAvatar(
                             radius: 44,
                             backgroundColor: const Color(0xFFF1F4F9),
-                            child: Text(
-                              _avatarText(profile?.name, isGuest),
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 28,
-                              ),
-                            ),
+                            backgroundImage: _avatarImageProvider(profile?.avatarPath),
+                            child: _avatarImageProvider(profile?.avatarPath) == null
+                                ? Text(
+                                    _avatarText(profile?.name, isGuest),
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 28,
+                                    ),
+                                  )
+                                : null,
                           ),
                           Positioned(
                             bottom: 2,
                             right: 2,
-                            child: Container(
-                              width: 22,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
+                            child: InkWell(
+                              onTap: () => _openAvatarSheet(context, controller),
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                 ),
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                size: 12,
-                                color: Colors.white,
+                                child: Obx(
+                                  () => controller.isUpdatingAvatar.value
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(5),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.8,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.edit,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
+                                ),
                               ),
                             ),
                           ),
@@ -274,10 +294,11 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.location_on_outlined,
                   title: 'عناويني',
                   subtitle: profile?.address ?? 'أضف عنوان التوصيل',
-                  onTap: () => _openAddressEditor(
-                    context: context,
-                    initialAddress: profile?.address,
-                    onSave: controller.saveAddress,
+                  onTap: () => Get.to(
+                    () => ProfileAddressEditorScreen(
+                      initialAddress: profile?.address,
+                      onSave: controller.saveAddress,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -467,40 +488,71 @@ String _avatarText(String? name, bool guest) {
   return name.trim().substring(0, 1).toUpperCase();
 }
 
-Future<void> _openAddressEditor({
-  required BuildContext context,
-  required String? initialAddress,
-  required Future<void> Function(String) onSave,
-}) async {
-  final controller = TextEditingController(text: initialAddress ?? '');
-  await showDialog<void>(
+ImageProvider<Object>? _avatarImageProvider(String? rawPath) {
+  final path = rawPath?.trim() ?? '';
+  if (path.isEmpty) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return NetworkImage(path);
+  }
+  final file = File(path);
+  if (!file.existsSync()) return null;
+  return FileImage(file);
+}
+
+Future<void> _openAvatarSheet(
+  BuildContext context,
+  ProfileController controller,
+) async {
+  await showModalBottomSheet<void>(
     context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('تعديل العنوان'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'اكتب عنوانك النصي'),
-          maxLines: 3,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCE3EE),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('تغيير صورتي'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Future.delayed(
+                  const Duration(milliseconds: 140),
+                  controller.pickProfileImageFromGallery,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppColors.error),
+              title: const Text('حذف الصورة'),
+              textColor: AppColors.error,
+              iconColor: AppColors.error,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Future.delayed(
+                  const Duration(milliseconds: 140),
+                  controller.clearProfileImage,
+                );
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () async {
-              final value = controller.text.trim();
-              if (value.isEmpty) return;
-              await onSave(value);
-              if (context.mounted) {
-                Navigator.of(context).pop();
-              }
-            },
-            child: const Text('حفظ'),
-          ),
-        ],
-      );
-    },
+      ),
+    ),
   );
-  controller.dispose();
 }
 
 Future<void> _openLanguageSheet(BuildContext context) async {

@@ -32,6 +32,10 @@ class OrderCheckoutController extends GetxController {
   final customAddressName = 'جاري تحديد موقعك...'.obs;
   final paymentMethod = 'cash';
   final notes = 'كترلنا حد';
+  static const String _mapsApiKey = String.fromEnvironment(
+    'MAPS_API_KEY',
+    defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
+  );
 
   final subtotal = 0.0.obs;
   final deliveryFee = 0.0.obs;
@@ -87,20 +91,27 @@ class OrderCheckoutController extends GetxController {
   }
 
   Future<String> _resolveAddress(double latitude, double longitude) async {
-    final url = Uri.parse(
-      'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$latitude&lon=$longitude',
+    final url = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/geocode/json',
+      {
+        'latlng': '$latitude,$longitude',
+        'language': 'ar',
+        'region': 'sy',
+        'key': _mapsApiKey,
+      },
     );
     try {
       final res = await http.get(
         url,
-        headers: const {
-          'Accept': 'application/json',
-          'User-Agent': 'najiz_go_express/1.0',
-        },
+        headers: const {'Accept': 'application/json'},
       );
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final label = (body['display_name'] as String?)?.trim();
+        final results = body['results'];
+        final label = (results is List && results.isNotEmpty)
+            ? (results.first['formatted_address'] as String?)?.trim()
+            : null;
         if (label != null && label.isNotEmpty) return label;
       }
     } catch (_) {}

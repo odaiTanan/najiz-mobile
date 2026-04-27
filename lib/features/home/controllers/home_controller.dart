@@ -7,12 +7,15 @@ import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
+import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
+import 'package:najiz_go_express/features/home/views/order_tracking_screen.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_products_screen.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/home/views/shipping_screen.dart';
 import 'package:najiz_go_express/features/home/views/taxi_booking_screen.dart';
 import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
+import 'package:najiz_go_express/features/home/views/transport_order_tracking_screen.dart';
 import 'package:najiz_go_express/features/support/views/support_chat_screen.dart';
 
 class HomeController extends GetxController {
@@ -30,12 +33,16 @@ class HomeController extends GetxController {
   final vendors = <VendorModel>[].obs;
   final selectedServiceId = RxnInt();
   final restaurantServiceId = RxnInt();
+  final activeOrders = <UserOrder>[].obs;
   final displayName = ''.obs;
   final errorMessage = RxnString();
 
   bool get isGuest => _authStateManager.isGuest;
   String? get activeToken => _authStateManager.token.value ?? token;
   RxInt get unreadNotifications => _pushNotificationService.unreadCount;
+  UserOrder? get primaryActiveOrder =>
+      activeOrders.isEmpty ? null : activeOrders.first;
+  bool get hasMoreActiveOrders => activeOrders.length > 1;
 
   @override
   void onInit() {
@@ -73,6 +80,7 @@ class HomeController extends GetxController {
         restaurantServiceId.value = null;
         vendors.clear();
       }
+      await _loadActiveOrders();
     } on HomeApiException catch (e) {
       errorMessage.value = e.message;
     } catch (_) {
@@ -81,6 +89,34 @@ class HomeController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _loadActiveOrders() async {
+    final authToken = activeToken;
+    if (authToken == null || authToken.trim().isEmpty || isGuest) {
+      activeOrders.clear();
+      return;
+    }
+    try {
+      final all = await _repository.getMyOrders(token: authToken);
+      final active = all.where(_isActiveOrder).toList(growable: false);
+      active.sort((a, b) {
+        final ad = DateTime.tryParse(a.createdAt);
+        final bd = DateTime.tryParse(b.createdAt);
+        if (ad == null && bd == null) return 0;
+        if (ad == null) return 1;
+        if (bd == null) return -1;
+        return bd.compareTo(ad);
+      });
+      activeOrders.assignAll(active);
+    } catch (_) {
+      activeOrders.clear();
+    }
+  }
+
+  bool _isActiveOrder(UserOrder order) {
+    final status = order.status.toLowerCase();
+    return status != 'delivered' && status != 'cancelled';
   }
 
   Future<void> loadVendorsByService(int serviceId) async {
@@ -153,6 +189,37 @@ class HomeController extends GetxController {
         },
       );
     }
+  }
+
+  void openPrimaryActiveOrder() {
+    final order = primaryActiveOrder;
+    if (order == null) return;
+    if (order.type == 'shipping' || order.type == 'taxi') {
+      Get.to(
+        () => TransportOrderTrackingScreen(
+          token: activeToken ?? token ?? '',
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          orderType: order.type,
+          initialStatus: order.status,
+          initialDispatchStatus: order.dispatchStatus,
+          pickupLat: order.lat,
+          pickupLng: order.lng,
+          destinationLat: order.lat,
+          destinationLng: order.lng,
+        ),
+      );
+      return;
+    }
+    Get.to(
+      () => OrderTrackingScreen(
+        token: activeToken ?? token ?? '',
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        initialStatus: order.status,
+        initialDispatchStatus: order.dispatchStatus,
+      ),
+    );
   }
 
   int _pickDefaultRestaurantServiceId(List<ServiceModel> loadedServices) {

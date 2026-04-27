@@ -291,6 +291,8 @@ class HomeRepository {
     required double pickupLng,
     required double destLat,
     required double destLng,
+    String? packageType,
+    bool? isBreakable,
     String paymentMethod = 'cash',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/shipping/calculate');
@@ -303,6 +305,9 @@ class HomeRepository {
       'pickup_lng': pickupLng,
       'dest_lat': destLat,
       'dest_lng': destLng,
+      if (packageType != null && packageType.trim().isNotEmpty)
+        'package_type': packageType.trim(),
+      if (isBreakable != null) 'is_breakable': isBreakable,
       'payment_method': paymentMethod,
     };
     try {
@@ -359,10 +364,15 @@ class HomeRepository {
     required double pickupLng,
     required double destLat,
     required double destLng,
+    required String packageType,
+    required bool isBreakable,
     required String senderName,
     required String senderPhone,
     required String receiverName,
     required String receiverPhone,
+    String? region,
+    String? street,
+    String? addressDetails,
     String paymentMethod = 'cash',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/shipping');
@@ -375,10 +385,16 @@ class HomeRepository {
       'pickup_lng': pickupLng,
       'dest_lat': destLat,
       'dest_lng': destLng,
+      'package_type': packageType,
+      'is_breakable': isBreakable,
       'sender_name': senderName,
       'sender_phone': senderPhone,
       'receiver_name': receiverName,
       'receiver_phone': receiverPhone,
+      if (region != null && region.trim().isNotEmpty) 'region': region.trim(),
+      if (street != null && street.trim().isNotEmpty) 'street': street.trim(),
+      if (addressDetails != null && addressDetails.trim().isNotEmpty)
+        'address_details': addressDetails.trim(),
       'payment_method': paymentMethod,
     };
     _logApiRequest(method: 'POST', uri: uri, body: payload);
@@ -465,12 +481,36 @@ class HomeRepository {
     return <String, dynamic>{};
   }
 
-  Future<void> cancelOrder({
+  Future<Map<String, dynamic>> getOrderDriverByOrderId({
     required String token,
     required int orderId,
   }) async {
+    final data = await _get(endpoint: '/user/orders/$orderId/driver', token: token);
+    if (data['data'] is Map<String, dynamic>) {
+      return Map<String, dynamic>.from(data['data'] as Map<String, dynamic>);
+    }
+    if (data['data'] is Map) {
+      final map = data['data'] as Map;
+      return map.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return <String, dynamic>{};
+  }
+
+  Future<void> cancelOrder({
+    required String token,
+    required int orderId,
+    String? cancellationReason,
+  }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/$orderId/cancel');
-    _logApiRequest(method: 'POST', uri: uri);
+    final payload = <String, dynamic>{
+      if (cancellationReason != null && cancellationReason.trim().isNotEmpty)
+        'cancellation_reason': cancellationReason.trim(),
+    };
+    _logApiRequest(
+      method: 'POST',
+      uri: uri,
+      body: payload.isEmpty ? null : payload,
+    );
     final res = await _client
         .post(
           uri,
@@ -479,6 +519,7 @@ class HomeRepository {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
+          body: jsonEncode(payload),
         )
         .timeout(ApiConfig.timeout);
     _logApiResponse(method: 'POST', uri: uri, response: res);

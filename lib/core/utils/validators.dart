@@ -39,13 +39,16 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'يرجى إدخال رقم الهاتف';
     }
-
-    // Same regex used on the backend (roughly).
-    final regex = RegExp(r'^\+?[1-9]\d{1,14}$');
-    if (!regex.hasMatch(value.trim())) {
-      return 'صيغة رقم الهاتف غير صحيحة';
+    final trimmed = value.trim();
+    if (!RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return 'رقم الهاتف يجب أن يحتوي أرقامًا فقط';
     }
-
+    if (!trimmed.startsWith('09')) {
+      return 'رقم الهاتف يجب أن يبدأ بـ 09';
+    }
+    if (trimmed.length != 10) {
+      return 'رقم الهاتف يجب أن يكون 10 أرقام';
+    }
     return null;
   }
 

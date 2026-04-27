@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/taxi_booking_controller.dart';
+import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/transport_order_tracking_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
@@ -65,8 +67,8 @@ class TaxiBookingScreen extends StatelessWidget {
                           const SizedBox(width: 10),
                           const Spacer(),
                           _CircleAction(
-                            icon: Icons.person_outline,
-                            onTap: () {},
+                            icon: Icons.notifications_none_rounded,
+                            onTap: () => Get.to(() => const NotificationsScreen()),
                           ),
                         ],
                       ),
@@ -201,7 +203,11 @@ class TaxiBookingScreen extends StatelessWidget {
                                         if (!context.mounted) return;
                                         _showFindingDriverPopup(
                                           context: context,
-                                          message: 'تم إنشاء طلب التاكسي بنجاح',
+                                          token: token,
+                                          orderId: order.orderId,
+                                          initialStatus: order.status,
+                                          initialDispatchStatus:
+                                              order.dispatchStatus,
                                           onTrackNow: () {
                                             Get.to(
                                               () =>
@@ -210,6 +216,7 @@ class TaxiBookingScreen extends StatelessWidget {
                                                     orderId: order.orderId,
                                                     orderNumber:
                                                         order.orderNumber,
+                                                    orderType: 'taxi',
                                                     initialStatus: order.status,
                                                     initialDispatchStatus:
                                                         order.dispatchStatus,
@@ -219,6 +226,8 @@ class TaxiBookingScreen extends StatelessWidget {
                                                         order.destinationLat,
                                                     destinationLng:
                                                         order.destinationLng,
+                                                    initialTripDistanceKm:
+                                                        order.estimatedDistanceKm,
                                                   ),
                                             );
                                           },
@@ -227,10 +236,10 @@ class TaxiBookingScreen extends StatelessWidget {
                                     );
                                   } on HomeApiException catch (e) {
                                     Get.snackbar('خطأ', e.message);
-                                  } catch (_) {
+                                  } catch (e) {
                                     Get.snackbar(
                                       'خطأ',
-                                      'فشل تأكيد طلب التاكسي',
+                                      'فشل تأكيد طلب التاكسي: $e',
                                     );
                                   }
                                 },
@@ -291,7 +300,7 @@ Future<void> _showLocationActionSheet({
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               boxShadow: const [
                 BoxShadow(
@@ -457,7 +466,10 @@ class _TaxiSearchLocationDialog extends StatefulWidget {
 
 class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
   late final TextEditingController _textController;
+  Timer? _debounceTimer;
   bool _isSubmitting = false;
+  bool _isLoadingSuggestions = false;
+  List<PlaceSuggestion> _suggestions = const [];
 
   @override
   void initState() {
@@ -467,6 +479,7 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _textController.dispose();
     super.dispose();
   }
@@ -484,14 +497,84 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
       return;
     }
     setState(() => _isSubmitting = true);
-    final success = await widget.controller.searchAndSelectLocation(
-      query: query,
-      asPickup: widget.asPickup,
-    );
+    final success = await _selectByQuery(query);
     if (success) {
       if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
       }
+      final targetName = widget.asPickup ? 'موقع الانطلاق' : 'الوجهة';
+      Get.snackbar(
+        'تم تحديد $targetName',
+        'تم العثور على الموقع وتثبيته بنجاح',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    } else {
+      Get.snackbar(
+        'خطأ',
+        widget.controller.errorMessage.value ?? 'تعذر العثور على الموقع',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    }
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<bool> _selectByQuery(String query) async {
+    final suggestions = await widget.controller.fetchLocationSuggestions(
+      query: query,
+    );
+    if (suggestions.isNotEmpty) {
+      return widget.controller.selectSuggestion(
+        suggestion: suggestions.first,
+        asPickup: widget.asPickup,
+      );
+    }
+    return widget.controller.searchAndSelectLocation(
+      query: query,
+      asPickup: widget.asPickup,
+    );
+  }
+
+  Future<void> _onQueryChanged(String value) async {
+    _debounceTimer?.cancel();
+    final query = value.trim();
+    if (query.length < 2) {
+      if (mounted) {
+        setState(() {
+          _isLoadingSuggestions = false;
+          _suggestions = const [];
+        });
+      }
+      return;
+    }
+
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) return;
+      setState(() => _isLoadingSuggestions = true);
+      final results = await widget.controller.fetchLocationSuggestions(
+        query: query,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isLoadingSuggestions = false;
+        _suggestions = results;
+      });
+    });
+  }
+
+  Future<void> _selectSuggestion(PlaceSuggestion suggestion) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    final success = await widget.controller.selectSuggestion(
+      suggestion: suggestion,
+      asPickup: widget.asPickup,
+    );
+    if (!mounted) return;
+    if (success) {
+      Navigator.of(context, rootNavigator: true).pop();
       final targetName = widget.asPickup ? 'موقع الانطلاق' : 'الوجهة';
       Get.snackbar(
         'تم تحديد $targetName',
@@ -553,6 +636,7 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
             const SizedBox(height: 10),
             TextField(
               controller: _textController,
+              onChanged: _onQueryChanged,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _submit(),
               decoration: InputDecoration(
@@ -574,6 +658,77 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                 ),
               ),
             ),
+            if (_isLoadingSuggestions) ...[
+              const SizedBox(height: 10),
+              const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ] else if (_suggestions.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _suggestions.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, color: AppColors.inputBorder),
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    final detailText = suggestion.secondaryText.isNotEmpty
+                        ? suggestion.secondaryText
+                        : suggestion.description;
+                    final distanceKm = suggestion.distanceMeters == null
+                        ? null
+                        : suggestion.distanceMeters! / 1000.0;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      leading: const Icon(
+                        Icons.location_on_outlined,
+                        color: AppColors.textSecondary,
+                      ),
+                      title: Text(
+                        suggestion.primaryText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        detailText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: distanceKm == null
+                          ? null
+                          : Text(
+                              '${distanceKm.toStringAsFixed(distanceKm >= 10 ? 0 : 1)} كم',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                      onTap: _isSubmitting
+                          ? null
+                          : () => _selectSuggestion(suggestion),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
               Row(
                 children: [
@@ -649,11 +804,32 @@ class _OpenStreetMap extends StatefulWidget {
 }
 
 class _OpenStreetMapState extends State<_OpenStreetMap> {
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
+  bool _showSelectionPin = false;
+  Timer? _pinHintTimer;
+
+  void _showSelectionPinHint() {
+    _pinHintTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _showSelectionPin = true);
+    _pinHintTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => _showSelectionPin = false);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _showSelectionPinHint();
+  }
 
   @override
   void didUpdateWidget(covariant _OpenStreetMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectingPickup != widget.selectingPickup) {
+      _showSelectionPinHint();
+    }
     final hasPickupChanged =
         oldWidget.pickupLat != widget.pickupLat ||
         oldWidget.pickupLng != widget.pickupLng;
@@ -667,49 +843,81 @@ class _OpenStreetMapState extends State<_OpenStreetMap> {
               widget.dropoffLng == null
           ? LatLng(widget.pickupLat, widget.pickupLng)
           : LatLng(widget.dropoffLat!, widget.dropoffLng!);
-      _mapController.move(target, 14);
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, 14));
     }
+  }
+
+  @override
+  void dispose() {
+    _pinHintTimer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final mapCenter = LatLng(widget.pickupLat, widget.pickupLng);
-    final markers = <Marker>[
+    final markers = <Marker>{
       Marker(
-        point: LatLng(widget.pickupLat, widget.pickupLng),
-        width: 42,
-        height: 42,
-        child: const _PinDot(color: Color(0xFF3B82F6), label: 'A'),
+        markerId: const MarkerId('pickup'),
+        position: LatLng(widget.pickupLat, widget.pickupLng),
+        infoWindow: const InfoWindow(title: 'A'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ),
-    ];
+    };
     if (widget.dropoffLat != null && widget.dropoffLng != null) {
       markers.add(
         Marker(
-          point: LatLng(widget.dropoffLat!, widget.dropoffLng!),
-          width: 42,
-          height: 42,
-          child: const _PinDot(color: Color(0xFFF97316), label: 'B'),
+          markerId: const MarkerId('dropoff'),
+          position: LatLng(widget.dropoffLat!, widget.dropoffLng!),
+          infoWindow: const InfoWindow(title: 'B'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         ),
       );
     }
+    final polylines = <Polyline>{
+      if (widget.dropoffLat != null && widget.dropoffLng != null)
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: [
+            LatLng(widget.pickupLat, widget.pickupLng),
+            LatLng(widget.dropoffLat!, widget.dropoffLng!),
+          ],
+          width: 4,
+          color: const Color(0xFF64748B),
+        ),
+    };
 
     return Stack(
       children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: mapCenter,
-            initialZoom: 14,
-            onTap: (_, point) =>
-                widget.onMapTap(point.latitude, point.longitude),
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.najiz_go_express',
+        GoogleMap(
+          initialCameraPosition: CameraPosition(target: mapCenter, zoom: 14),
+          onMapCreated: (controller) => _mapController = controller,
+          myLocationButtonEnabled: false,
+          compassEnabled: false,
+          zoomControlsEnabled: false,
+          markers: markers,
+          polylines: polylines,
+          onTap: (point) => widget.onMapTap(point.latitude, point.longitude),
+        ),
+        IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: _showSelectionPin ? 1 : 0,
+            duration: const Duration(milliseconds: 250),
+            child: Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.95, end: 1.08),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeInOut,
+                builder: (context, scale, child) =>
+                    Transform.scale(scale: scale, child: child),
+                child: const Icon(
+                  Icons.location_on,
+                  size: 42,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
-            MarkerLayer(markers: markers),
-          ],
+          ),
         ),
         Positioned(
           bottom: 16,
@@ -734,32 +942,6 @@ class _OpenStreetMapState extends State<_OpenStreetMap> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PinDot extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _PinDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2.5),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
     );
   }
 }
@@ -945,8 +1127,8 @@ class _TaxiCategoryCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: const Color(0xFFF5F7FA),
                 borderRadius: BorderRadius.circular(14),
@@ -954,6 +1136,7 @@ class _TaxiCategoryCard extends StatelessWidget {
               child: const Icon(
                 Icons.local_taxi_outlined,
                 color: Color(0xFF64748B),
+                size: 20,
               ),
             ),
             const SizedBox(width: 12),
@@ -965,7 +1148,7 @@ class _TaxiCategoryCard extends StatelessWidget {
                     category.vehicleCategory.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 20,
+                      fontSize: 16,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -974,7 +1157,7 @@ class _TaxiCategoryCard extends StatelessWidget {
                     '$mins دقيقة • ${category.pricing.distanceKm.toStringAsFixed(2)} كم',
                     style: const TextStyle(
                       color: Color(0xFF64748B),
-                      fontSize: 12,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -983,7 +1166,7 @@ class _TaxiCategoryCard extends StatelessWidget {
             Text(
               '\$${category.pricing.estimatedPrice.toStringAsFixed(2)}',
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: FontWeight.w900,
                 color: AppColors.textPrimary,
               ),
@@ -1021,88 +1204,625 @@ class _CircleAction extends StatelessWidget {
 
 void _showFindingDriverPopup({
   required BuildContext context,
-  required String message,
+  required String token,
+  required int orderId,
+  required String initialStatus,
+  required String initialDispatchStatus,
   required VoidCallback onTrackNow,
 }) {
   showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: SizedBox(
-          width: 280,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 74,
-                height: 74,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3E8),
-                  borderRadius: BorderRadius.circular(24),
+    builder: (_) => _FindingDriverDialog(
+      token: token,
+      orderId: orderId,
+      initialStatus: initialStatus,
+      initialDispatchStatus: initialDispatchStatus,
+      onTrackNow: onTrackNow,
+    ),
+  );
+}
+
+class _FindingDriverDialog extends StatefulWidget {
+  final String token;
+  final int orderId;
+  final String initialStatus;
+  final String initialDispatchStatus;
+  final VoidCallback onTrackNow;
+
+  const _FindingDriverDialog({
+    required this.token,
+    required this.orderId,
+    required this.initialStatus,
+    required this.initialDispatchStatus,
+    required this.onTrackNow,
+  });
+
+  @override
+  State<_FindingDriverDialog> createState() => _FindingDriverDialogState();
+}
+
+class _FindingDriverDialogState extends State<_FindingDriverDialog> {
+  final HomeRepository _repository = HomeRepository();
+  Timer? _pollTimer;
+  bool _isAssigned = false;
+  bool _isCancelling = false;
+
+  String? _driverName;
+  String? _driverVehicleType;
+  String? _driverPlate;
+  String? _driverRating;
+
+  String? _firstNonEmpty(List<dynamic> candidates) {
+    for (final raw in candidates) {
+      final value = raw?.toString().trim();
+      if (value != null && value.isNotEmpty && value.toLowerCase() != 'null') {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _isAssigned = _isAccepted(
+      status: widget.initialStatus,
+      dispatchStatus: widget.initialDispatchStatus,
+    );
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  bool _isAccepted({required String status, required String dispatchStatus}) {
+    final s = status.toLowerCase();
+    final d = dispatchStatus.toLowerCase();
+    return s == 'accepted' ||
+        d == 'accepted' ||
+        d == 'assigned' ||
+        s == 'on_the_way_to_pickup' ||
+        s == 'picked_up' ||
+        s == 'on_way' ||
+        s == 'delivered';
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      try {
+        final latest = await _repository.getOrderById(
+          token: widget.token,
+          orderId: widget.orderId,
+        );
+        if (!mounted || latest.isEmpty) return;
+
+        final status = (latest['status'] ?? '').toString();
+        final dispatchStatus = (latest['dispatch_status'] ?? '').toString();
+        final accepted = _isAccepted(status: status, dispatchStatus: dispatchStatus);
+
+        final deliveryMan = _asMap(latest['delivery_man'] ?? latest['deliveryMan']);
+        if (deliveryMan != null) {
+          _driverVehicleType = _firstNonEmpty([
+            deliveryMan['vehicle_type'],
+            deliveryMan['vehicleType'],
+            deliveryMan['vehicle'],
+          ]);
+          _driverPlate = _firstNonEmpty([
+            deliveryMan['license_plate'],
+            deliveryMan['plate_number'],
+            deliveryMan['plate'],
+          ]);
+          _driverRating = _firstNonEmpty([deliveryMan['rating'], deliveryMan['rate']]);
+          final driverUser = _asMap(
+            deliveryMan['user'] ??
+                deliveryMan['driver_user'] ??
+                deliveryMan['driverUser'] ??
+                deliveryMan['account'],
+          );
+          if (driverUser != null) {
+            _driverName = _firstNonEmpty([
+              driverUser['name'],
+              driverUser['full_name'],
+              driverUser['username'],
+            ]);
+          }
+          _driverName ??= _firstNonEmpty([
+            deliveryMan['name'],
+            deliveryMan['full_name'],
+            deliveryMan['driver_name'],
+          ]);
+        }
+        final flatDriverUser = _asMap(
+          latest['delivery_man_user'] ??
+              latest['driver_user'] ??
+              latest['deliveryManUser'],
+        );
+        if (flatDriverUser != null) {
+          _driverName ??= _firstNonEmpty([
+            flatDriverUser['name'],
+            flatDriverUser['full_name'],
+            flatDriverUser['username'],
+          ]);
+        }
+        _driverName ??= _firstNonEmpty([
+          latest['delivery_man_name'],
+          latest['driver_name'],
+          latest['captain_name'],
+          latest['deliveryManName'],
+        ]);
+
+        // Fallback: some responses don't include full driver user details.
+        // Pull driver profile directly from dedicated endpoint.
+        if (accepted &&
+            ((_driverName ?? '').isEmpty ||
+                (_driverVehicleType ?? '').isEmpty ||
+                (_driverPlate ?? '').isEmpty)) {
+          await _loadDriverDetailsFromDriverEndpoint();
+        }
+
+        if (accepted && !_isAssigned) {
+          _isAssigned = true;
+          if (mounted) {
+            setState(() {});
+            Get.snackbar(
+              'تم تعيين السائق',
+              'تم قبول طلبك من قبل السائق',
+              snackPosition: SnackPosition.BOTTOM,
+              duration: const Duration(seconds: 2),
+            );
+          }
+        } else if (mounted) {
+          setState(() {});
+        }
+      } catch (_) {
+        // Ignore transient polling failures in modal state.
+      }
+    });
+  }
+
+  Future<void> _loadDriverDetailsFromDriverEndpoint() async {
+    try {
+      final driver = await _repository.getOrderDriverByOrderId(
+        token: widget.token,
+        orderId: widget.orderId,
+      );
+      if (driver.isEmpty) return;
+
+      _driverName = _firstNonEmpty([
+        driver['driver_name'],
+        driver['name'],
+        _driverName,
+      ]);
+      _driverVehicleType = _firstNonEmpty([
+        driver['vehicle_type'],
+        driver['vehicle'],
+        _driverVehicleType,
+      ]);
+      _driverPlate = _firstNonEmpty([
+        driver['license_plate'],
+        driver['plate_number'],
+        _driverPlate,
+      ]);
+      _driverRating = _firstNonEmpty([
+        driver['rating'],
+        driver['rate'],
+        _driverRating,
+      ]);
+    } catch (_) {
+      // keep popup stable if driver endpoint is temporarily unavailable
+    }
+  }
+
+  Future<void> _cancelOrder() async {
+    if (_isCancelling) return;
+    final reason = await _showTaxiCancelReasonSheet(context);
+    if (reason == null) return;
+    if (!mounted) return;
+
+    setState(() => _isCancelling = true);
+    try {
+      await _repository.cancelOrder(
+        token: widget.token,
+        orderId: widget.orderId,
+        cancellationReason: reason,
+      );
+      if (!mounted) return;
+      Get.back();
+      Get.snackbar(
+        'تم الإلغاء',
+        'تم إلغاء طلب التاكسي بنجاح',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    } on HomeApiException catch (e) {
+      if (!mounted) return;
+      Get.snackbar('خطأ', e.message, snackPosition: SnackPosition.BOTTOM);
+    } catch (_) {
+      if (!mounted) return;
+      Get.snackbar(
+        'خطأ',
+        'تعذر إلغاء الطلب حالياً',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: SizedBox(
+        width: 290,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                color: _isAssigned
+                    ? const Color(0xFFE9F9EE)
+                    : const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: _isAssigned
+                      ? const Color(0xFFBBF7D0)
+                      : const Color(0xFFFCD9B6),
                 ),
-                child: const Stack(
-                  alignment: Alignment.center,
+              ),
+              child: _isAssigned
+                  ? const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF16A34A),
+                      size: 44,
+                    )
+                  : const Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          Icons.directions_car_filled_rounded,
+                          color: AppColors.primary,
+                          size: 34,
+                        ),
+                        SizedBox(
+                          width: 62,
+                          height: 62,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              _isAssigned ? 'تم تعيين السائق' : 'جاري البحث عن سائق',
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _isAssigned
+                  ? 'تم قبول طلبك، يمكنك متابعة الرحلة الآن'
+                  : 'تم إنشاء طلب التاكسي بنجاح',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+              ),
+            ),
+            if (_isAssigned) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE8ECF2)),
+                ),
+                child: Column(
                   children: [
-                    Icon(Icons.radar, color: AppColors.primary, size: 34),
-                    SizedBox(
-                      width: 54,
-                      height: 54,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
+                    _driverInfoRow('اسم السائق', _driverName ?? 'غير متاح'),
+                    _driverInfoRow(
+                      'نوع المركبة',
+                      _driverVehicleType ?? 'غير متاح',
+                    ),
+                    _driverInfoRow('اللوحة', _driverPlate ?? 'غير متاح'),
+                    _driverInfoRow('التقييم', _driverRating ?? 'غير متاح'),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isAssigned || _isCancelling ? null : _cancelOrder,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: Color(0xFFD6DCE5)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                  ],
+                    child: const Text(
+                      'إلغاء الطلب',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isAssigned
+                        ? () {
+                            Get.back();
+                            widget.onTrackNow();
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(_isAssigned ? 'عرض الرحلة' : 'بانتظار التعيين'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _driverInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<String?> _showTaxiCancelReasonSheet(BuildContext context) {
+  return showModalBottomSheet<String?>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _TaxiCancelReasonSheet(),
+  );
+}
+
+class _TaxiCancelReasonSheet extends StatefulWidget {
+  const _TaxiCancelReasonSheet();
+
+  @override
+  State<_TaxiCancelReasonSheet> createState() => _TaxiCancelReasonSheetState();
+}
+
+class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
+  static const List<String> _reasons = [
+    'الأجرة مرتفعة للغاية',
+    'السائق بعيد جدًا',
+    'غيرت رأيي',
+    'سبب مخصص',
+  ];
+  String? _selectedReason;
+  late final TextEditingController _customReasonController;
+
+  bool get _isCustomReason => _selectedReason == 'سبب مخصص';
+
+  @override
+  void initState() {
+    super.initState();
+    _customReasonController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _customReasonController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_selectedReason == null) {
+      Get.snackbar('تنبيه', 'يرجى تحديد سبب الإلغاء');
+      return;
+    }
+    final customReason = _customReasonController.text.trim();
+    final reason = _isCustomReason ? customReason : _selectedReason!;
+    if (reason.isEmpty) {
+      Get.snackbar('تنبيه', 'يرجى كتابة سبب الإلغاء');
+      return;
+    }
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 12,
+          right: 12,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 54,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3E7EF),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
               const Text(
-                'جاري البحث عن سائق',
+                'حدد سببك للإلغاء',
                 style: TextStyle(
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
-                  fontSize: 20,
                   color: AppColors.textPrimary,
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 16,
+              const SizedBox(height: 12),
+              ..._reasons.map(
+                (reason) => InkWell(
+                  onTap: () => setState(() => _selectedReason = reason),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedReason == reason
+                            ? AppColors.primary
+                            : const Color(0xFFE2E8F0),
+                      ),
+                      color: _selectedReason == reason
+                          ? const Color(0xFFFFF3E8)
+                          : Colors.white,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reason,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Icon(
+                          _selectedReason == reason
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          size: 20,
+                          color: _selectedReason == reason
+                              ? AppColors.primary
+                              : const Color(0xFF94A3B8),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+              if (_isCustomReason) ...[
+                TextField(
+                  controller: _customReasonController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'السبب',
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.inputBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {
-                        Get.back();
-                        Get.back();
-                      },
-                      child: const Text('لاحقًا'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.back();
-                        onTrackNow();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        side: const BorderSide(color: Color(0xFFD8DFEA)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text('تتبع الطلب'),
+                      child: const Text('عدم الإلغاء'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'إلغاء الطلب',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ),
                 ],
@@ -1110,7 +1830,7 @@ void _showFindingDriverPopup({
             ],
           ),
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
 }

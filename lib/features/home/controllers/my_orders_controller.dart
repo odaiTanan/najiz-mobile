@@ -36,9 +36,13 @@ class MyOrdersController extends GetxController {
     }
   }
 
-  Future<void> cancelOrder(int orderId) async {
+  Future<void> cancelOrder(int orderId, {String? cancellationReason}) async {
     try {
-      await _repository.cancelOrder(token: token, orderId: orderId);
+      await _repository.cancelOrder(
+        token: token,
+        orderId: orderId,
+        cancellationReason: cancellationReason,
+      );
       await loadOrders();
     } on HomeApiException {
       rethrow;

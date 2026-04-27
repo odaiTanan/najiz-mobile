@@ -7,6 +7,7 @@ class LiveOrderInfo {
   final double pickupLng;
   final double destinationLat;
   final double destinationLng;
+  final double? estimatedDistanceKm;
 
   const LiveOrderInfo({
     required this.orderId,
@@ -17,5 +18,6 @@ class LiveOrderInfo {
     required this.pickupLng,
     required this.destinationLat,
     required this.destinationLng,
+    this.estimatedDistanceKm,
   });
 }
