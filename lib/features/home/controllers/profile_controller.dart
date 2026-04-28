@@ -5,13 +5,17 @@ import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/data/repositories/auth_repository.dart';
+import 'package:najiz_go_express/data/repositories/home_repository.dart';
+import 'package:najiz_go_express/features/home/models/create_address_payload.dart';
 import 'package:najiz_go_express/features/home/models/user_profile_model.dart';
 
 class ProfileController extends GetxController {
   ProfileController({AuthRepository? authRepository})
-    : _authRepository = authRepository ?? AuthRepository();
+    : _authRepository = authRepository ?? AuthRepository(),
+      _homeRepository = HomeRepository();
 
   final AuthRepository _authRepository;
+  final HomeRepository _homeRepository;
   final isLoading = false.obs;
   final isLoggingOut = false.obs;
   final profile = Rxn<UserProfileModel>();
@@ -63,7 +67,14 @@ class ProfileController extends GetxController {
     }
   }
 
-  Future<void> saveAddress(String address) async {
+  Future<void> saveAddress(CreateAddressPayload payload) async {
+    final token = _authState.token.value;
+    if (token == null || token.trim().isEmpty) {
+      throw HomeApiException('يرجى تسجيل الدخول لإضافة عنوان جديد');
+    }
+
+    await _homeRepository.addUserAddress(token: token, payload: payload.toJson());
+    final address = payload.toDisplayText();
     await SessionService.saveAddress(address);
     final current = profile.value;
     profile.value = UserProfileModel(
@@ -137,5 +148,9 @@ class ProfileController extends GetxController {
     } finally {
       isLoggingOut.value = false;
     }
+  }
+
+  static Future<void> persistLocale(String code) async {
+    await SessionService.saveLocaleCode(code);
   }
 }

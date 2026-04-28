@@ -15,16 +15,18 @@ class SupportRepository {
 
   Future<int> getCurrentUserId({required String token}) async {
     final data = await _get(endpoint: '/profile', token: token);
+    final root = _asMap(data);
     final map = _extractDataMap(data);
-    final id = _asInt(map['id']) ?? _asInt(data['id']);
+    final id = _asInt(map['id']) ?? _asInt(root['id']);
     if (id == null) throw HomeApiException('تعذر تحميل بيانات المستخدم');
     return id;
   }
 
   Future<SupportConversation> getUserConversation({required String token}) async {
     final data = await _get(endpoint: '/chat/support-conversation', token: token);
+    final root = _asMap(data);
     final map = _extractDataMap(data);
-    final id = _asInt(map['id']) ?? _asInt(data['id']);
+    final id = _asInt(map['id']) ?? _asInt(root['id']);
     if (id == null) throw HomeApiException('تعذر تحميل المحادثة');
     return SupportConversation(
       id: id,
@@ -63,15 +65,45 @@ class SupportRepository {
           body: jsonEncode(payload),
         )
         .timeout(ApiConfig.timeout);
-    final data = _safeJsonDecode(res.body);
+    final data = _safeJsonDecodeAny(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      final map = _extractDataMap(data, fallback: data);
+      final map = _extractDataMap(data, fallback: _asMap(data));
       return _toMessage(map);
     }
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException(
+      _extractMessage(_asMap(data)),
+      statusCode: res.statusCode,
+    );
   }
 
-  Future<Map<String, dynamic>> _get({
+  Future<void> markMessagesAsRead({
+    required String token,
+    required int conversationId,
+    required List<int> messageIds,
+  }) async {
+    if (messageIds.isEmpty) return;
+    final uri = Uri.parse('$_baseUrl/chat/messages/$conversationId/read');
+    final payload = {'message_ids': messageIds};
+    final res = await _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(ApiConfig.timeout);
+    if (res.statusCode >= 200 && res.statusCode < 300) return;
+    final data = _safeJsonDecodeAny(res.body);
+    throw HomeApiException(
+      _extractMessage(_asMap(data)),
+      statusCode: res.statusCode,
+    );
+  }
+
+  Future<dynamic> _get({
     required String endpoint,
     required String token,
   }) async {
@@ -86,25 +118,31 @@ class SupportRepository {
           },
         )
         .timeout(ApiConfig.timeout);
-    final data = _safeJsonDecode(res.body);
+    final data = _safeJsonDecodeAny(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) return data;
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException(
+      _extractMessage(_asMap(data)),
+      statusCode: res.statusCode,
+    );
   }
 
   Map<String, dynamic> _extractDataMap(
-    Map<String, dynamic> data, {
+    dynamic data, {
     Map<String, dynamic>? fallback,
   }) {
-    final inner = data['data'];
+    final root = _asMap(data);
+    final inner = root['data'];
     if (inner is Map<String, dynamic>) return inner;
     if (inner is Map) {
       return inner.map((k, v) => MapEntry(k.toString(), v));
     }
+    if (root.isNotEmpty) return root;
     return fallback ?? <String, dynamic>{};
   }
 
-  List<Map<String, dynamic>> _extractDataList(Map<String, dynamic> data) {
-    final inner = data['data'] ?? data;
+  List<Map<String, dynamic>> _extractDataList(dynamic data) {
+    final root = _asMap(data);
+    final inner = root.isNotEmpty ? (root['data'] ?? data) : data;
     if (inner is List) {
       return inner
           .whereType<Map>()
@@ -128,22 +166,37 @@ SupportChatMessage _toMessage(Map<String, dynamic> map) {
     message: (map['message'] ?? '').toString(),
     createdAt: (map['created_at'] ?? DateTime.now().toIso8601String()).toString(),
     senderName: senderName,
+    isReadByMe: _asBool(map['is_read_by_me']),
+    readCount: _asInt(map['read_count']) ?? 0,
   );
 }
 
-Map<String, dynamic> _safeJsonDecode(String body) {
+dynamic _safeJsonDecodeAny(String body) {
   try {
-    final decoded = jsonDecode(body);
-    if (decoded is Map<String, dynamic>) return decoded;
-    return <String, dynamic>{};
+    return jsonDecode(body);
   } catch (_) {
     return <String, dynamic>{};
   }
 }
 
+Map<String, dynamic> _asMap(dynamic data) {
+  if (data is Map<String, dynamic>) return data;
+  if (data is Map) {
+    return data.map((k, v) => MapEntry(k.toString(), v));
+  }
+  return <String, dynamic>{};
+}
+
 int? _asInt(dynamic value) {
   if (value is int) return value;
   return int.tryParse(value?.toString() ?? '');
+}
+
+bool _asBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value == 1;
+  final normalized = value?.toString().toLowerCase();
+  return normalized == '1' || normalized == 'true';
 }
 
 String _extractMessage(Map<String, dynamic> data) {

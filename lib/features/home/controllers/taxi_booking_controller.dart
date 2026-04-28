@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
@@ -393,10 +394,7 @@ class TaxiBookingController extends GetxController {
       );
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final results = body['results'];
-        final label = (results is List && results.isNotEmpty)
-            ? (results.first['formatted_address'] as String?)?.trim()
-            : null;
+        final label = _extractAreaLabel(body);
         if (label != null && label.isNotEmpty) {
           if (isPickup) {
             pickupAddress.value = label;
@@ -408,12 +406,88 @@ class TaxiBookingController extends GetxController {
       }
     } catch (_) {}
 
-    final fallback = '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+    final fallback = await _resolveAddressFromPlacemark(lat, lng);
     if (isPickup) {
-      pickupAddress.value = fallback;
+      pickupAddress.value =
+          fallback ?? '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
     } else {
-      dropoffAddress.value = fallback;
+      dropoffAddress.value =
+          fallback ?? '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
     }
+  }
+
+  Future<String?> _resolveAddressFromPlacemark(double lat, double lng) async {
+    try {
+      final marks = await placemarkFromCoordinates(lat, lng);
+      if (marks.isEmpty) return null;
+      final p = marks.first;
+      final parts = <String>[
+        if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
+        if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+        if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+      ];
+      if (parts.isNotEmpty) return parts.join('، ');
+    } catch (_) {}
+    return null;
+  }
+
+  String? _extractAreaLabel(Map<String, dynamic> body) {
+    final results = body['results'];
+    if (results is! List || results.isEmpty) return null;
+    for (final raw in results) {
+      if (raw is! Map) continue;
+      final map = Map<String, dynamic>.from(raw);
+      final types = (map['types'] is List)
+          ? (map['types'] as List).map((e) => e.toString()).toList()
+          : const <String>[];
+      if (types.contains('plus_code')) continue;
+
+      final componentsRaw = map['address_components'];
+      if (componentsRaw is List) {
+        String? locality;
+        String? sublocality;
+        String? route;
+        for (final cRaw in componentsRaw) {
+          if (cRaw is! Map) continue;
+          final c = Map<String, dynamic>.from(cRaw);
+          final longName = (c['long_name'] ?? '').toString().trim();
+          if (longName.isEmpty) continue;
+          final cTypes = (c['types'] is List)
+              ? (c['types'] as List).map((e) => e.toString()).toList()
+              : const <String>[];
+          if (cTypes.contains('locality') && locality == null) {
+            locality = longName;
+          }
+          if ((cTypes.contains('sublocality') ||
+                  cTypes.contains('sublocality_level_1')) &&
+              sublocality == null) {
+            sublocality = longName;
+          }
+          if (cTypes.contains('route') && route == null) {
+            route = longName;
+          }
+        }
+        final parts = <String>[
+          if (sublocality != null && sublocality.isNotEmpty) sublocality,
+          if (locality != null && locality.isNotEmpty) locality,
+          if (route != null && route.isNotEmpty) route,
+        ];
+        if (parts.isNotEmpty) return parts.join('، ');
+      }
+
+      final formatted = (map['formatted_address'] ?? '').toString().trim();
+      if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
+        return formatted;
+      }
+      final name = (map['name'] ?? '').toString().trim();
+      if (name.isNotEmpty && !_looksLikeCoordinates(name)) return name;
+    }
+    return null;
+  }
+
+  bool _looksLikeCoordinates(String input) {
+    final text = input.trim();
+    return RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
   }
 
   void selectCategory(int id) {

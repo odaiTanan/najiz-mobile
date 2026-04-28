@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
@@ -31,7 +32,6 @@ class OrderCheckoutController extends GetxController {
   final lng = '36.2765'.obs;
   final customAddressName = 'جاري تحديد موقعك...'.obs;
   final paymentMethod = 'cash';
-  final notes = 'كترلنا حد';
   static const String _mapsApiKey = String.fromEnvironment(
     'MAPS_API_KEY',
     defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
@@ -48,8 +48,34 @@ class OrderCheckoutController extends GetxController {
     _initUserLocationAndCalculate();
   }
 
+  String? get notes => _buildOrderNotes();
+
+  String? _buildOrderNotes() {
+    final parts = items
+        .map((item) {
+          final note = item.note?.trim() ?? '';
+          if (note.isEmpty) return '';
+          return '${item.name}: $note';
+        })
+        .where((line) => line.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) return null;
+    return parts.join(' | ');
+  }
+
   List<Map<String, dynamic>> get apiItems => items
-      .map((e) => {'product_id': e.productId, 'quantity': e.quantity})
+      .map((e) => {
+            'product_id': e.productId,
+            'quantity': e.quantity,
+            if (e.extras.isNotEmpty)
+              'extras': e.extras
+                  .map((extra) => {
+                        'extra_id': extra.extraId,
+                        // Backend request requirement: extra quantity is fixed now.
+                        'quantity': 1,
+                      })
+                  .toList(growable: false),
+          })
       .toList(growable: false);
 
   Future<void> _initUserLocationAndCalculate() async {
@@ -108,14 +134,83 @@ class OrderCheckoutController extends GetxController {
       );
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final results = body['results'];
-        final label = (results is List && results.isNotEmpty)
-            ? (results.first['formatted_address'] as String?)?.trim()
-            : null;
+        final label = _extractAreaLabel(body);
         if (label != null && label.isNotEmpty) return label;
       }
     } catch (_) {}
+    final fallback = await _resolveAddressFromPlacemark(latitude, longitude);
+    if (fallback != null && fallback.isNotEmpty) return fallback;
     return '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+  }
+
+  Future<String?> _resolveAddressFromPlacemark(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final marks = await placemarkFromCoordinates(latitude, longitude);
+      if (marks.isEmpty) return null;
+      final p = marks.first;
+      final parts = <String>[
+        if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
+        if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+        if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+      ];
+      if (parts.isNotEmpty) return parts.join('، ');
+    } catch (_) {}
+    return null;
+  }
+
+  String? _extractAreaLabel(Map<String, dynamic> body) {
+    final results = body['results'];
+    if (results is! List || results.isEmpty) return null;
+    for (final raw in results) {
+      if (raw is! Map) continue;
+      final map = Map<String, dynamic>.from(raw);
+      final types = (map['types'] is List)
+          ? (map['types'] as List).map((e) => e.toString()).toList()
+          : const <String>[];
+      if (types.contains('plus_code')) continue;
+
+      final componentsRaw = map['address_components'];
+      if (componentsRaw is List) {
+        String? locality;
+        String? sublocality;
+        for (final cRaw in componentsRaw) {
+          if (cRaw is! Map) continue;
+          final c = Map<String, dynamic>.from(cRaw);
+          final longName = (c['long_name'] ?? '').toString().trim();
+          if (longName.isEmpty) continue;
+          final cTypes = (c['types'] is List)
+              ? (c['types'] as List).map((e) => e.toString()).toList()
+              : const <String>[];
+          if (cTypes.contains('locality') && locality == null) {
+            locality = longName;
+          }
+          if ((cTypes.contains('sublocality') ||
+                  cTypes.contains('sublocality_level_1')) &&
+              sublocality == null) {
+            sublocality = longName;
+          }
+        }
+        final parts = <String>[
+          if (sublocality != null && sublocality.isNotEmpty) sublocality,
+          if (locality != null && locality.isNotEmpty) locality,
+        ];
+        if (parts.isNotEmpty) return parts.join('، ');
+      }
+
+      final formatted = (map['formatted_address'] ?? '').toString().trim();
+      if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
+        return formatted;
+      }
+    }
+    return null;
+  }
+
+  bool _looksLikeCoordinates(String input) {
+    final text = input.trim();
+    return RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
   }
 
   Future<void> calculate() async {
@@ -141,6 +236,7 @@ class OrderCheckoutController extends GetxController {
         paymentMethod: paymentMethod,
         items: apiItems,
         notes: notes,
+        serviceName: 'food',
       );
       final data = (response['data'] is Map)
           ? Map<String, dynamic>.from(response['data'] as Map)
@@ -177,6 +273,7 @@ class OrderCheckoutController extends GetxController {
         paymentMethod: paymentMethod,
         items: apiItems,
         notes: notes,
+        serviceName: 'food',
       );
       final data = (response['data'] is Map)
           ? Map<String, dynamic>.from(response['data'] as Map)

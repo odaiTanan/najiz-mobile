@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:najiz_go_express/core/services/order_websocket_service.dart';
+import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 
 class TransportOrderTrackingController extends GetxController {
@@ -10,6 +11,7 @@ class TransportOrderTrackingController extends GetxController {
     required this.token,
     required this.orderId,
     required this.orderNumber,
+    required this.orderType,
     required this.initialStatus,
     required this.initialDispatchStatus,
     required this.pickupPoint,
@@ -20,6 +22,7 @@ class TransportOrderTrackingController extends GetxController {
   final String token;
   final int orderId;
   final String orderNumber;
+  final String orderType;
   final String initialStatus;
   final String initialDispatchStatus;
   final LatLng pickupPoint;
@@ -45,7 +48,10 @@ class TransportOrderTrackingController extends GetxController {
 
   OrderWebSocketService? _wsService;
   final HomeRepository _repository = HomeRepository();
+  final PushNotificationService _pushService = Get.find<PushNotificationService>();
   Timer? _pollTimer;
+  bool _didNotifyNearDestination = false;
+  bool _didNotifyArrivedWaitingAtDestination = false;
 
   String? _firstNonEmpty(List<dynamic> candidates) {
     for (final raw in candidates) {
@@ -313,27 +319,104 @@ class TransportOrderTrackingController extends GetxController {
     }
 
     // 2) Notify when driver reaches pickup point.
-    if (didNotifyDriverArrived.value || !isHeadingToPickup) return;
-    final driver = driverPoint.value;
-    if (driver == null) return;
+    if (!didNotifyDriverArrived.value && isHeadingToPickup) {
+      final driver = driverPoint.value;
+      if (driver != null) {
+        final meters = const Distance().as(
+          LengthUnit.Meter,
+          driver,
+          pickupPoint,
+        );
+        if (meters <= 80) {
+          didNotifyDriverArrived.value = true;
+          Get.snackbar(
+            'وصل السائق',
+            'السائق وصل إلى نقطة الالتقاط',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 3),
+          );
+          _pushService.pushLocalInAppNotification(
+            title: 'تنبيه الرحلة',
+            body: 'السائق وصل وهو في الانتظار',
+            dedupeKey: 'order-$orderId-driver-arrived-pickup',
+            data: {'order_id': orderId, 'event': 'driver_arrived_waiting'},
+          );
+        }
+      }
+    }
 
-    final meters = const Distance().as(
+    _emitDestinationProximityNotificationsIfNeeded();
+  }
+
+  bool _isDelivered() => currentStatus.value == 'delivered';
+
+  void _emitDestinationProximityNotificationsIfNeeded() {
+    final driver = driverPoint.value;
+    if (driver == null || _isDelivered()) return;
+
+    final status = _normalizeStatus(currentStatus.value);
+    final dispatch = _normalizeStatus(currentDispatchStatus.value);
+
+    final metersToDestination = const Distance().as(
       LengthUnit.Meter,
       driver,
-      pickupPoint,
+      destinationPoint,
     );
-    if (meters <= 80) {
-      didNotifyDriverArrived.value = true;
-      Get.snackbar(
-        'وصل السائق',
-        'السائق وصل إلى نقطة الالتقاط',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
+
+    final isNearByDistance = metersToDestination <= 250;
+    final isNearByStatus =
+        _nearDestinationStatuses.contains(status) ||
+        _nearDestinationStatuses.contains(dispatch);
+
+    if (!_didNotifyNearDestination && (isNearByDistance || isNearByStatus)) {
+      _didNotifyNearDestination = true;
+      _pushService.pushLocalInAppNotification(
+        title: 'تنبيه التوصيل',
+        body: 'السائق أصبح على مقربة من عنوانك',
+        dedupeKey: 'order-$orderId-near-destination',
+        data: {'order_id': orderId, 'event': 'driver_near_address'},
+      );
+    }
+
+    final arrivedByDistance = metersToDestination <= 70;
+    final arrivedByStatus =
+        _arrivedWaitingDestinationStatuses.contains(status) ||
+        _arrivedWaitingDestinationStatuses.contains(dispatch);
+
+    if (!_didNotifyArrivedWaitingAtDestination &&
+        (arrivedByDistance || arrivedByStatus)) {
+      _didNotifyArrivedWaitingAtDestination = true;
+      _pushService.pushLocalInAppNotification(
+        title: 'تنبيه التوصيل',
+        body: 'السائق وصل وهو في الانتظار',
+        dedupeKey: 'order-$orderId-arrived-destination',
+        data: {'order_id': orderId, 'event': 'driver_arrived_waiting'},
       );
     }
   }
 
-  bool _isDelivered() => currentStatus.value == 'delivered';
+  String _normalizeStatus(String raw) {
+    return raw.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+  }
+
+  static const Set<String> _nearDestinationStatuses = {
+    'on_way',
+    'picked_up',
+    'near_destination',
+    'nearby',
+    'approaching_destination',
+    'driver_near',
+  };
+
+  static const Set<String> _arrivedWaitingDestinationStatuses = {
+    'arrived',
+    'waiting',
+    'arrived_waiting',
+    'driver_arrived',
+    'at_destination',
+    'waiting_at_destination',
+    'reached_destination',
+  };
 
   Future<void> submitTripRating({
     required int rating,

@@ -33,54 +33,66 @@ class OrderTrackingScreen extends StatelessWidget {
       tag: 'order-tracking-$orderId',
     );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5F8),
-      appBar: AppBar(
+    return WillPopScope(
+      onWillPop: () async {
+        Get.off(() => HomeScreen(token: controller.token));
+        return false;
+      },
+      child: Scaffold(
         backgroundColor: const Color(0xFFF3F5F8),
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'تتبع الطلب',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () async {
+              Get.off(() => HomeScreen(token: controller.token));
+            },
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          ),
+          backgroundColor: const Color(0xFFF3F5F8),
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          centerTitle: true,
+          title: Text(
+            'tracking.title'.tr,
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Obx(
-              () => ListView(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                children: [
-                  _TopLiveCard(
-                    orderNumber: orderNumber,
-                    connected: controller.isLiveConnected.value,
-                  ),
-                  const SizedBox(height: 12),
-                  if (controller.errorMessage.value != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Text(
-                        controller.errorMessage.value!,
-                        style: const TextStyle(color: AppColors.error),
-                      ),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Obx(
+                () => ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                  children: [
+                    _TopLiveCard(
+                      orderNumber: orderNumber,
+                      connected: controller.isLiveConnected.value,
                     ),
-                  _StatusCard(
-                    title: 'حالة الطلب',
-                    value: _statusLabel(controller.currentStatus.value),
-                  ),
-                  const SizedBox(height: 10),
-                  _StatusCard(
-                    title: 'حالة الإرسال',
-                    value: _dispatchLabel(controller.currentDispatchStatus.value),
-                  ),
-                  const SizedBox(height: 14),
-                  _TimelineCard(status: controller.currentStatus.value),
-                ],
+                    const SizedBox(height: 12),
+                    if (controller.errorMessage.value != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          controller.errorMessage.value!,
+                          style: const TextStyle(color: AppColors.error),
+                        ),
+                      ),
+                    _StatusCard(
+                      title: 'tracking.orderStatus'.tr,
+                      value: _statusLabel(controller.currentStatus.value),
+                    ),
+                    const SizedBox(height: 10),
+                    _StatusCard(
+                      title: 'tracking.dispatchStatus'.tr,
+                      value: _dispatchLabel(controller.currentDispatchStatus.value),
+                    ),
+                    const SizedBox(height: 14),
+                    _TimelineCard(status: controller.currentStatus.value),
+                  ],
+                ),
               ),
-            ),
-            _DeliveredRatingListener(controller: controller),
-          ],
+              _DeliveredRatingListener(controller: controller),
+            ],
+          ),
         ),
       ),
     );
@@ -152,8 +164,8 @@ class _DeliveredRatingListenerState extends State<_DeliveredRatingListener>
               _iconAnimationController,
             ),
             icon: const Icon(Icons.star_rounded),
-            label: const Text(
-              'تقييم الطلب',
+            label: Text(
+              'tracking.rateOrder'.tr,
               style: TextStyle(fontWeight: FontWeight.w700),
             ),
             style: ElevatedButton.styleFrom(
@@ -181,13 +193,13 @@ Future<void> _showDeliveryCompletedChoiceDialog(
     barrierDismissible: false,
     builder: (_) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: const Text(
-        'تم إنهاء الطلب',
+      title: Text(
+        'tracking.orderCompleted'.tr,
         textAlign: TextAlign.center,
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
-      content: const Text(
-        'هل تريد تقييم الطلب الآن؟',
+      content: Text(
+        'tracking.rateNowQuestion'.tr,
         textAlign: TextAlign.center,
       ),
       actionsAlignment: MainAxisAlignment.center,
@@ -197,7 +209,7 @@ Future<void> _showDeliveryCompletedChoiceDialog(
             Navigator.of(context).pop();
             controller.postponeRating();
           },
-          child: const Text('لاحقًا'),
+          child: Text('tracking.later'.tr),
         ),
         ElevatedButton(
           onPressed: () {
@@ -208,7 +220,7 @@ Future<void> _showDeliveryCompletedChoiceDialog(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
           ),
-          child: const Text('نعم، الآن'),
+          child: Text('tracking.yesNow'.tr),
         ),
       ],
     ),
@@ -298,9 +310,9 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Center(
+                Center(
                   child: Text(
-                    'تم التوصيل بنجاح',
+                    'tracking.deliveredSuccess'.tr,
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -309,9 +321,9 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Center(
+                Center(
                   child: Text(
-                    'قيّم طلبك لمساعدتنا على تحسين الخدمة',
+                    'tracking.rateHelpText'.tr,
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -320,8 +332,8 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'تقييم المطعم',
+                Text(
+                  'tracking.rateVendor'.tr,
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
@@ -330,8 +342,8 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                   onChanged: (v) => setState(() => _vendorRating = v),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'تقييم التوصيل',
+                Text(
+                  'tracking.rateDelivery'.tr,
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
@@ -349,7 +361,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: 'ملاحظاتك (اختياري)',
+                    hintText: 'tracking.optionalNotes'.tr,
                     errorText: _commentError,
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
@@ -377,7 +389,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                               if (requireComment && comment.isEmpty) {
                                 setState(() {
                                   _commentError =
-                                      'يرجى كتابة ملاحظة عند تقييم أقل من 4 نجوم';
+                                      'tracking.lowRatingNeedsComment'.tr;
                                 });
                                 return;
                               }
@@ -393,15 +405,15 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                                   () => HomeScreen(token: widget.controller.token),
                                 );
                                 Get.snackbar(
-                                  'شكرا لك',
-                                  'تم إرسال تقييمك بنجاح',
+                                  'tracking.thanks'.tr,
+                                  'tracking.ratingSent'.tr,
                                   snackPosition: SnackPosition.BOTTOM,
                                   backgroundColor: const Color(0xFFE9F9EE),
                                   colorText: const Color(0xFF0F5132),
                                 );
                               } catch (e) {
                                 Get.snackbar(
-                                  'فشل الإرسال',
+                                  'tracking.sendFailed'.tr,
                                   e.toString(),
                                   snackPosition: SnackPosition.BOTTOM,
                                   backgroundColor: const Color(0xFFFFF1F2),
@@ -426,8 +438,8 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'إرسال التقييم',
+                          : Text(
+                              'tracking.submitRating'.tr,
                               style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                     ),
@@ -506,8 +518,8 @@ class _TopLiveCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'رقم الطلب',
+                Text(
+                  'tracking.orderNumber'.tr,
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -534,7 +546,9 @@ class _TopLiveCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              connected ? 'متصل لحظيا' : 'غير متصل',
+              connected
+                  ? 'tracking.liveConnected'.tr
+                  : 'tracking.liveDisconnected'.tr,
               style: TextStyle(
                 color: connected
                     ? const Color(0xFF0F9D58)
@@ -631,12 +645,12 @@ class _TimelineCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.route_rounded, color: AppColors.primary),
               SizedBox(width: 8),
               Text(
-                'مراحل الطلب',
+                'tracking.orderStages'.tr,
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w800,
@@ -745,21 +759,21 @@ class _TimelineStepTile extends StatelessWidget {
 String _statusLabel(String status) {
   switch (status) {
     case 'pending':
-      return 'قيد الانتظار';
+      return 'tracking.pending'.tr;
     case 'accepted':
-      return 'مقبول';
+      return 'tracking.accepted'.tr;
     case 'preparing':
-      return 'قيد التحضير';
+      return 'tracking.preparing'.tr;
     case 'ready':
-      return 'جاهز للاستلام';
+      return 'tracking.ready'.tr;
     case 'picked_up':
-      return 'تم الاستلام';
+      return 'tracking.pickedUp'.tr;
     case 'on_way':
-      return 'في الطريق';
+      return 'tracking.onWay'.tr;
     case 'delivered':
-      return 'تم التوصيل';
+      return 'tracking.delivered'.tr;
     case 'cancelled':
-      return 'ملغي';
+      return 'tracking.cancelled'.tr;
     default:
       return status;
   }
@@ -768,13 +782,13 @@ String _statusLabel(String status) {
 String _dispatchLabel(String status) {
   switch (status) {
     case 'dispatching':
-      return 'جاري التعيين';
+      return 'tracking.dispatching'.tr;
     case 'accepted':
-      return 'تم قبول السائق';
+      return 'tracking.driverAccepted'.tr;
     case 'on_way':
-      return 'السائق بالطريق';
+      return 'tracking.driverOnWay'.tr;
     case 'delivered':
-      return 'تم التسليم';
+      return 'tracking.handoverDelivered'.tr;
     default:
       return status.isEmpty ? '-' : status;
   }

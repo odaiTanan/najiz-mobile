@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
+import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_products_controller.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
@@ -24,9 +25,11 @@ class RestaurantProductsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isStoresService = serviceId == 3;
     final searchHint = isStoresService
-        ? 'ابحث عن المتاجر أو المنتجات'
-        : 'ابحث عن المطاعم أو الأطباق';
-    final featuredTitle = isStoresService ? 'متاجر مميزة' : 'مطاعم مميزة';
+        ? 'services.searchStores'.tr
+        : 'services.searchRestaurants'.tr;
+    final featuredTitle = isStoresService
+        ? 'services.featuredStores'.tr
+        : 'services.featuredRestaurants'.tr;
     final authHeaders = token == null || token!.trim().isEmpty
         ? <String, String>{}
         : <String, String>{'Authorization': 'Bearer $token'};
@@ -41,7 +44,9 @@ class RestaurantProductsScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 0,
-        serviceText: isStoresService ? 'متاجر' : 'مطاعم',
+        serviceText: isStoresService
+            ? 'services.stores'.tr
+            : 'services.restaurants'.tr,
         serviceIcon: isStoresService
             ? Icons.storefront_outlined
             : Icons.restaurant_outlined,
@@ -75,6 +80,7 @@ class RestaurantProductsScreen extends StatelessWidget {
             children: [
               Obx(
                 () => _MiniTopCard(
+                  deliveryAddress: controller.currentDeliveryAddress.value,
                   unreadNotifications: pushService.unreadCount.value,
                   onNotificationsTap: () =>
                       Get.to(() => const NotificationsScreen()),
@@ -83,7 +89,10 @@ class RestaurantProductsScreen extends StatelessWidget {
                     final vendorId = cartService.vendorId.value;
                     final items = cartService.items;
                     if (vendorId == null || items.isEmpty) {
-                      Get.snackbar('السلة', 'السلة فارغة حالياً');
+                      Get.snackbar(
+                        'services.cart'.tr,
+                        'services.emptyCart'.tr,
+                      );
                       return;
                     }
                     Get.to(
@@ -133,7 +142,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                         final selected =
                             controller.selectedClassificationId.value == null;
                         return _ClassificationIconItem(
-                          label: 'الكل',
+                          label: 'services.all'.tr,
                           icon: Icons.restaurant_menu,
                           imageUrl: null,
                           headers: authHeaders,
@@ -156,6 +165,61 @@ class RestaurantProductsScreen extends StatelessWidget {
                     },
                   ),
                 ),
+              const SizedBox(height: 8),
+              Obx(
+                () => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _StatusFilterChip(
+                        label: 'services.all'.tr,
+                        selected:
+                            controller.selectedStatusFilter.value ==
+                            VendorStatusFilter.all,
+                        onTap: () => controller.selectStatusFilter(
+                          VendorStatusFilter.all,
+                        ),
+                      ),
+                      _StatusFilterChip(
+                        label: 'services.active'.tr,
+                        selected:
+                            controller.selectedStatusFilter.value ==
+                            VendorStatusFilter.active,
+                        onTap: () => controller.selectStatusFilter(
+                          VendorStatusFilter.active,
+                        ),
+                      ),
+                      _StatusFilterChip(
+                        label: 'services.inactive'.tr,
+                        selected:
+                            controller.selectedStatusFilter.value ==
+                            VendorStatusFilter.inactive,
+                        onTap: () => controller.selectStatusFilter(
+                          VendorStatusFilter.inactive,
+                        ),
+                      ),
+                      _StatusFilterChip(
+                        label: 'services.open'.tr,
+                        selected:
+                            controller.selectedStatusFilter.value ==
+                            VendorStatusFilter.opened,
+                        onTap: () => controller.selectStatusFilter(
+                          VendorStatusFilter.opened,
+                        ),
+                      ),
+                      _StatusFilterChip(
+                        label: 'services.closed'.tr,
+                        selected:
+                            controller.selectedStatusFilter.value ==
+                            VendorStatusFilter.closed,
+                        onTap: () => controller.selectStatusFilter(
+                          VendorStatusFilter.closed,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -168,8 +232,8 @@ class RestaurantProductsScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  const Text(
-                    'عرض الكل',
+                  Text(
+                    'home.showAll'.tr,
                     style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
@@ -181,7 +245,9 @@ class RestaurantProductsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               if (controller.vendors.isEmpty)
                 Text(
-                  isStoresService ? 'لا توجد متاجر' : 'لا توجد مطاعم',
+                  isStoresService
+                      ? 'services.noStores'.tr
+                      : 'services.noRestaurants'.tr,
                   style: const TextStyle(color: AppColors.textSecondary),
                 )
               else
@@ -230,15 +296,43 @@ class RestaurantProductsScreen extends StatelessWidget {
                             ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-                              child: Text(
-                                vendor.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      vendor.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _VendorStatusBadge(vendor: vendor),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
+                              child: Row(
+                                children: [
+                                  _StatusText(
+                                    text: vendor.isActive
+                                        ? 'services.active'.tr
+                                        : 'services.inactive'.tr,
+                                    isPositive: vendor.isActive,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _StatusText(
+                                    text: vendor.isOpened
+                                        ? 'services.open'.tr
+                                        : 'services.closed'.tr,
+                                    isPositive: vendor.isOpened,
+                                  ),
+                                ],
                               ),
                             ),
                             Padding(
@@ -251,8 +345,8 @@ class RestaurantProductsScreen extends StatelessWidget {
                                     color: AppColors.textSecondary,
                                   ),
                                   const SizedBox(width: 4),
-                                  const Text(
-                                    '20-30 min',
+                                  Text(
+                                    '20-30 ${'services.minutesDelivery'.tr}',
                                     style: TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 11,
@@ -292,12 +386,14 @@ class RestaurantProductsScreen extends StatelessWidget {
 }
 
 class _MiniTopCard extends StatelessWidget {
+  final String deliveryAddress;
   final int unreadNotifications;
   final VoidCallback onNotificationsTap;
   final int cartCount;
   final VoidCallback onCartTap;
 
   const _MiniTopCard({
+    required this.deliveryAddress,
     required this.unreadNotifications,
     required this.onNotificationsTap,
     required this.cartCount,
@@ -317,12 +413,12 @@ class _MiniTopCard extends StatelessWidget {
             color: AppColors.primary,
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'التوصيل إلى: 123 دمشق، سوريا',
+              '${'services.deliveryTo'.tr} $deliveryAddress',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -360,9 +456,7 @@ class _MiniTopCard extends StatelessWidget {
                         border: Border.all(color: Colors.white, width: 1),
                       ),
                       child: Text(
-                        unreadNotifications > 99
-                            ? '99+'
-                            : '$unreadNotifications',
+                        unreadNotifications > 99 ? '99+' : '$unreadNotifications',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
@@ -420,6 +514,96 @@ class _MiniTopCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatusFilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _StatusFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? AppColors.primary : const Color(0xFFE2E2E2),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorStatusBadge extends StatelessWidget {
+  final VendorModel vendor;
+
+  const _VendorStatusBadge({required this.vendor});
+
+  @override
+  Widget build(BuildContext context) {
+    final isReady = vendor.isActive && vendor.isOpened;
+    final bgColor = isReady ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1F1);
+    final fgColor = isReady ? const Color(0xFF1B8E4B) : const Color(0xFFC43D3D);
+    final label = isReady ? 'services.available'.tr : 'services.unavailable'.tr;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: fgColor,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusText extends StatelessWidget {
+  final String text;
+  final bool isPositive;
+
+  const _StatusText({required this.text, required this.isPositive});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: isPositive ? const Color(0xFF1B8E4B) : AppColors.textSecondary,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/features/home/controllers/home_controller.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
@@ -67,17 +68,17 @@ class HomeScreen extends StatelessWidget {
                             color: const Color(0xFFFFF3E8),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.person_outline,
                                 size: 18,
                                 color: AppColors.primary,
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Text(
-                                'أنت تتصفح كضيف',
-                                style: TextStyle(
+                                'home.guestBrowsing'.tr,
+                                style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -111,45 +112,52 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 18),
-                const HomeSectionTitle(
-                  title: 'خدماتنا',
-                  actionText: 'عرض الكل',
+                HomeSectionTitle(
+                  title: 'home.ourServices'.tr,
+                  actionText: 'home.showAll'.tr,
                 ),
                 const SizedBox(height: 10),
                 if (controller.services.isEmpty)
-                  const Text(
-                    'لا توجد خدمات',
+                  Text(
+                    'home.noServices'.tr,
                     style: TextStyle(color: AppColors.textSecondary),
                   )
                 else
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: controller.services.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.93,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    itemBuilder: (_, index) {
-                      final service = controller.services[index];
-                      return HomeServiceCard(
-                        title: service.name,
-                        imageUrl: service.icon,
-                        selected:
-                            controller.selectedServiceId.value == service.id,
-                        onTap: () => controller.onServiceTap(service),
+                  Builder(
+                    builder: (_) {
+                      final orderedServices = _orderedHomeServices(
+                        controller.services,
+                      );
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: orderedServices.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.93,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                        itemBuilder: (_, index) {
+                          final service = orderedServices[index];
+                          return HomeServiceCard(
+                            title: service.name,
+                            imageUrl: service.icon,
+                            selected:
+                                controller.selectedServiceId.value == service.id,
+                            onTap: () => controller.onServiceTap(service),
+                          );
+                        },
                       );
                     },
                   ),
                 const SizedBox(height: 18),
-                const HomeSectionTitle(title: 'المطاعم الأكثر طلباً'),
+                HomeSectionTitle(title: 'home.mostOrderedRestaurants'.tr),
                 const SizedBox(height: 10),
                 if (controller.vendors.isEmpty)
-                  const Text(
-                    'لا توجد مطاعم متاحة حالياً',
+                  Text(
+                    'home.noRestaurants'.tr,
                     style: TextStyle(color: AppColors.textSecondary),
                   )
                 else
@@ -210,8 +218,8 @@ class _ActiveOrderHomeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'طلب نشط الآن',
+            Text(
+              'home.activeOrderNow'.tr,
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
@@ -232,39 +240,63 @@ class _ActiveOrderHomeCard extends StatelessWidget {
                 final done = index <= currentStep;
                 final isCurrent = index == currentStep;
                 final isLast = index == steps.length - 1;
+                final isFuture = index > currentStep;
                 return Expanded(
                   child: Row(
                     children: [
-                      Container(
-                        width: isCurrent ? 34 : 30,
-                        height: isCurrent ? 34 : 30,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        width: isCurrent ? 38 : 32,
+                        height: isCurrent ? 38 : 32,
                         decoration: BoxDecoration(
-                          color: done
-                              ? const Color(0xFFFFF3E8)
-                              : const Color(0xFFF2F5F9),
+                          gradient: done
+                              ? const LinearGradient(
+                                  colors: [Color(0xFFFFA238), Color(0xFFFF8A00)],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                )
+                              : const LinearGradient(
+                                  colors: [Color(0xFFF5F7FB), Color(0xFFE9EEF5)],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: done
-                                ? AppColors.primary.withOpacity(0.35)
-                                : const Color(0xFFD9E0EA),
+                            color: done ? const Color(0xFFFFC278) : const Color(0xFFD8E0EC),
+                            width: isCurrent ? 1.8 : 1.1,
                           ),
+                          boxShadow: done
+                              ? const [
+                                  BoxShadow(
+                                    color: Color(0x30FF8A00),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ]
+                              : const [],
                         ),
                         child: Icon(
                           _iconForStep(order.type, index),
-                          size: isCurrent ? 20 : 18,
-                          color: done
-                              ? AppColors.primary
-                              : const Color(0xFF9AA7BA),
+                          size: isCurrent ? 21 : 18,
+                          color: done ? Colors.white : const Color(0xFF95A4BA),
                         ),
                       ),
                       if (!isLast)
                         Expanded(
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
                             margin: const EdgeInsets.symmetric(horizontal: 6),
-                            height: 2,
-                            color: currentStep > index
-                                ? AppColors.primary
-                                : const Color(0xFFE2E8F0),
+                            height: 3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(99),
+                              gradient: isFuture
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFFE6ECF4), Color(0xFFDDE5EF)],
+                                    )
+                                  : const LinearGradient(
+                                      colors: [Color(0xFFFFAF4A), Color(0xFFFF8A00)],
+                                    ),
+                            ),
                           ),
                         ),
                     ],
@@ -275,7 +307,7 @@ class _ActiveOrderHomeCard extends StatelessWidget {
             const SizedBox(height: 6),
             Center(
               child: Text(
-                steps[currentStep.clamp(0, steps.length - 1)],
+                steps[currentStep.clamp(0, steps.length - 1)].tr,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14,
@@ -288,8 +320,8 @@ class _ActiveOrderHomeCard extends StatelessWidget {
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: onMoreTap,
-                child: const Text(
-                  'يوجد طلبات نشطة أخرى',
+                child: Text(
+                  'home.hasMoreActiveOrders'.tr,
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -307,27 +339,27 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     final t = type.toLowerCase();
     if (t == 'shipping') {
       return const [
-        'تم قبول الطلب',
-        'السائق متجه للاستلام',
-        'تم استلام الشحنة',
-        'في الطريق للتوصيل',
-        'تم التوصيل والتسليم',
+        'home.shippingStepAccepted',
+        'home.shippingStepDriverToPickup',
+        'home.shippingStepPickedUp',
+        'home.shippingStepOnWay',
+        'home.shippingStepDelivered',
       ];
     }
     if (t == 'taxi') {
       return const [
-        'تم قبول الطلب',
-        'السائق متجه للاستلام',
-        'تم بدء الرحلة',
-        'في الطريق للوجهة',
-        'تم إنهاء الرحلة',
+        'home.taxiStepAccepted',
+        'home.taxiStepDriverToPickup',
+        'home.taxiStepStarted',
+        'home.taxiStepOnWay',
+        'home.taxiStepFinished',
       ];
     }
     return const [
-      'تم تأكيد الطلب',
-      'جاري التحضير',
-      'قيد التوصيل',
-      'تم التسليم',
+      'home.foodStepConfirmed',
+      'home.foodStepPreparing',
+      'home.foodStepOnWay',
+      'home.foodStepDelivered',
     ];
   }
 
@@ -371,42 +403,42 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     final t = type.toLowerCase();
     if (t == 'shipping') {
       const icons = [
-        Icons.verified_outlined,
-        Icons.electric_moped_rounded,
-        Icons.inventory_2_outlined,
-        Icons.route_rounded,
-        Icons.task_alt_rounded,
+        Icons.verified_rounded,
+        Icons.delivery_dining_rounded,
+        Icons.inventory_rounded,
+        Icons.local_shipping_rounded,
+        Icons.check_circle_rounded,
       ];
       return icons[index.clamp(0, icons.length - 1)];
     }
     if (t == 'taxi') {
       const icons = [
-        Icons.verified_outlined,
-        Icons.directions_car_filled_rounded,
-        Icons.navigation_rounded,
-        Icons.flag_circle_rounded,
-        Icons.task_alt_rounded,
+        Icons.verified_rounded,
+        Icons.local_taxi_rounded,
+        Icons.pin_drop_rounded,
+        Icons.route_rounded,
+        Icons.check_circle_rounded,
       ];
       return icons[index.clamp(0, icons.length - 1)];
     }
     const icons = [
-      Icons.receipt_long_outlined,
-      Icons.lunch_dining_outlined,
-      Icons.delivery_dining_rounded,
-      Icons.home_rounded,
+      Icons.receipt_rounded,
+      Icons.restaurant_menu_rounded,
+      Icons.two_wheeler_rounded,
+      Icons.check_circle_rounded,
     ];
     return icons[index.clamp(0, icons.length - 1)];
   }
 
   String _orderTitle(UserOrder order) {
     final prefix = switch (order.type.toLowerCase()) {
-      'shipping' => 'طلب شحن',
-      'taxi' => 'طلب تكسي',
-      'stores' || 'store' => 'طلب متجر',
-      _ => 'طلب طعام',
+      'shipping' => 'home.orderShipping'.tr,
+      'taxi' => 'home.orderTaxi'.tr,
+      'stores' || 'store' => 'home.orderStore'.tr,
+      _ => 'home.orderFood'.tr,
     };
     final token = _compactOrderToken(order.orderNumber, order.id);
-    return '$prefix رقم $token';
+    return '$prefix ${'home.orderNumberPrefix'.tr} $token';
   }
 
   String _compactOrderToken(String orderNumber, int fallbackId) {
@@ -471,6 +503,24 @@ class _ShimmerServiceGrid extends StatelessWidget {
       itemBuilder: (_, index) => const _ShimmerBox(radius: 16),
     );
   }
+}
+
+List<ServiceModel> _orderedHomeServices(List<ServiceModel> services) {
+  final ranked = [...services];
+  ranked.sort((a, b) => _serviceSortRank(a).compareTo(_serviceSortRank(b)));
+  return ranked;
+}
+
+int _serviceSortRank(ServiceModel service) {
+  final name = service.name.trim().toLowerCase();
+  final id = service.id;
+
+  if (id == 5 || name.contains('taxi') || name.contains('تكسي')) return 0;
+  if (id == 1 || name.contains('restaurant') || name.contains('مطعم')) return 1;
+  if (id == 3 || name.contains('store') || name.contains('متجر')) return 2;
+  if (id == 2 || name.contains('shipping') || name.contains('شحن')) return 3;
+
+  return 100 + id;
 }
 
 class _ShimmerRestaurantsRow extends StatelessWidget {

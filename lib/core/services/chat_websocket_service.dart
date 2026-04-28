@@ -43,6 +43,7 @@ class ChatWebSocketService {
   Future<void> subscribeToConversation({
     required int conversationId,
     required void Function(Map<String, dynamic> messagePayload) onMessage,
+    void Function(Map<String, dynamic> readPayload)? onMessageRead,
   }) async {
     await connectIfNeeded();
     if (_chatChannel != null) {
@@ -56,6 +57,12 @@ class ChatWebSocketService {
     });
     await _chatChannel!.bind('.message.sent', (event) {
       _handleMessage(event?.data, onMessage);
+    });
+    await _chatChannel!.bind('message.read', (event) {
+      _handleReadReceipt(event?.data, onMessageRead);
+    });
+    await _chatChannel!.bind('.message.read', (event) {
+      _handleReadReceipt(event?.data, onMessageRead);
     });
   }
 
@@ -79,6 +86,18 @@ class ChatWebSocketService {
       await _pusher?.disconnect();
       _isConnected = false;
     }
+  }
+
+  void _handleReadReceipt(
+    dynamic raw,
+    void Function(Map<String, dynamic> readPayload)? onMessageRead,
+  ) {
+    if (onMessageRead == null) return;
+    final decoded = _decodeJsonMap(raw);
+    if (decoded.isEmpty) return;
+    final nested = _decodeJsonMap(decoded['message']);
+    final payload = nested.isNotEmpty ? nested : decoded;
+    if (payload.containsKey('message_id')) onMessageRead(payload);
   }
 }
 

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -47,10 +45,10 @@ class ProfileScreen extends StatelessWidget {
                       onPressed: () => Get.back(),
                       icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Center(
                         child: Text(
-                          'الملف الشخصي',
+                          'profile.title'.tr,
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 18,
@@ -60,7 +58,8 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: () => Get.snackbar('الإعدادات', 'قريباً'),
+                      onPressed: () =>
+                          Get.snackbar('profile.settings'.tr, 'common.soon'.tr),
                       icon: const Icon(Icons.settings_outlined),
                     ),
                   ],
@@ -75,63 +74,27 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 44,
-                            backgroundColor: const Color(0xFFF1F4F9),
-                            backgroundImage: _avatarImageProvider(profile?.avatarPath),
-                            child: _avatarImageProvider(profile?.avatarPath) == null
-                                ? Text(
-                                    _avatarText(profile?.name, isGuest),
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 28,
-                                    ),
-                                  )
-                                : null,
+                      Container(
+                        width: 92,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F4F9),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFE3EAF3)),
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/najiz_go_express_logo.png',
+                            fit: BoxFit.cover,
                           ),
-                          Positioned(
-                            bottom: 2,
-                            right: 2,
-                            child: InkWell(
-                              onTap: () => _openAvatarSheet(context, controller),
-                              borderRadius: BorderRadius.circular(999),
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Obx(
-                                  () => controller.isUpdatingAvatar.value
-                                      ? const Padding(
-                                          padding: EdgeInsets.all(5),
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 1.8,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Icon(
-                                          Icons.edit,
-                                          size: 12,
-                                          color: Colors.white,
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        isGuest ? 'ضيف' : (profile?.name ?? 'مستخدم'),
+                        isGuest
+                            ? 'profile.guest'.tr
+                            : (profile?.name ?? 'profile.user'.tr),
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 32,
@@ -140,8 +103,8 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       if (!isGuest) ...[
                         const SizedBox(height: 2),
-                        const Text(
-                          'عضو مميز',
+                        Text(
+                          'profile.premiumMember'.tr,
                           style: TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
@@ -151,7 +114,7 @@ class ProfileScreen extends StatelessWidget {
                       ],
                       const SizedBox(height: 2),
                       Text(
-                        profile?.email ?? 'لا يوجد بريد إلكتروني',
+                        profile?.email ?? 'profile.noEmail'.tr,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 15,
@@ -159,7 +122,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        profile?.phone ?? 'لا يوجد رقم هاتف',
+                        profile?.phone ?? 'profile.noPhone'.tr,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 15,
@@ -173,7 +136,7 @@ class ProfileScreen extends StatelessWidget {
                               child: OutlinedButton(
                                 onPressed: () =>
                                     Get.to(() => const SignupScreen()),
-                                child: const Text('إنشاء حساب'),
+                                child: Text('profile.createAccount'.tr),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -185,7 +148,7 @@ class ProfileScreen extends StatelessWidget {
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
                                 ),
-                                child: const Text('تسجيل الدخول'),
+                                child: Text('profile.login'.tr),
                               ),
                             ),
                           ],
@@ -225,8 +188,8 @@ class ProfileScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'ادعُ صديقاً',
+                            Text(
+                              'profile.inviteFriend'.tr,
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 26,
@@ -234,8 +197,8 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            const Text(
-                              'شارك التطبيق واحصل على خصم في طلبك القادم.',
+                            Text(
+                              'profile.inviteSubtitle'.tr,
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 16,
@@ -244,9 +207,9 @@ class ProfileScreen extends StatelessWidget {
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const Expanded(
+                                Expanded(
                                   child: Text(
-                                    'رمزك: LUKAS10',
+                                    'profile.yourCode'.tr,
                                     style: TextStyle(
                                       color: Color(0xFF94A3B8),
                                       fontWeight: FontWeight.w800,
@@ -261,15 +224,15 @@ class ProfileScreen extends StatelessWidget {
                                       const ClipboardData(text: code),
                                     );
                                     Get.snackbar(
-                                      'الإحالة',
-                                      'تم نسخ كود الإحالة $code',
+                                      'profile.inviteFriend'.tr,
+                                      'profile.copiedReferralCode'.tr,
                                     );
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primary,
                                     foregroundColor: Colors.white,
                                   ),
-                                  child: const Text('نسخ الرمز'),
+                                  child: Text('profile.copyCode'.tr),
                                 ),
                               ],
                             ),
@@ -280,8 +243,8 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'إعدادات الحساب',
+                Text(
+                  'profile.accountSettings'.tr,
                   style: TextStyle(
                     color: Color(0xFFA1ACC0),
                     fontWeight: FontWeight.w800,
@@ -292,8 +255,8 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.location_on_outlined,
-                  title: 'عناويني',
-                  subtitle: profile?.address ?? 'أضف عنوان التوصيل',
+                  title: 'profile.addresses'.tr,
+                  subtitle: profile?.address ?? 'profile.addAddress'.tr,
                   onTap: () => Get.to(
                     () => ProfileAddressEditorScreen(
                       initialAddress: profile?.address,
@@ -304,15 +267,15 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.credit_card_outlined,
-                  title: 'طرق الدفع',
-                  subtitle: 'إدارة بطاقات وطرق الدفع',
+                  title: 'profile.paymentMethods'.tr,
+                  subtitle: 'profile.managePaymentMethods'.tr,
                   onTap: () => Get.to(() => const WalletScreen()),
                 ),
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.history,
-                  title: 'سجل الطلبات',
-                  subtitle: 'عرض الطلبات السابقة والحالية',
+                  title: 'profile.orderHistory'.tr,
+                  subtitle: 'profile.showOrders'.tr,
                   onTap: () {
                     if (auth.isGuest) {
                       Get.to(() => const LoginScreen());
@@ -328,15 +291,17 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.language,
-                  title: 'اللغة',
-                  subtitle: 'العربية',
+                  title: 'profile.language'.tr,
+                  subtitle: Get.locale?.languageCode == 'en'
+                      ? 'profile.english'.tr
+                      : 'profile.arabic'.tr,
                   onTap: () => _openLanguageSheet(context),
                 ),
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.help_outline,
-                  title: 'المساعدة والدعم',
-                  subtitle: 'الأسئلة الشائعة والتواصل مع الدعم',
+                  title: 'profile.support'.tr,
+                  subtitle: 'profile.supportSubtitle'.tr,
                   onTap: () {
                     if (auth.isGuest) {
                       Get.to(() => const LoginScreen());
@@ -359,21 +324,19 @@ class ProfileScreen extends StatelessWidget {
                               final confirmed = await showDialog<bool>(
                                 context: context,
                                 builder: (dialogContext) => AlertDialog(
-                                  title: const Text('تسجيل الخروج'),
-                                  content: const Text(
-                                    'هل أنت متأكد من تسجيل الخروج من الحساب؟',
-                                  ),
+                                  title: Text('profile.logoutTitle'.tr),
+                                  content: Text('profile.logoutConfirmMessage'.tr),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.of(
                                         dialogContext,
                                       ).pop(false),
-                                      child: const Text('إلغاء'),
+                                      child: Text('common.cancel'.tr),
                                     ),
                                     ElevatedButton(
                                       onPressed: () =>
                                           Navigator.of(dialogContext).pop(true),
-                                      child: const Text('تأكيد'),
+                                      child: Text('common.confirm'.tr),
                                     ),
                                   ],
                                 ),
@@ -381,7 +344,10 @@ class ProfileScreen extends StatelessWidget {
                               if (confirmed != true) return;
                               await controller.logout();
                               Get.offAll(() => const HomeScreen());
-                              Get.snackbar('تم', 'تم تسجيل الخروج بنجاح');
+                              Get.snackbar(
+                                'common.done'.tr,
+                                'profile.logoutSuccess'.tr,
+                              );
                             },
                       icon: controller.isLoggingOut.value
                           ? const SizedBox(
@@ -392,8 +358,8 @@ class ProfileScreen extends StatelessWidget {
                           : const Icon(Icons.logout),
                       label: Text(
                         controller.isLoggingOut.value
-                            ? 'جارٍ تسجيل الخروج...'
-                            : 'تسجيل الخروج',
+                            ? 'profile.loggingOut'.tr
+                            : 'profile.logout'.tr,
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFC2410C),
@@ -482,111 +448,121 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-String _avatarText(String? name, bool guest) {
-  if (guest) return 'G';
-  if (name == null || name.trim().isEmpty) return 'U';
-  return name.trim().substring(0, 1).toUpperCase();
-}
-
-ImageProvider<Object>? _avatarImageProvider(String? rawPath) {
-  final path = rawPath?.trim() ?? '';
-  if (path.isEmpty) return null;
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return NetworkImage(path);
-  }
-  final file = File(path);
-  if (!file.existsSync()) return null;
-  return FileImage(file);
-}
-
-Future<void> _openAvatarSheet(
-  BuildContext context,
-  ProfileController controller,
-) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCE3EE),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('تغيير صورتي'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Future.delayed(
-                  const Duration(milliseconds: 140),
-                  controller.pickProfileImageFromGallery,
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: AppColors.error),
-              title: const Text('حذف الصورة'),
-              textColor: AppColors.error,
-              iconColor: AppColors.error,
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Future.delayed(
-                  const Duration(milliseconds: 140),
-                  controller.clearProfileImage,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
 Future<void> _openLanguageSheet(BuildContext context) async {
   await showModalBottomSheet<void>(
     context: context,
+    backgroundColor: Colors.white,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCE3EE),
-                borderRadius: BorderRadius.circular(8),
+            Center(
+              child: Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCE3EE),
+                  borderRadius: BorderRadius.circular(99),
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            const ListTile(
-              leading: Icon(Icons.check_circle, color: AppColors.primary),
-              title: Text('English (UK)'),
+            const SizedBox(height: 14),
+            Text(
+              'profile.language'.tr,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
             ),
-            const ListTile(
-              leading: Icon(Icons.radio_button_unchecked),
-              title: Text('العربية'),
+            const SizedBox(height: 4),
+            Text(
+              'اختر اللغة المناسبة للتطبيق',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _LanguageOptionTile(
+              label: 'profile.english'.tr,
+              selected: Get.locale?.languageCode == 'en',
+              onTap: () async {
+                await Get.updateLocale(const Locale('en', 'US'));
+                await ProfileController.persistLocale('en');
+                if (context.mounted) Navigator.of(context).pop();
+              },
+            ),
+            const SizedBox(height: 10),
+            _LanguageOptionTile(
+              label: 'profile.arabic'.tr,
+              selected: Get.locale?.languageCode == 'ar',
+              onTap: () async {
+                await Get.updateLocale(const Locale('ar', 'SA'));
+                await ProfileController.persistLocale('ar');
+                if (context.mounted) Navigator.of(context).pop();
+              },
             ),
           ],
         ),
       ),
     ),
   );
+}
+
+class _LanguageOptionTile extends StatelessWidget {
+  const _LanguageOptionTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.primary : const Color(0xFFE2E8F0),
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

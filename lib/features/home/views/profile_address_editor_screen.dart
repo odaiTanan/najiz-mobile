@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/data/repositories/home_repository.dart';
+import 'package:najiz_go_express/features/home/models/create_address_payload.dart';
 
 const String _mapsApiKey = String.fromEnvironment(
   'MAPS_API_KEY',
@@ -20,7 +24,7 @@ class ProfileAddressEditorScreen extends StatefulWidget {
   });
 
   final String? initialAddress;
-  final Future<void> Function(String address) onSave;
+  final Future<void> Function(CreateAddressPayload payload) onSave;
 
   @override
   State<ProfileAddressEditorScreen> createState() =>
@@ -39,6 +43,8 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
   String? _selectedAddress;
   bool _isSaving = false;
   bool _isSearching = false;
+  Timer? _searchDebounce;
+  List<_PlaceSuggestion> _suggestions = const [];
 
   @override
   void initState() {
@@ -90,16 +96,92 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
       );
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final results = body['results'];
-        final text = (results is List && results.isNotEmpty)
-            ? (results.first['formatted_address'] as String?)?.trim()
-            : null;
-        if (text != null && text.isNotEmpty) {
-          return text;
+        final areaLabel = _extractAreaLabelFromGoogle(body);
+        if (areaLabel != null && areaLabel.isNotEmpty) {
+          return areaLabel;
         }
       }
     } catch (_) {}
-    return '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
+    final placemarkLabel = await _reverseGeocodeByPlacemark(point);
+    if (placemarkLabel != null && placemarkLabel.isNotEmpty) {
+      return placemarkLabel;
+    }
+    return 'موقع محدد على الخريطة';
+  }
+
+  Future<String?> _reverseGeocodeByPlacemark(ll.LatLng point) async {
+    try {
+      final marks = await placemarkFromCoordinates(
+        point.latitude,
+        point.longitude,
+      );
+      if (marks.isEmpty) return null;
+      final p = marks.first;
+      final parts = <String>[
+        if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
+        if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+        if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+      ];
+      if (parts.isNotEmpty) return parts.join('، ');
+    } catch (_) {}
+    return null;
+  }
+
+  String? _extractAreaLabelFromGoogle(Map<String, dynamic> body) {
+    final results = body['results'];
+    if (results is! List || results.isEmpty) return null;
+    for (final raw in results) {
+      if (raw is! Map) continue;
+      final map = Map<String, dynamic>.from(raw);
+      final types = (map['types'] is List)
+          ? (map['types'] as List).map((e) => e.toString()).toList()
+          : const <String>[];
+      if (types.contains('plus_code')) continue;
+
+      final componentsRaw = map['address_components'];
+      if (componentsRaw is List) {
+        String? locality;
+        String? sublocality;
+        String? route;
+        for (final cRaw in componentsRaw) {
+          if (cRaw is! Map) continue;
+          final c = Map<String, dynamic>.from(cRaw);
+          final longName = (c['long_name'] ?? '').toString().trim();
+          if (longName.isEmpty) continue;
+          final cTypes = (c['types'] is List)
+              ? (c['types'] as List).map((e) => e.toString()).toList()
+              : const <String>[];
+          if (cTypes.contains('locality') && locality == null) {
+            locality = longName;
+          }
+          if ((cTypes.contains('sublocality') ||
+                  cTypes.contains('sublocality_level_1')) &&
+              sublocality == null) {
+            sublocality = longName;
+          }
+          if (cTypes.contains('route') && route == null) {
+            route = longName;
+          }
+        }
+        final parts = <String>[
+          if (sublocality != null && sublocality.isNotEmpty) sublocality,
+          if (locality != null && locality.isNotEmpty) locality,
+          if (route != null && route.isNotEmpty) route,
+        ];
+        if (parts.isNotEmpty) return parts.join('، ');
+      }
+
+      final formatted = (map['formatted_address'] ?? '').toString().trim();
+      if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
+        return formatted;
+      }
+    }
+    return null;
+  }
+
+  bool _looksLikeCoordinates(String input) {
+    final text = input.trim();
+    return RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
   }
 
   Future<void> _searchByName() async {
@@ -198,6 +280,145 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
     }
   }
 
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    if (query.length < 2) {
+      if (mounted && _suggestions.isNotEmpty) {
+        setState(() => _suggestions = const []);
+      }
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _fetchAutocompleteSuggestions(query);
+    });
+  }
+
+  Future<void> _fetchAutocompleteSuggestions(String query) async {
+    if (_isSearching) return;
+    setState(() => _isSearching = true);
+    try {
+      final suggestUrl = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/autocomplete/json',
+        {
+          'input': query,
+          'language': 'ar',
+          'components': 'country:sy',
+          'key': _mapsApiKey,
+        },
+      );
+      final suggestRes = await http.get(
+        suggestUrl,
+        headers: const {'Accept': 'application/json'},
+      );
+      if (suggestRes.statusCode != 200) {
+        if (!mounted) return;
+        setState(() => _suggestions = const []);
+        return;
+      }
+      final suggestBody = jsonDecode(suggestRes.body);
+      if (suggestBody is! Map<String, dynamic>) {
+        if (!mounted) return;
+        setState(() => _suggestions = const []);
+        return;
+      }
+      final predictions = suggestBody['predictions'];
+      if (predictions is! List) {
+        if (!mounted) return;
+        setState(() => _suggestions = const []);
+        return;
+      }
+      final nextSuggestions = predictions
+          .whereType<Map>()
+          .map((raw) => Map<String, dynamic>.from(raw))
+          .map(
+            (p) => _PlaceSuggestion(
+              placeId: (p['place_id'] ?? '').toString(),
+              description: (p['description'] ?? '').toString(),
+            ),
+          )
+          .where((p) => p.placeId.isNotEmpty && p.description.isNotEmpty)
+          .take(6)
+          .toList(growable: false);
+      if (!mounted) return;
+      setState(() => _suggestions = nextSuggestions);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _suggestions = const []);
+    } finally {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
+  Future<void> _selectSuggestion(_PlaceSuggestion suggestion) async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _searchController.text = suggestion.description;
+      _suggestions = const [];
+      _isSearching = true;
+    });
+    try {
+      final detailsUrl = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/details/json',
+        {
+          'place_id': suggestion.placeId,
+          'fields': 'geometry/location,formatted_address',
+          'language': 'ar',
+          'key': _mapsApiKey,
+        },
+      );
+      final detailsRes = await http.get(
+        detailsUrl,
+        headers: const {'Accept': 'application/json'},
+      );
+      if (detailsRes.statusCode != 200) {
+        _showSnack('خطأ', 'تعذر تحميل تفاصيل الموقع');
+        return;
+      }
+      final detailsBody = jsonDecode(detailsRes.body);
+      if (detailsBody is! Map<String, dynamic>) {
+        _showSnack('خطأ', 'تعذر قراءة تفاصيل الموقع');
+        return;
+      }
+      final result = (detailsBody['result'] is Map)
+          ? Map<String, dynamic>.from(detailsBody['result'] as Map)
+          : <String, dynamic>{};
+      final geometry = (result['geometry'] is Map)
+          ? Map<String, dynamic>.from(result['geometry'] as Map)
+          : <String, dynamic>{};
+      final location = (geometry['location'] is Map)
+          ? Map<String, dynamic>.from(geometry['location'] as Map)
+          : <String, dynamic>{};
+      final lat = double.tryParse(location['lat']?.toString() ?? '');
+      final lng = double.tryParse(location['lng']?.toString() ?? '');
+      if (lat == null || lng == null) {
+        _showSnack('خطأ', 'تعذر قراءة الموقع');
+        return;
+      }
+      final point = ll.LatLng(lat, lng);
+      if (!mounted) return;
+      setState(() {
+        _selectedPoint = point;
+        _selectedAddress =
+            (result['formatted_address']?.toString().trim().isNotEmpty ?? false)
+            ? result['formatted_address'].toString()
+            : suggestion.description;
+      });
+      _showSnack('تم', 'تم اختيار الموقع');
+    } catch (_) {
+      _showSnack('خطأ', 'فشل اختيار الموقع');
+    } finally {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
   Future<void> _openMapPicker() async {
     final result = await Navigator.of(context).push<_AddressPickerResult>(
       MaterialPageRoute(
@@ -220,15 +441,25 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
     }
 
     setState(() => _isSaving = true);
-    final builtAddress =
-        'العنوان: ${_selectedAddress!.trim()} | اسم العنوان: ${_titleController.text.trim()} | المنطقة: ${_areaController.text.trim()} | الشارع: ${_streetController.text.trim()} | تفاصيل: ${_detailsController.text.trim()}';
+    final payload = CreateAddressPayload(
+      title: _titleController.text.trim(),
+      region: _areaController.text.trim(),
+      street: _streetController.text.trim(),
+      addressDetails: _detailsController.text.trim(),
+      details: _selectedAddress!.trim(),
+      lat: _selectedPoint.latitude,
+      lng: _selectedPoint.longitude,
+      isDefault: false,
+    );
     try {
-      await widget.onSave(builtAddress);
+      await widget.onSave(payload);
       if (!mounted) return;
       Navigator.of(context).pop();
       _showSnack('تم', 'تم حفظ عنوان التوصيل بنجاح');
+    } on HomeApiException catch (e) {
+      _showSnack('خطأ', e.message);
     } catch (_) {
-      _showSnack('خطأ', 'تعذر حفظ العنوان');
+      _showSnack('خطأ', 'تعذر حفظ العنوان، حاول مرة أخرى');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -244,6 +475,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _titleController.dispose();
     _areaController.dispose();
@@ -285,6 +517,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
             TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
+              onChanged: _onSearchChanged,
               onSubmitted: (_) => _searchByName(),
               decoration: InputDecoration(
                 hintText: 'ابحث عن الموقع',
@@ -314,6 +547,41 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                 ),
               ),
             ),
+            if (_suggestions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE3E8F0)),
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _suggestions.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, color: Color(0xFFEFF3F8)),
+                  itemBuilder: (_, index) {
+                    final suggestion = _suggestions[index];
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(
+                        Icons.location_on_outlined,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      title: Text(
+                        suggestion.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13.5),
+                      ),
+                      onTap: () => _selectSuggestion(suggestion),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             InkWell(
               onTap: _openMapPicker,
@@ -526,10 +794,7 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
       );
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final results = body['results'];
-        final label = (results is List && results.isNotEmpty)
-            ? (results.first['formatted_address'] as String?)?.trim()
-            : null;
+        final label = _extractAreaLabelFromGoogle(body);
         if (label != null && label.isNotEmpty && mounted) {
           setState(() => _resolvedAddress = label);
         }
@@ -543,6 +808,63 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
         setState(() => _isResolving = false);
       }
     }
+  }
+
+  String? _extractAreaLabelFromGoogle(Map<String, dynamic> body) {
+    final results = body['results'];
+    if (results is! List || results.isEmpty) return null;
+    for (final raw in results) {
+      if (raw is! Map) continue;
+      final map = Map<String, dynamic>.from(raw);
+      final types = (map['types'] is List)
+          ? (map['types'] as List).map((e) => e.toString()).toList()
+          : const <String>[];
+      if (types.contains('plus_code')) continue;
+
+      final componentsRaw = map['address_components'];
+      if (componentsRaw is List) {
+        String? locality;
+        String? sublocality;
+        String? route;
+        for (final cRaw in componentsRaw) {
+          if (cRaw is! Map) continue;
+          final c = Map<String, dynamic>.from(cRaw);
+          final longName = (c['long_name'] ?? '').toString().trim();
+          if (longName.isEmpty) continue;
+          final cTypes = (c['types'] is List)
+              ? (c['types'] as List).map((e) => e.toString()).toList()
+              : const <String>[];
+          if (cTypes.contains('locality') && locality == null) {
+            locality = longName;
+          }
+          if ((cTypes.contains('sublocality') ||
+                  cTypes.contains('sublocality_level_1')) &&
+              sublocality == null) {
+            sublocality = longName;
+          }
+          if (cTypes.contains('route') && route == null) {
+            route = longName;
+          }
+        }
+        final parts = <String>[
+          if (sublocality != null && sublocality.isNotEmpty) sublocality,
+          if (locality != null && locality.isNotEmpty) locality,
+          if (route != null && route.isNotEmpty) route,
+        ];
+        if (parts.isNotEmpty) return parts.join('، ');
+      }
+
+      final formatted = (map['formatted_address'] ?? '').toString().trim();
+      if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
+        return formatted;
+      }
+    }
+    return null;
+  }
+
+  bool _looksLikeCoordinates(String input) {
+    final text = input.trim();
+    return RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
   }
 
   @override
@@ -651,4 +973,11 @@ class _AddressPickerResult {
 
   final ll.LatLng point;
   final String address;
+}
+
+class _PlaceSuggestion {
+  final String placeId;
+  final String description;
+
+  const _PlaceSuggestion({required this.placeId, required this.description});
 }

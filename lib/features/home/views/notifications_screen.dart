@@ -13,15 +13,15 @@ class NotificationsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('الإشعارات'),
+        title: Text('notifications.title'.tr),
         centerTitle: true,
         backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
           TextButton(
             onPressed: controller.markAllRead,
-            child: const Text(
-              'تحديد الكل كمقروء',
+            child: Text(
+              'notifications.markAllRead'.tr,
               style: TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
@@ -32,9 +32,9 @@ class NotificationsScreen extends StatelessWidget {
       ),
       body: Obx(() {
         if (controller.notifications.isEmpty) {
-          return const Center(
+          return Center(
             child: Text(
-              'لا توجد إشعارات حالياً',
+              'notifications.empty'.tr,
               style: TextStyle(color: AppColors.textSecondary),
             ),
           );

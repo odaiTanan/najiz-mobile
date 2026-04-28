@@ -74,10 +74,14 @@ class AuthRepository {
             )
             .timeout(ApiConfig.timeout);
       } on TimeoutException catch (e) {
+        // Keep detailed reason in debug logs to diagnose device-specific issues.
+        print('[AUTH][ERR] POST $uri -> $e');
         lastError = e;
       } on SocketException catch (e) {
+        print('[AUTH][ERR] POST $uri -> $e');
         lastError = e;
       } on http.ClientException catch (e) {
+        print('[AUTH][ERR] POST $uri -> $e');
         lastError = e;
       }
 

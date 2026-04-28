@@ -9,6 +9,7 @@ class SessionService {
   static const _userEmailKey = 'user_email';
   static const _userAddressKey = 'user_address';
   static const _userAvatarPathKey = 'user_avatar_path';
+  static const _localeCodeKey = 'locale_code';
 
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -73,5 +74,17 @@ class SessionService {
       return;
     }
     await prefs.setString(_userAvatarPathKey, normalized);
+  }
+
+  static Future<void> saveLocaleCode(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_localeCodeKey, code.trim().toLowerCase());
+  }
+
+  static Future<String?> getLocaleCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_localeCodeKey)?.trim().toLowerCase();
+    if (value == null || value.isEmpty) return null;
+    return value;
   }
 }

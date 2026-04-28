@@ -43,6 +43,7 @@ dependencies:
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   geolocator: ^14.0.2
+  geocoding: ^4.0.0
   lottie: ^3.3.1
   onesignal_flutter: ^5.3.4
   pusher_client:
@@ -56,6 +57,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -74,6 +76,14 @@ flutter_native_splash:
     color: "#FFFFFF"
     image: assets/najiz_go_express_logo.png
 
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: assets/najiz_go_express_logo.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/najiz_go_express_logo.png
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -88,6 +98,8 @@ flutter:
     - assets/najiz_go_express_logo.png
     - assets/google_logo.png
     - assets/apple_logo.png
+    - assets/i18n/ar.json
+    - assets/i18n/en.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -6,6 +6,7 @@ import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
+import 'package:najiz_go_express/data/repositories/auth_repository.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
@@ -24,6 +25,7 @@ class HomeController extends GetxController {
 
   final String? token;
   final HomeRepository _repository;
+  final AuthRepository _authRepository = AuthRepository();
   late final AuthStateManager _authStateManager;
   late final PushNotificationService _pushNotificationService;
 
@@ -57,6 +59,24 @@ class HomeController extends GetxController {
     final identity = await SessionService.getUserIdentity();
     final resolved = (identity['name'] ?? identity['phone'] ?? '').trim();
     displayName.value = resolved;
+
+    final authToken = activeToken;
+    if (authToken == null || authToken.trim().isEmpty) return;
+    try {
+      final user = await _authRepository.getCurrentUser(token: authToken);
+      if (user == null || user.isEmpty) return;
+      final name = (user['name'] ?? user['full_name'] ?? '').toString().trim();
+      final phone = (user['phone'] ?? '').toString().trim();
+      final email = (user['email'] ?? '').toString().trim();
+      await SessionService.saveUserIdentity(
+        name: name.isEmpty ? null : name,
+        phone: phone.isEmpty ? null : phone,
+        email: email.isEmpty ? null : email,
+      );
+      displayName.value = (name.isNotEmpty ? name : phone);
+    } catch (_) {
+      // Keep local cached identity if profile sync fails.
+    }
   }
 
   Future<void> loadHomeData() async {

@@ -108,6 +108,7 @@ class HomeRepository {
     required String paymentMethod,
     required List<Map<String, dynamic>> items,
     String? notes,
+    String serviceName = 'food',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders');
     final payload = {
@@ -118,7 +119,40 @@ class HomeRepository {
       'payment_method': paymentMethod,
       'items': items,
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      'service_name': serviceName,
     };
+    _logApiRequest(method: 'POST', uri: uri, body: payload);
+    final res = await _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'POST', uri: uri, response: res);
+
+    final data = _safeJsonDecode(res.body);
+    final status = data['status'];
+    final isSuccess =
+        (status is bool && status) ||
+        (status?.toString().toLowerCase() == 'success');
+
+    if (res.statusCode >= 200 && res.statusCode < 300 && isSuccess) {
+      return data;
+    }
+
+    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+  }
+
+  Future<Map<String, dynamic>> addUserAddress({
+    required String token,
+    required Map<String, dynamic> payload,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/user/addresses');
     _logApiRequest(method: 'POST', uri: uri, body: payload);
     final res = await _client
         .post(
@@ -155,6 +189,7 @@ class HomeRepository {
     required String paymentMethod,
     required List<Map<String, dynamic>> items,
     String? notes,
+    String serviceName = 'food',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/calculate');
     final payload = {
@@ -165,6 +200,7 @@ class HomeRepository {
       'payment_method': paymentMethod,
       'items': items,
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      'service_name': serviceName,
     };
     _logApiRequest(method: 'POST', uri: uri, body: payload);
     final res = await _client
@@ -566,10 +602,13 @@ class HomeRepository {
           statusCode: res.statusCode,
         );
       } on TimeoutException catch (e) {
+        _logApiError(method: 'GET', uri: uri, error: e);
         lastError = e;
       } on SocketException catch (e) {
+        _logApiError(method: 'GET', uri: uri, error: e);
         lastError = e;
       } on http.ClientException catch (e) {
+        _logApiError(method: 'GET', uri: uri, error: e);
         lastError = e;
       }
 

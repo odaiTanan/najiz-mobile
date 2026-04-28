@@ -88,6 +88,7 @@ class VendorProductItem {
   final String? image;
   final double? price;
   final int? stock;
+  final List<VendorProductExtra> activeExtras;
 
   const VendorProductItem({
     required this.id,
@@ -98,6 +99,7 @@ class VendorProductItem {
     this.image,
     this.price,
     this.stock,
+    this.activeExtras = const [],
   });
 
   factory VendorProductItem.fromJson(Map<String, dynamic> json) {
@@ -110,6 +112,46 @@ class VendorProductItem {
       image: json['image']?.toString(),
       price: _asNullableDouble(json['price']),
       stock: _asNullableInt(json['stock']),
+      activeExtras: _asList(
+        json['active_extras'] ?? json['extras'] ?? const <dynamic>[],
+      ).map(VendorProductExtra.fromJson).toList(growable: false),
+    );
+  }
+}
+
+class VendorProductExtra {
+  final int id;
+  final int? productId;
+  final String name;
+  final double price;
+  final int maxQuantity;
+  final bool isRequired;
+  final int sortOrder;
+  final bool isActive;
+
+  const VendorProductExtra({
+    required this.id,
+    this.productId,
+    required this.name,
+    required this.price,
+    this.maxQuantity = 1,
+    this.isRequired = false,
+    this.sortOrder = 0,
+    this.isActive = true,
+  });
+
+  factory VendorProductExtra.fromJson(Map<String, dynamic> json) {
+    return VendorProductExtra(
+      id: _asInt(json['id']),
+      productId: _asNullableInt(json['product_id']),
+      name: (json['name'] ?? '').toString(),
+      price: _asNullableDouble(json['price']) ?? 0,
+      maxQuantity: _asNullableInt(json['max_quantity']) ?? 1,
+      isRequired: (json['is_required'] == true || json['is_required'] == 1),
+      sortOrder: _asNullableInt(json['sort_order']) ?? 0,
+      isActive: (json['is_active'] == null ||
+          json['is_active'] == true ||
+          json['is_active'] == 1),
     );
   }
 }

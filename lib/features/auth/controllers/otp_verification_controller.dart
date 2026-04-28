@@ -28,6 +28,27 @@ class OtpVerificationController extends GetxController {
   Timer? _countdownTimer;
   String? _lastAutoSubmittedCode;
 
+  Future<void> _syncIdentityFromBackend({
+    required String authToken,
+    required String fallbackPhone,
+  }) async {
+    try {
+      final user = await _authRepository.getCurrentUser(token: authToken);
+      final name = (user?['name'] ?? user?['full_name'] ?? '')
+          .toString()
+          .trim();
+      final phone = (user?['phone'] ?? fallbackPhone).toString().trim();
+      final email = (user?['email'] ?? '').toString().trim();
+      await SessionService.saveUserIdentity(
+        name: name.isEmpty ? null : name,
+        phone: phone.isEmpty ? fallbackPhone : phone,
+        email: email.isEmpty ? null : email,
+      );
+    } catch (_) {
+      await SessionService.saveUserIdentity(phone: fallbackPhone);
+    }
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -85,7 +106,10 @@ class OtpVerificationController extends GetxController {
       }
 
       if (result.token != null && result.token!.trim().isNotEmpty) {
-        await SessionService.saveUserIdentity(phone: phone);
+        await _syncIdentityFromBackend(
+          authToken: result.token!,
+          fallbackPhone: phone,
+        );
         await Get.find<AuthStateManager>().markAuthenticated(result.token!);
       }
       Get.offAll(() => HomeScreen(token: result.token));

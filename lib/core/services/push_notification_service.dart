@@ -12,6 +12,7 @@ class PushNotificationService extends GetxService {
   static const String _storageKey = 'app_notifications_history';
 
   final _http = http.Client();
+  final Map<String, DateTime> _recentLocalKeys = <String, DateTime>{};
 
   final notifications = <AppNotificationItem>[].obs;
   final unreadCount = 0.obs;
@@ -22,12 +23,12 @@ class PushNotificationService extends GetxService {
     _initialized = true;
 
     await _loadFromStorage();
-
     OneSignal.initialize(_oneSignalAppId);
     await OneSignal.Notifications.requestPermission(true);
 
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
       final notification = event.notification;
+      _handleOrderStatusMilestones(notification.additionalData);
       _appendNotification(
         title: notification.title ?? 'إشعار جديد',
         body: notification.body ?? '',
@@ -38,6 +39,7 @@ class PushNotificationService extends GetxService {
 
     OneSignal.Notifications.addClickListener((event) {
       final notification = event.notification;
+      _handleOrderStatusMilestones(notification.additionalData);
       _appendNotification(
         title: notification.title ?? 'إشعار جديد',
         body: notification.body ?? '',
@@ -50,6 +52,75 @@ class PushNotificationService extends GetxService {
       await subscribeDevice(token);
     }
   }
+
+  Future<void> _handleOrderStatusMilestones(Map<String, dynamic>? data) async {
+    if (data == null) return;
+    final type = data['type']?.toString().trim().toLowerCase();
+    if (type != 'order_status') return;
+
+    final orderId = data['order_id']?.toString();
+    if (orderId == null || orderId.trim().isEmpty) return;
+
+    final status = _normalizeStatus(
+      data['status']?.toString() ?? data['order_status']?.toString() ?? '',
+    );
+    final dispatchStatus = _normalizeStatus(
+      data['dispatch_status']?.toString() ??
+          data['driver_status']?.toString() ??
+          '',
+    );
+    final isNearAddress = _nearAddressStatuses.contains(status) ||
+        _nearAddressStatuses.contains(dispatchStatus);
+    final isArrivedWaiting = _arrivedWaitingStatuses.contains(status) ||
+        _arrivedWaitingStatuses.contains(dispatchStatus);
+
+    if (isNearAddress) {
+      await pushLocalInAppNotification(
+        title: 'تنبيه التوصيل',
+        body: 'السائق أصبح على مقربة من عنوانك',
+        dedupeKey: 'onesignal-order-$orderId-near-address',
+        data: {
+          ...data,
+          'event': 'driver_near_address',
+        },
+      );
+    }
+
+    if (isArrivedWaiting) {
+      await pushLocalInAppNotification(
+        title: 'تنبيه التوصيل',
+        body: 'السائق وصل وهو في الانتظار',
+        dedupeKey: 'onesignal-order-$orderId-arrived-waiting',
+        data: {
+          ...data,
+          'event': 'driver_arrived_waiting',
+        },
+      );
+    }
+  }
+
+  String _normalizeStatus(String raw) {
+    return raw.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+  }
+
+  static const Set<String> _nearAddressStatuses = {
+    'on_way',
+    'near_destination',
+    'nearby',
+    'approaching_destination',
+    'driver_near',
+  };
+
+  static const Set<String> _arrivedWaitingStatuses = {
+    'arrived',
+    'waiting',
+    'arrived_waiting',
+    'driver_arrived',
+    'at_destination',
+    'at_pickup',
+    'waiting_at_destination',
+    'waiting_at_pickup',
+  };
 
   Future<void> subscribeDevice(String userToken) async {
     final playerId = OneSignal.User.pushSubscription.id;
@@ -112,6 +183,42 @@ class PushNotificationService extends GetxService {
     notifications[index] = target.copyWith(isRead: true);
     _recalculateUnread();
     await _saveToStorage();
+  }
+
+  Future<void> pushLocalInAppNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+    String? dedupeKey,
+    Duration dedupeWindow = const Duration(minutes: 20),
+    bool showSnack = true,
+  }) async {
+    final key = dedupeKey?.trim();
+    if (key != null && key.isNotEmpty) {
+      final now = DateTime.now();
+      final previous = _recentLocalKeys[key];
+      if (previous != null && now.difference(previous) < dedupeWindow) {
+        return;
+      }
+      _recentLocalKeys[key] = now;
+    }
+
+    await _appendNotification(
+      title: title,
+      body: body,
+      externalId:
+          'local-${DateTime.now().microsecondsSinceEpoch}-${key ?? 'event'}',
+      data: data,
+    );
+
+    if (showSnack) {
+      Get.snackbar(
+        title,
+        body,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 
   Future<void> _appendNotification({

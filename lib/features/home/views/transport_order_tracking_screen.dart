@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/features/home/controllers/transport_order_tracking_controller.dart';
+import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/support/views/support_chat_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -50,6 +51,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
         token: token,
         orderId: orderId,
         orderNumber: orderNumber,
+        orderType: orderType,
         initialStatus: initialStatus,
         initialDispatchStatus: initialDispatchStatus,
         pickupPoint: ll.LatLng(pickupLat, pickupLng),
@@ -59,56 +61,68 @@ class TransportOrderTrackingScreen extends StatelessWidget {
       tag: 'transport-tracking-$orderId',
     );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5F8),
-      appBar: AppBar(
+    return WillPopScope(
+      onWillPop: () async {
+        Get.off(() => HomeScreen(token: controller.token));
+        return false;
+      },
+      child: Scaffold(
         backgroundColor: const Color(0xFFF3F5F8),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'تتبع الطلب',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () async {
+              Get.off(() => HomeScreen(token: controller.token));
+            },
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          ),
+          backgroundColor: const Color(0xFFF3F5F8),
+          elevation: 0,
+          centerTitle: true,
+          title: const Text(
+            'تتبع الطلب',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Obx(
-          () {
-            final showAcceptedLayout = controller.stageIndex >= 0;
-            if (showAcceptedLayout) {
-              return _AcceptedTrackingLayout(
-                controller: controller,
-                token: token,
-                orderNumber: orderNumber,
-                orderType: orderType,
-              );
-            }
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              children: [
-                _TopCard(
+        body: SafeArea(
+          child: Obx(
+            () {
+              final showAcceptedLayout = controller.stageIndex >= 0;
+              if (showAcceptedLayout) {
+                return _AcceptedTrackingLayout(
+                  controller: controller,
+                  token: token,
                   orderNumber: orderNumber,
                   orderType: orderType,
-                  connected: controller.isLiveConnected.value,
-                ),
-                if (controller.errorMessage.value != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    controller.errorMessage.value!,
-                    style: const TextStyle(color: AppColors.error),
+                );
+              }
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                children: [
+                  _TopCard(
+                    orderNumber: orderNumber,
+                    orderType: orderType,
+                    connected: controller.isLiveConnected.value,
+                  ),
+                  if (controller.errorMessage.value != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      controller.errorMessage.value!,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  _MapCard(controller: controller, orderType: orderType),
+                  const SizedBox(height: 12),
+                  _DriverInfoCard(controller: controller, token: token),
+                  const SizedBox(height: 12),
+                  _TransportTimelineCard(
+                    currentIndex: controller.stageIndex,
+                    orderType: orderType,
                   ),
                 ],
-                const SizedBox(height: 12),
-                _MapCard(controller: controller, orderType: orderType),
-                const SizedBox(height: 12),
-                _DriverInfoCard(controller: controller, token: token),
-                const SizedBox(height: 12),
-                _TransportTimelineCard(
-                  currentIndex: controller.stageIndex,
-                  orderType: orderType,
-                ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

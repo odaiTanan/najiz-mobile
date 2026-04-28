@@ -1,8 +1,20 @@
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/models/classification_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
+import 'dart:convert';
+
+enum VendorStatusFilter {
+  all,
+  active,
+  inactive,
+  opened,
+  closed,
+}
 
 class RestaurantProductsController extends GetxController {
   RestaurantProductsController({
@@ -20,15 +32,23 @@ class RestaurantProductsController extends GetxController {
 
   final classifications = <ClassificationModel>[].obs;
   final selectedClassificationId = RxnInt();
+  final selectedStatusFilter = VendorStatusFilter.all.obs;
 
   final allVendors = <VendorModel>[].obs;
   final vendors = <VendorModel>[].obs;
   final selectedVendorId = RxnInt();
+  final currentDeliveryAddress = 'جاري تحديد موقعك...'.obs;
+  final isResolvingAddress = false.obs;
+  static const String _mapsApiKey = String.fromEnvironment(
+    'MAPS_API_KEY',
+    defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
+  );
 
   @override
   void onInit() {
     super.onInit();
     load();
+    loadCurrentDeliveryAddress();
   }
 
   Future<void> load() async {
@@ -74,6 +94,11 @@ class RestaurantProductsController extends GetxController {
     _applyClassificationFilter();
   }
 
+  void selectStatusFilter(VendorStatusFilter filter) {
+    selectedStatusFilter.value = filter;
+    _applyClassificationFilter();
+  }
+
   Future<void> openVendorProducts(int vendorId) async {
     selectedVendorId.value = vendorId;
     await Get.to(
@@ -94,17 +119,168 @@ class RestaurantProductsController extends GetxController {
   }
 
   void _applyClassificationFilter() {
-    final selected = selectedClassificationId.value;
-    if (selected == null) {
-      vendors.assignAll(allVendors);
-      selectedVendorId.value = vendors.isNotEmpty ? vendors.first.id : null;
-      return;
-    }
+    final selectedClassification = selectedClassificationId.value;
+    final selectedStatus = selectedStatusFilter.value;
 
     final filtered = allVendors.where((vendor) {
-      return vendor.classificationId == selected;
+      final matchesClassification =
+          selectedClassification == null ||
+          vendor.classificationId == selectedClassification;
+      final matchesStatus = switch (selectedStatus) {
+        VendorStatusFilter.all => true,
+        VendorStatusFilter.active => vendor.isActive,
+        VendorStatusFilter.inactive => !vendor.isActive,
+        VendorStatusFilter.opened => vendor.isOpened,
+        VendorStatusFilter.closed => !vendor.isOpened,
+      };
+      return matchesClassification && matchesStatus;
     }).toList();
     vendors.assignAll(filtered);
     selectedVendorId.value = vendors.isNotEmpty ? vendors.first.id : null;
+  }
+
+  Future<void> loadCurrentDeliveryAddress() async {
+    if (isResolvingAddress.value) return;
+    isResolvingAddress.value = true;
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        currentDeliveryAddress.value = 'فعّل خدمة الموقع لعرض العنوان الحالي';
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        currentDeliveryAddress.value = 'يلزم السماح بالموقع لعرض العنوان';
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        currentDeliveryAddress.value = 'صلاحية الموقع مرفوضة نهائيا';
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final resolved = await _resolveAddressFromGoogle(
+        position.latitude,
+        position.longitude,
+      );
+      if (resolved != null && resolved.isNotEmpty) {
+        currentDeliveryAddress.value = resolved;
+        return;
+      }
+      final fallback = await _resolveAddressFromPlacemark(
+        position.latitude,
+        position.longitude,
+      );
+      currentDeliveryAddress.value =
+          fallback ??
+          '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+    } catch (_) {
+      currentDeliveryAddress.value = 'تعذر تحديد الموقع الحالي';
+    } finally {
+      isResolvingAddress.value = false;
+    }
+  }
+
+  Future<String?> _resolveAddressFromGoogle(double lat, double lng) async {
+    if (_mapsApiKey.trim().isEmpty) return null;
+    final url = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/geocode/json',
+      {
+        'latlng': '$lat,$lng',
+        'language': 'ar',
+        'region': 'sy',
+        'key': _mapsApiKey,
+      },
+    );
+    try {
+      final response = await http.get(
+        url,
+        headers: const {'Accept': 'application/json'},
+      );
+      if (response.statusCode != 200) return null;
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) return null;
+      final results = body['results'];
+      if (results is! List || results.isEmpty) return null;
+      for (final raw in results) {
+        if (raw is! Map) continue;
+        final map = Map<String, dynamic>.from(raw);
+        final types = (map['types'] is List)
+            ? (map['types'] as List).map((e) => e.toString()).toList()
+            : const <String>[];
+        if (types.contains('plus_code')) continue;
+
+        final componentsRaw = map['address_components'];
+        if (componentsRaw is List) {
+          String? locality;
+          String? sublocality;
+          String? route;
+          for (final cRaw in componentsRaw) {
+            if (cRaw is! Map) continue;
+            final c = Map<String, dynamic>.from(cRaw);
+            final longName = (c['long_name'] ?? '').toString().trim();
+            if (longName.isEmpty) continue;
+            final cTypes = (c['types'] is List)
+                ? (c['types'] as List).map((e) => e.toString()).toList()
+                : const <String>[];
+            if (cTypes.contains('locality') && locality == null) {
+              locality = longName;
+            }
+            if ((cTypes.contains('sublocality') ||
+                    cTypes.contains('sublocality_level_1')) &&
+                sublocality == null) {
+              sublocality = longName;
+            }
+            if (cTypes.contains('route') && route == null) {
+              route = longName;
+            }
+          }
+          final parts = <String>[
+            if (sublocality != null && sublocality.isNotEmpty) sublocality,
+            if (locality != null && locality.isNotEmpty) locality,
+            if (route != null && route.isNotEmpty) route,
+          ];
+          if (parts.isNotEmpty) return parts.join('، ');
+        }
+
+        final formatted = (map['formatted_address'] ?? '').toString().trim();
+        if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
+          return formatted;
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _looksLikeCoordinates(String input) {
+    final text = input.trim();
+    return RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
+  }
+
+  Future<String?> _resolveAddressFromPlacemark(double lat, double lng) async {
+    try {
+      final marks = await placemarkFromCoordinates(lat, lng);
+      if (marks.isEmpty) return null;
+      final p = marks.first;
+      final parts = <String>[
+        if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
+        if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+        if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+      ];
+      if (parts.isNotEmpty) return parts.join('، ');
+    } catch (_) {}
+    return null;
   }
 }

@@ -34,8 +34,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       _controller.messages,
       (_) => _scrollToBottom(),
     );
-    // Ensure latest history is loaded whenever screen is opened.
-    _controller.loadInitialData();
   }
 
   @override
@@ -64,7 +62,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     try {
       await _controller.sendMessage(text);
     } catch (e) {
-      Get.snackbar('خطأ', e.toString());
+      Get.snackbar('orders.error'.tr, e.toString());
       _messageController.text = text;
     }
   }
@@ -78,7 +76,10 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        title: const Text('الدعم الفني', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(
+          'support.title'.tr,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
       ),
       body: Obx(() {
         if (_controller.isLoading.value) {
@@ -99,7 +100,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                   const SizedBox(height: 10),
                   ElevatedButton(
                     onPressed: _controller.loadInitialData,
-                    child: const Text('إعادة المحاولة'),
+                    child: Text('support.retry'.tr),
                   ),
                 ],
               ),
@@ -127,20 +128,22 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'خدمة العملاء',
-                          style: TextStyle(
+                          _controller.supportAgentName.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'متصل الآن',
+                          'support.onlineNow'.tr,
                           style: TextStyle(
                             color: Color(0xFF16A34A),
                             fontSize: 12,
@@ -175,16 +178,18 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.headset_mic_rounded, color: Colors.white),
-                          SizedBox(width: 8),
+                          const Icon(Icons.headset_mic_rounded, color: Colors.white),
+                          const SizedBox(width: 8),
                           Text(
-                            'دعم التطبيق',
-                            style: TextStyle(
+                            _controller.supportAgentName.value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          Spacer(),
+                          const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -194,8 +199,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                               color: Colors.white.withOpacity(0.18),
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: const Text(
-                              'متصل',
+                            child: Text(
+                              'support.online'.tr,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -217,7 +222,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                           ),
                         ),
                         child: _controller.messages.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -228,7 +233,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                     ),
                                     SizedBox(height: 8),
                                     Text(
-                                      'ابدأ المحادثة مع الدعم',
+                                      'support.startConversation'.tr,
                                       style: TextStyle(
                                         color: AppColors.textPrimary,
                                         fontWeight: FontWeight.w700,
@@ -303,13 +308,30 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                             ),
                                           ),
                                           const SizedBox(height: 3),
-                                          Text(
-                                            _formatTime(msg.createdAt),
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              color: Color(0xFF6B7280),
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                _formatTime(msg.createdAt),
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Color(0xFF6B7280),
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              if (isMe) ...[
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  msg.isReadByOthers
+                                                      ? Icons.done_all_rounded
+                                                      : Icons.done_rounded,
+                                                  size: 14,
+                                                  color: msg.isReadByOthers
+                                                      ? const Color(0xFF3BA6F7)
+                                                      : const Color(0xFF9AA7BA),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -339,7 +361,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                 textInputAction: TextInputAction.send,
                                 onSubmitted: (_) => _send(),
                                 decoration: InputDecoration(
-                                  hintText: 'اكتب رسالة...',
+                                  hintText: 'support.messageHint'.tr,
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
                                   contentPadding: const EdgeInsets.symmetric(

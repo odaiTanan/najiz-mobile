@@ -28,6 +28,27 @@ class LoginController extends GetxController {
 
   String? token;
 
+  Future<void> _syncIdentityFromBackend({
+    required String authToken,
+    required String fallbackPhone,
+  }) async {
+    try {
+      final user = await _authRepository.getCurrentUser(token: authToken);
+      final name = (user?['name'] ?? user?['full_name'] ?? '')
+          .toString()
+          .trim();
+      final phone = (user?['phone'] ?? fallbackPhone).toString().trim();
+      final email = (user?['email'] ?? '').toString().trim();
+      await SessionService.saveUserIdentity(
+        name: name.isEmpty ? null : name,
+        phone: phone.isEmpty ? fallbackPhone : phone,
+        email: email.isEmpty ? null : email,
+      );
+    } catch (_) {
+      await SessionService.saveUserIdentity(phone: fallbackPhone);
+    }
+  }
+
   void togglePasswordVisibility() {
     isPasswordHidden.value = !isPasswordHidden.value;
   }
@@ -57,11 +78,15 @@ class LoginController extends GetxController {
       }
 
       token = result.token;
-      await SessionService.saveUserIdentity(
-        phone: phoneOrEmailController.text.trim(),
-      );
+      final fallbackPhone = phoneOrEmailController.text.trim();
       if (token != null && token!.isNotEmpty) {
+        await _syncIdentityFromBackend(
+          authToken: token!,
+          fallbackPhone: fallbackPhone,
+        );
         await Get.find<AuthStateManager>().markAuthenticated(token!);
+      } else {
+        await SessionService.saveUserIdentity(phone: fallbackPhone);
       }
       Get.snackbar('تم بنجاح', result.message);
       Get.offAll(() => HomeScreen(token: token));

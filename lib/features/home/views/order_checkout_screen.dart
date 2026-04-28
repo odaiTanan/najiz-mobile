@@ -47,9 +47,9 @@ class OrderCheckoutScreen extends StatelessWidget {
                     onPressed: () => Get.back(),
                     icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'طلبي',
+                      'checkout.title'.tr,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
@@ -63,8 +63,8 @@ class OrderCheckoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _SectionCard(
-                title: 'عنوان التوصيل',
-                actionText: 'تعديل',
+                title: 'checkout.deliveryAddress'.tr,
+                actionText: 'checkout.edit'.tr,
                 onActionTap: () => _openLocationPicker(context, controller),
                 child: Row(
                   children: [
@@ -93,14 +93,6 @@ class OrderCheckoutScreen extends StatelessWidget {
                               color: AppColors.textPrimary,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${controller.lat.value}, ${controller.lng.value}',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -113,7 +105,7 @@ class OrderCheckoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _SectionCard(
-                title: 'عناصر الطلب',
+                title: 'checkout.orderItems'.tr,
                 child: Column(
                   children: items
                       .map(
@@ -155,6 +147,30 @@ class OrderCheckoutScreen extends StatelessWidget {
                                           fontSize: 12,
                                         ),
                                       ),
+                                    if (item.extras.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      ...item.extras.map(
+                                        (extra) => Text(
+                                          '+ ${extra.name} (${_price(extra.price)})',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    if ((item.note ?? '').trim().isNotEmpty)
+                                      Text(
+                                        'ملاحظة: ${item.note}',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11,
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -174,7 +190,7 @@ class OrderCheckoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _SectionCard(
-                title: 'طريقة الدفع',
+                title: 'checkout.paymentMethod'.tr,
                 child: Row(
                   children: [
                     Container(
@@ -190,19 +206,19 @@ class OrderCheckoutScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'الدفع نقداً',
+                            'checkout.cashPayment'.tr,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           Text(
-                            'الدفع عند الاستلام',
+                            'checkout.payOnDelivery'.tr,
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
@@ -253,12 +269,15 @@ class OrderCheckoutScreen extends StatelessWidget {
                                     ),
                                   );
                                 } on HomeApiException catch (e) {
-                                  Get.snackbar('خطأ', e.message);
+                                  Get.snackbar('orders.error'.tr, e.message);
                                 } catch (_) {
-                                  Get.snackbar('خطأ', 'فشل تأكيد الطلب');
+                                  Get.snackbar(
+                                    'orders.error'.tr,
+                                    'checkout.confirmOrderFailed'.tr,
+                                  );
                                 }
                               },
-                              message: 'يرجى تسجيل الدخول لإكمال الطلب',
+                              message: 'checkout.loginRequired'.tr,
                             );
                           },
                     child: controller.isPlacingOrder.value
@@ -270,11 +289,11 @@ class OrderCheckoutScreen extends StatelessWidget {
                               color: Colors.white,
                             ),
                           )
-                        : const Row(
+                        : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'تأكيد الطلب',
+                                'checkout.confirmOrder'.tr,
                                 style: TextStyle(fontWeight: FontWeight.w800),
                               ),
                               SizedBox(width: 8),
@@ -373,7 +392,7 @@ class _InvoiceCard extends StatelessWidget {
       child: Column(
         children: [
           _row(
-            'المجموع الفرعي',
+            'checkout.subtotal'.tr,
             _priceOrPlaceholder(
               value: controller.subtotal.value,
               hasCalculatedPricing: controller.hasCalculatedPricing.value,
@@ -381,7 +400,7 @@ class _InvoiceCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _row(
-            'رسوم التوصيل',
+            'checkout.deliveryFee'.tr,
             _priceOrPlaceholder(
               value: controller.deliveryFee.value,
               hasCalculatedPricing: controller.hasCalculatedPricing.value,
@@ -389,7 +408,7 @@ class _InvoiceCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _row(
-            'رسوم الخدمة',
+            'checkout.serviceFee'.tr,
             _priceOrPlaceholder(
               value: controller.serviceFee.value,
               hasCalculatedPricing: controller.hasCalculatedPricing.value,
@@ -397,7 +416,7 @@ class _InvoiceCard extends StatelessWidget {
           ),
           const Divider(height: 22),
           _row(
-            'الإجمالي',
+            'checkout.total'.tr,
             _priceOrPlaceholder(
               value: controller.total.value,
               hasCalculatedPricing: controller.hasCalculatedPricing.value,
@@ -488,9 +507,9 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
               padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'حدد موقع التوصيل',
+                      'checkout.selectDeliveryLocation'.tr,
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
@@ -539,7 +558,7 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('تأكيد الموقع'),
+                  child: Text('checkout.confirmLocation'.tr),
                 ),
               ),
             ),

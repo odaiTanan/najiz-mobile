@@ -36,7 +36,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF6F7FB),
         elevation: 0,
-        title: const Text('طلباتي', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(
+          'orders.title'.tr,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
       ),
       body: Obx(() {
         if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
@@ -50,7 +53,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   child: Text(controller.errorMessage.value!, style: const TextStyle(color: AppColors.error), textAlign: TextAlign.center),
                 ),
                 const SizedBox(height: 10),
-                ElevatedButton(onPressed: controller.loadOrders, child: const Text('إعادة المحاولة')),
+                ElevatedButton(
+                  onPressed: controller.loadOrders,
+                  child: Text('orders.retry'.tr),
+                ),
               ],
             ),
           );
@@ -82,9 +88,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               _FilterTabs(selected: _selectedFilter, onChanged: (v) => setState(() => _selectedFilter = v)),
               const SizedBox(height: 16),
               if (_selectedFilter == 'all') ...[
-                const _Header('كل الطلبات'),
+                _Header('orders.allOrders'.tr),
                 const SizedBox(height: 10),
-                if (allOrders.isEmpty) const _EmptyCard('لا يوجد طلبات'),
+                if (allOrders.isEmpty) _EmptyCard('orders.noOrders'.tr),
                 ...allOrders.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -101,8 +107,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             onCancel: () async {
                               if (o.status != 'pending') {
                                 Get.snackbar(
-                                  'تنبيه',
-                                  'الإلغاء متاح فقط للطلبات قيد الانتظار',
+                                  'orders.warning'.tr,
+                                  'orders.cancelOnlyPending'.tr,
                                 );
                                 return;
                               }
@@ -117,22 +123,25 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                   cancellationReason: reason,
                                 );
                                 if (!mounted) return;
-                                Get.snackbar('نجاح', 'تم إلغاء الطلب');
+                                Get.snackbar(
+                                  'orders.success'.tr,
+                                  'orders.cancelSuccess'.tr,
+                                );
                               } catch (e) {
                                 final msg = e.toString().replaceFirst(
                                   'Exception: ',
                                   '',
                                 );
-                                Get.snackbar('خطأ', msg);
+                                Get.snackbar('orders.error'.tr, msg);
                               }
                             },
                           ),
                   ),
                 ),
               ] else if (_selectedFilter == 'active') ...[
-                const _Header('الطلبات النشطة'),
+                _Header('orders.activeOrders'.tr),
                 const SizedBox(height: 10),
-                if (activeSorted.isEmpty) const _EmptyCard('لا يوجد طلبات نشطة'),
+                if (activeSorted.isEmpty) _EmptyCard('orders.noActiveOrders'.tr),
                 ...activeSorted.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -141,7 +150,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       onTrack: () => _openTracking(o),
                       onCancel: () async {
                         if (o.status != 'pending') {
-                          Get.snackbar('تنبيه', 'الإلغاء متاح فقط للطلبات قيد الانتظار');
+                          Get.snackbar(
+                            'orders.warning'.tr,
+                            'orders.cancelOnlyPending'.tr,
+                          );
                           return;
                         }
                         final reason = await _showCancelOrderSheet(
@@ -155,19 +167,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             cancellationReason: reason,
                           );
                           if (!mounted) return;
-                          Get.snackbar('نجاح', 'تم إلغاء الطلب');
+                          Get.snackbar(
+                            'orders.success'.tr,
+                            'orders.cancelSuccess'.tr,
+                          );
                         } catch (e) {
                           final msg = e.toString().replaceFirst('Exception: ', '');
-                          Get.snackbar('خطأ', msg);
+                          Get.snackbar('orders.error'.tr, msg);
                         }
                       },
                     ),
                   ),
                 ),
                 const SizedBox(height: 4),
-                const _Header('الطلبات المكتملة'),
+                _Header('orders.completedOrders'.tr),
                 const SizedBox(height: 10),
-                if (completedSorted.isEmpty) const _EmptyCard('لا يوجد طلبات مكتملة'),
+                if (completedSorted.isEmpty)
+                  _EmptyCard('orders.noCompletedOrders'.tr),
                 ...completedSorted.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -178,9 +194,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                 ),
               ] else if (_selectedFilter == 'completed') ...[
-                const _Header('الطلبات المكتملة'),
+                _Header('orders.completedOrders'.tr),
                 const SizedBox(height: 10),
-                if (completedSorted.isEmpty) const _EmptyCard('لا يوجد طلبات مكتملة'),
+                if (completedSorted.isEmpty)
+                  _EmptyCard('orders.noCompletedOrders'.tr),
                 ...completedSorted.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -191,9 +208,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                 ),
               ] else ...[
-                const _Header('الطلبات الملغية'),
+                _Header('orders.cancelledOrders'.tr),
                 const SizedBox(height: 10),
-                if (cancelledSorted.isEmpty) const _EmptyCard('لا يوجد طلبات ملغية'),
+                if (cancelledSorted.isEmpty)
+                  _EmptyCard('orders.noCancelledOrders'.tr),
                 ...cancelledSorted.map((o) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _CancelledOrderCard(order: o))),
               ],
             ],
@@ -251,19 +269,25 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
-              'تفاصيل الطلب',
+            Text(
+              'orders.orderDetails'.tr,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
-            _detailRow('رقم الطلب', order.orderNumber),
-            _detailRow('النوع', _selectedTypeLabel(order.type)),
-            _detailRow('الحالة', _statusLabel(order.status)),
-            _detailRow('حالة الإرسال', order.dispatchStatus),
-            _detailRow('المجموع الفرعي', '\$${order.subtotal.toStringAsFixed(2)}'),
-            _detailRow('رسوم التوصيل', '\$${order.deliveryFee.toStringAsFixed(2)}'),
-            _detailRow('الإجمالي', '\$${order.total.toStringAsFixed(2)}'),
-            _detailRow('الوقت', _dateHint(order.createdAt)),
+            _detailRow('orders.orderNumber'.tr, order.orderNumber),
+            _detailRow('orders.type'.tr, _selectedTypeLabel(order.type)),
+            _detailRow('orders.status'.tr, _statusLabel(order.status)),
+            _detailRow('orders.dispatchStatus'.tr, order.dispatchStatus),
+            _detailRow(
+              'orders.subtotal'.tr,
+              '\$${order.subtotal.toStringAsFixed(2)}',
+            ),
+            _detailRow(
+              'orders.deliveryFee'.tr,
+              '\$${order.deliveryFee.toStringAsFixed(2)}',
+            ),
+            _detailRow('orders.total'.tr, '\$${order.total.toStringAsFixed(2)}'),
+            _detailRow('orders.time'.tr, _dateHint(order.createdAt)),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -273,7 +297,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('إغلاق'),
+                child: Text('orders.close'.tr),
               ),
             ),
           ],
@@ -307,16 +331,16 @@ class _CancelOrderSheet extends StatefulWidget {
 
 class _CancelOrderSheetState extends State<_CancelOrderSheet> {
   static const List<String> _taxiReasons = [
-    'الأجرة مرتفعة للغاية',
-    'السائق بعيد جدًا',
-    'غيرت رأيي',
-    'سبب مخصص',
+    'orders.cancelReasonTooExpensive',
+    'orders.cancelReasonDriverFar',
+    'orders.cancelReasonChangedMind',
+    'orders.cancelReasonCustom',
   ];
   String? _selectedReason;
   late final TextEditingController _customReasonController;
 
   bool get _isTaxi => widget.orderType.toLowerCase() == 'taxi';
-  bool get _isCustomReason => _selectedReason == 'سبب مخصص';
+  bool get _isCustomReason => _selectedReason == 'orders.cancelReasonCustom';
 
   @override
   void initState() {
@@ -335,12 +359,18 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
     String? reason;
     if (_isTaxi) {
       if (_selectedReason == null) {
-        Get.snackbar('تنبيه', 'يرجى تحديد سبب الإلغاء');
+        Get.snackbar(
+          'orders.warning'.tr,
+          'orders.selectCancelReason'.tr,
+        );
         return;
       }
       reason = _isCustomReason ? customReason : _selectedReason;
       if (reason == null || reason.isEmpty) {
-        Get.snackbar('تنبيه', 'يرجى كتابة سبب الإلغاء');
+        Get.snackbar(
+          'orders.warning'.tr,
+          'orders.writeCancelReason'.tr,
+        );
         return;
       }
     } else if (_selectedReason != null) {
@@ -384,8 +414,8 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'إلغاء الطلب',
+              Text(
+                'orders.cancelReasonTitle'.tr,
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
@@ -395,8 +425,8 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
               const SizedBox(height: 8),
               Text(
                 _isTaxi
-                    ? 'حدد سببك للإلغاء'
-                    : 'يمكنك اختيار سبب الإلغاء (اختياري)',
+                    ? 'orders.cancelReasonRequiredTaxi'.tr
+                    : 'orders.cancelReasonOptional'.tr,
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
@@ -425,7 +455,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                       children: [
                         Expanded(
                           child: Text(
-                            reason,
+                            reason.tr,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -448,7 +478,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                   controller: _customReasonController,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    hintText: 'السبب',
+                    hintText: 'orders.cancelReasonPlaceholder'.tr,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(color: AppColors.inputBorder),
@@ -476,7 +506,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text('عدم الإلغاء'),
+                      child: Text('orders.dontCancel'.tr),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -491,8 +521,8 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        'إلغاء الطلب',
+                      child: Text(
+                        'orders.cancelOrder'.tr,
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
@@ -515,11 +545,11 @@ class _TypeTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('all', 'الكل'),
-      ('taxi', 'تكسي'),
-      ('shipping', 'شحن'),
-      ('food', 'طعام'),
-      ('stores', 'متجر'),
+      ('all', 'orders.all'.tr),
+      ('taxi', 'orders.taxi'.tr),
+      ('shipping', 'orders.shipping'.tr),
+      ('food', 'orders.food'.tr),
+      ('stores', 'orders.store'.tr),
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -554,13 +584,29 @@ class _FilterTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _FilterChip(text: 'الكل', active: selected == 'all', onTap: () => onChanged('all')),
+        _FilterChip(
+          text: 'orders.all'.tr,
+          active: selected == 'all',
+          onTap: () => onChanged('all'),
+        ),
         const SizedBox(width: 8),
-        _FilterChip(text: 'نشط', active: selected == 'active', onTap: () => onChanged('active')),
+        _FilterChip(
+          text: 'orders.active'.tr,
+          active: selected == 'active',
+          onTap: () => onChanged('active'),
+        ),
         const SizedBox(width: 8),
-        _FilterChip(text: 'مكتمل', active: selected == 'completed', onTap: () => onChanged('completed')),
+        _FilterChip(
+          text: 'orders.completed'.tr,
+          active: selected == 'completed',
+          onTap: () => onChanged('completed'),
+        ),
         const SizedBox(width: 8),
-        _FilterChip(text: 'ملغي', active: selected == 'cancelled', onTap: () => onChanged('cancelled')),
+        _FilterChip(
+          text: 'orders.cancelled'.tr,
+          active: selected == 'cancelled',
+          onTap: () => onChanged('cancelled'),
+        ),
       ],
     );
   }
@@ -657,7 +703,11 @@ class _ActiveOrderCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(order.type == 'taxi' ? 'تتبع الرحلة' : 'تتبع الطلب'),
+                  child: Text(
+                    order.type == 'taxi'
+                        ? 'orders.trackTrip'.tr
+                        : 'orders.trackOrder'.tr,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -674,7 +724,7 @@ class _ActiveOrderCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('إلغاء الطلب'),
+                  child: Text('orders.cancelOrder'.tr),
                 ),
               ),
             ],
@@ -711,7 +761,13 @@ class _CompletedOrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text('${_dateHint(order.createdAt)} • تم التوصيل', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text(
+                    '${_dateHint(order.createdAt)} • ${'orders.delivered'.tr}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -735,7 +791,10 @@ class _CancelledOrderCard extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w700))),
-          const Text('ملغي', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+          Text(
+            'orders.cancelled'.tr,
+            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -780,23 +839,23 @@ IconData _iconForType(String type) {
 String _statusLabel(String status) {
   switch (status) {
     case 'pending':
-      return 'بانتظار القبول';
+      return 'orders.pendingApproval'.tr;
     case 'accepted':
-      return 'تم قبول الطلب';
+      return 'orders.accepted'.tr;
     case 'preparing':
-      return 'جاري التحضير';
+      return 'orders.preparing'.tr;
     case 'ready':
-      return 'جاهز للاستلام';
+      return 'orders.ready'.tr;
     case 'on_the_way_to_pickup':
-      return 'السائق متجه للاستلام';
+      return 'orders.driverToPickup'.tr;
     case 'picked_up':
-      return 'تم الاستلام';
+      return 'orders.pickedUp'.tr;
     case 'on_way':
-      return 'في الطريق';
+      return 'orders.onWay'.tr;
     case 'delivered':
-      return 'تم التوصيل';
+      return 'orders.delivered'.tr;
     case 'cancelled':
-      return 'ملغي';
+      return 'orders.cancelled'.tr;
     default:
       return status;
   }
@@ -805,13 +864,13 @@ String _statusLabel(String status) {
 String _selectedTypeLabel(String type) {
   switch (type) {
     case 'food':
-      return 'مطاعم';
+      return 'orders.typeRestaurants'.tr;
     case 'shipping':
-      return 'شحن';
+      return 'orders.shipping'.tr;
     case 'taxi':
-      return 'تكسي';
+      return 'orders.taxi'.tr;
     case 'stores':
-      return 'متاجر';
+      return 'orders.typeStores'.tr;
     default:
       return type;
   }
@@ -861,13 +920,13 @@ int _sortByNewest(UserOrder a, UserOrder b) {
 
 String _orderDisplayTitle(UserOrder order) {
   final prefix = switch (order.type.toLowerCase()) {
-    'shipping' => 'طلب شحن',
-    'taxi' => 'طلب تكسي',
-    'stores' || 'store' => 'طلب متجر',
-    _ => 'طلب طعام',
+    'shipping' => 'home.orderShipping'.tr,
+    'taxi' => 'home.orderTaxi'.tr,
+    'stores' || 'store' => 'home.orderStore'.tr,
+    _ => 'home.orderFood'.tr,
   };
   final compact = _compactOrderToken(order.orderNumber, order.id);
-  return '$prefix رقم $compact';
+  return '$prefix ${'home.orderNumberPrefix'.tr} $compact';
 }
 
 String _compactOrderToken(String orderNumber, int fallbackId) {
