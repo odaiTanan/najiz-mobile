@@ -44,6 +44,10 @@ class TransportOrderTrackingScreen extends StatelessWidget {
   final double destinationLng;
   final double? initialTripDistanceKm;
 
+  void _handleBack(TransportOrderTrackingController controller) {
+    Get.off(() => HomeScreen(token: controller.token));
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(
@@ -63,7 +67,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
 
     return WillPopScope(
       onWillPop: () async {
-        Get.off(() => HomeScreen(token: controller.token));
+        _handleBack(controller);
         return false;
       },
       child: Scaffold(
@@ -71,7 +75,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
         appBar: AppBar(
           leading: IconButton(
             onPressed: () async {
-              Get.off(() => HomeScreen(token: controller.token));
+              _handleBack(controller);
             },
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
           ),
@@ -298,6 +302,12 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 12),
+                  if (orderType == 'shipping' &&
+                      (controller.deliveryCode.value ?? '').trim().isNotEmpty)
+                    _DeliveryCodeCard(code: controller.deliveryCode.value!.trim()),
+                  if (orderType == 'shipping' &&
+                      (controller.deliveryCode.value ?? '').trim().isNotEmpty)
+                    const SizedBox(height: 12),
                   if (!isTransportTripView && !isTransportDeliveredView) ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -968,6 +978,65 @@ class _DriverInfoCard extends StatelessWidget {
               style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeliveryCodeCard extends StatelessWidget {
+  const _DeliveryCodeCard({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'كود التسليم',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'شارك هذا الكود مع المستلم لتأكيد تسليم طلب الشحن',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFED7AA)),
+            ),
+            child: Text(
+              code,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
               ),
             ),
           ),

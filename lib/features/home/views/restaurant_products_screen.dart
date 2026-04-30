@@ -5,6 +5,8 @@ import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_products_controller.dart';
+import 'package:najiz_go_express/features/home/models/user_address.dart';
+import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
@@ -80,8 +82,13 @@ class RestaurantProductsScreen extends StatelessWidget {
             children: [
               Obx(
                 () => _MiniTopCard(
-                  deliveryAddress: controller.currentDeliveryAddress.value,
+                  deliveryAddress: controller.deliveryAddressLabel,
+                  hasSavedAddresses: controller.savedAddresses.isNotEmpty,
                   unreadNotifications: pushService.unreadCount.value,
+                  onAddressTap: () => _showAddressChooser(
+                    context: context,
+                    controller: controller,
+                  ),
                   onNotificationsTap: () =>
                       Get.to(() => const NotificationsScreen()),
                   cartCount: cartService.totalCount.value,
@@ -100,6 +107,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                         token: token,
                         vendorId: vendorId,
                         items: List.of(items),
+                        serviceId: serviceId,
                       ),
                     );
                   },
@@ -143,9 +151,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                             controller.selectedClassificationId.value == null;
                         return _ClassificationIconItem(
                           label: 'services.all'.tr,
-                          icon: Icons.restaurant_menu,
-                          imageUrl: null,
-                          headers: authHeaders,
+                          icon: Icons.clear_rounded,
                           selected: selected,
                           onTap: () => controller.selectClassification(null),
                         );
@@ -156,70 +162,14 @@ class RestaurantProductsScreen extends StatelessWidget {
                           controller.selectedClassificationId.value == c.id;
                       return _ClassificationIconItem(
                         label: c.name,
-                        icon: _classificationIcon(c.name),
-                        imageUrl: c.image,
-                        headers: authHeaders,
+                        icon: _classificationIcon(name: c.name),
+                        backendIconUrl: c.icon,
                         selected: selected,
                         onTap: () => controller.selectClassification(c.id),
                       );
                     },
                   ),
                 ),
-              const SizedBox(height: 8),
-              Obx(
-                () => SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _StatusFilterChip(
-                        label: 'services.all'.tr,
-                        selected:
-                            controller.selectedStatusFilter.value ==
-                            VendorStatusFilter.all,
-                        onTap: () => controller.selectStatusFilter(
-                          VendorStatusFilter.all,
-                        ),
-                      ),
-                      _StatusFilterChip(
-                        label: 'services.active'.tr,
-                        selected:
-                            controller.selectedStatusFilter.value ==
-                            VendorStatusFilter.active,
-                        onTap: () => controller.selectStatusFilter(
-                          VendorStatusFilter.active,
-                        ),
-                      ),
-                      _StatusFilterChip(
-                        label: 'services.inactive'.tr,
-                        selected:
-                            controller.selectedStatusFilter.value ==
-                            VendorStatusFilter.inactive,
-                        onTap: () => controller.selectStatusFilter(
-                          VendorStatusFilter.inactive,
-                        ),
-                      ),
-                      _StatusFilterChip(
-                        label: 'services.open'.tr,
-                        selected:
-                            controller.selectedStatusFilter.value ==
-                            VendorStatusFilter.opened,
-                        onTap: () => controller.selectStatusFilter(
-                          VendorStatusFilter.opened,
-                        ),
-                      ),
-                      _StatusFilterChip(
-                        label: 'services.closed'.tr,
-                        selected:
-                            controller.selectedStatusFilter.value ==
-                            VendorStatusFilter.closed,
-                        onTap: () => controller.selectStatusFilter(
-                          VendorStatusFilter.closed,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -229,15 +179,6 @@ class RestaurantProductsScreen extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'home.showAll'.tr,
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -383,10 +324,114 @@ class RestaurantProductsScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _showAddressChooser({
+    required BuildContext context,
+    required RestaurantProductsController controller,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+            child: Obx(
+              () => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCE3EE),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'عنوان التوصيل',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _AddressOptionTile(
+                    title: 'الموقع الحالي',
+                    subtitle: controller.currentDeliveryAddress.value,
+                    icon: Icons.near_me_outlined,
+                    selected: controller.selectedAddressId.value == null,
+                    onTap: () async {
+                      await controller.useCurrentLocationAddress();
+                      if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  ...controller.savedAddresses.map(
+                    (address) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _AddressOptionTile(
+                        title: address.title,
+                        subtitle: address.details,
+                        icon: Icons.location_on_outlined,
+                        selected: controller.selectedAddressId.value == address.id,
+                        onTap: () {
+                          controller.selectSavedAddress(address);
+                          Navigator.of(sheetContext).pop();
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await Navigator.of(sheetContext).push(
+                          MaterialPageRoute(
+                            builder: (_) => ProfileAddressEditorScreen(
+                              onSave: controller.addAddress,
+                            ),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        foregroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        minimumSize: const Size.fromHeight(50),
+                      ),
+                      child: const Text(
+                        'إضافة عنوان جديد',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _MiniTopCard extends StatelessWidget {
   final String deliveryAddress;
+  final bool hasSavedAddresses;
+  final VoidCallback onAddressTap;
   final int unreadNotifications;
   final VoidCallback onNotificationsTap;
   final int cartCount;
@@ -394,6 +439,8 @@ class _MiniTopCard extends StatelessWidget {
 
   const _MiniTopCard({
     required this.deliveryAddress,
+    required this.hasSavedAddresses,
+    required this.onAddressTap,
     required this.unreadNotifications,
     required this.onNotificationsTap,
     required this.cartCount,
@@ -414,14 +461,32 @@ class _MiniTopCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              '${'services.deliveryTo'.tr} $deliveryAddress',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+            child: InkWell(
+              onTap: onAddressTap,
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${'services.deliveryTo'.tr} $deliveryAddress',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: hasSavedAddresses
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                  ),
+                ],
               ),
             ),
           ),
@@ -519,41 +584,70 @@ class _MiniTopCard extends StatelessWidget {
   }
 }
 
-class _StatusFilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StatusFilterChip({
-    required this.label,
+class _AddressOptionTile extends StatelessWidget {
+  const _AddressOptionTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE2E2E2),
-            ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.primary : const Color(0xFFE4E9F1),
+            width: selected ? 1.3 : 1,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : AppColors.textSecondary,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Icon(
+              icon,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
@@ -612,18 +706,16 @@ class _StatusText extends StatelessWidget {
 class _ClassificationIconItem extends StatelessWidget {
   final String label;
   final IconData icon;
-  final String? imageUrl;
+  final String? backendIconUrl;
   final bool selected;
   final VoidCallback onTap;
-  final Map<String, String>? headers;
 
   const _ClassificationIconItem({
     required this.label,
     required this.icon,
-    required this.imageUrl,
+    this.backendIconUrl,
     required this.selected,
     required this.onTap,
-    this.headers,
   });
 
   @override
@@ -645,14 +737,15 @@ class _ClassificationIconItem extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFEDEDED)),
               ),
-              child: imageUrl != null && imageUrl!.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: NetworkImageWithFallback(
-                        url: imageUrl,
-                        fit: BoxFit.cover,
-                        headers: headers,
-                      ),
+              child: (backendIconUrl != null && backendIconUrl!.trim().isNotEmpty)
+                  ? Image.network(
+                      backendIconUrl!,
+                      width: 14,
+                      height: 14,
+                      color: fg,
+                      colorBlendMode: BlendMode.srcIn,
+                      errorBuilder: (_, __, ___) =>
+                          Icon(icon, size: 14, color: fg),
                     )
                   : Icon(icon, size: 14, color: fg),
             ),
@@ -707,7 +800,7 @@ class _RatingPill extends StatelessWidget {
   }
 }
 
-IconData _classificationIcon(String name) {
+IconData _classificationIcon({required String name}) {
   final n = name.toLowerCase();
   if (n.contains('pizza') || n.contains('بيتزا'))
     return Icons.local_pizza_outlined;
@@ -717,3 +810,4 @@ IconData _classificationIcon(String name) {
   if (n.contains('sushi') || n.contains('سوشي')) return Icons.set_meal_outlined;
   return Icons.restaurant_menu_outlined;
 }
+

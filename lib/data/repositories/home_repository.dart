@@ -11,6 +11,10 @@ import 'package:najiz_go_express/data/models/vendor_products_model.dart';
 import 'package:najiz_go_express/data/models/classification_model.dart';
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
+import 'package:najiz_go_express/features/home/models/user_address.dart';
+import 'package:najiz_go_express/features/home/models/search_models.dart';
+import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
+import 'package:najiz_go_express/features/home/models/unavailability_option.dart';
 
 class HomeRepository {
   final http.Client _client;
@@ -107,6 +111,8 @@ class HomeRepository {
     required String customAddressName,
     required String paymentMethod,
     required List<Map<String, dynamic>> items,
+    String? couponCode,
+    String? unavailabilityAction,
     String? notes,
     String serviceName = 'food',
   }) async {
@@ -118,6 +124,10 @@ class HomeRepository {
       'custom_address_name': customAddressName,
       'payment_method': paymentMethod,
       'items': items,
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'coupon_code': couponCode.trim(),
+      if (unavailabilityAction != null && unavailabilityAction.trim().isNotEmpty)
+        'unavailability_action': unavailabilityAction.trim(),
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       'service_name': serviceName,
     };
@@ -152,7 +162,7 @@ class HomeRepository {
     required String token,
     required Map<String, dynamic> payload,
   }) async {
-    final uri = Uri.parse('$_baseUrl/user/addresses');
+    final uri = Uri.parse('$_baseUrl/addresses/create');
     _logApiRequest(method: 'POST', uri: uri, body: payload);
     final res = await _client
         .post(
@@ -180,6 +190,166 @@ class HomeRepository {
     throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
   }
 
+  Future<List<UserAddress>> getMyAddresses({required String token}) async {
+    final data = await _get(endpoint: '/addresses/my-addresses', token: token);
+    return _asList(data['data']).map(UserAddress.fromJson).toList();
+  }
+
+  Future<SearchResultModel> search({
+    String? token,
+    required String query,
+    String? type,
+    int limit = 10,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/search').replace(
+      queryParameters: {
+        'query': query,
+        if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+        'limit': limit.toString(),
+      },
+    );
+    _logApiRequest(method: 'GET', uri: uri);
+    final response = await _client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            if (token != null && token.trim().isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'GET', uri: uri, response: response);
+    final data = _safeJsonDecode(response.body);
+    final ok = _isSuccess(data);
+    if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
+      return SearchResultModel.fromJson(data);
+    }
+    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+  }
+
+  Future<List<String>> searchSuggestions({
+    required String query,
+    int limit = 6,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/search/suggestions').replace(
+      queryParameters: {
+        'query': query,
+        'limit': limit.toString(),
+      },
+    );
+    _logApiRequest(method: 'GET', uri: uri);
+    final response = await _client
+        .get(
+          uri,
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'GET', uri: uri, response: response);
+    final data = _safeJsonDecode(response.body);
+    final ok = _isSuccess(data);
+    if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
+      final raw = (data['suggestions'] is List) ? data['suggestions'] as List : const [];
+      return raw.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList();
+    }
+    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+  }
+
+  Future<List<SearchTrendingItem>> getTrendingSearches({
+    int limit = 10,
+    int days = 7,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/search/trending').replace(
+      queryParameters: {
+        'limit': limit.toString(),
+        'days': days.toString(),
+      },
+    );
+    _logApiRequest(method: 'GET', uri: uri);
+    final response = await _client
+        .get(
+          uri,
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'GET', uri: uri, response: response);
+    final data = _safeJsonDecode(response.body);
+    final ok = _isSuccess(data);
+    if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
+      return _asList(data['data']).map(SearchTrendingItem.fromJson).toList();
+    }
+    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+  }
+
+  Future<List<SearchHistoryItem>> getSearchHistory({
+    required String token,
+    int limit = 20,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/search/history').replace(
+      queryParameters: {'limit': limit.toString()},
+    );
+    _logApiRequest(method: 'GET', uri: uri);
+    final response = await _client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'GET', uri: uri, response: response);
+    final data = _safeJsonDecode(response.body);
+    final ok = _isSuccess(data);
+    if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
+      return _asList(data['data']).map(SearchHistoryItem.fromJson).toList();
+    }
+    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+  }
+
+  Future<void> clearSearchHistory({required String token}) async {
+    final uri = Uri.parse('$_baseUrl/search/history');
+    _logApiRequest(method: 'DELETE', uri: uri);
+    final response = await _client
+        .delete(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'DELETE', uri: uri, response: response);
+    final data = _safeJsonDecode(response.body);
+    final ok = _isSuccess(data);
+    if (response.statusCode >= 200 && response.statusCode < 300 && ok) return;
+    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+  }
+
+  Future<ReferralCodeInfo> getMyReferralCode({required String token}) async {
+    final data = await _get(endpoint: '/user/referrals/my-code', token: token);
+    return ReferralCodeInfo.fromJson(data);
+  }
+
+  Future<List<ReferralItem>> getMyReferrals({required String token}) async {
+    final data = await _get(endpoint: '/user/referrals/my-referrals', token: token);
+    return _asList(data['data']).map(ReferralItem.fromJson).toList();
+  }
+
+  Future<List<UserCouponItem>> getMyCoupons({required String token}) async {
+    final data = await _get(endpoint: '/user/coupons/my', token: token);
+    return _asList(data['data']).map(UserCouponItem.fromJson).toList();
+  }
+
   Future<Map<String, dynamic>> calculateOrder({
     String? token,
     required int vendorId,
@@ -188,6 +358,8 @@ class HomeRepository {
     required String customAddressName,
     required String paymentMethod,
     required List<Map<String, dynamic>> items,
+    String? couponCode,
+    String? unavailabilityAction,
     String? notes,
     String serviceName = 'food',
   }) async {
@@ -199,6 +371,10 @@ class HomeRepository {
       'custom_address_name': customAddressName,
       'payment_method': paymentMethod,
       'items': items,
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'coupon_code': couponCode.trim(),
+      if (unavailabilityAction != null && unavailabilityAction.trim().isNotEmpty)
+        'unavailability_action': unavailabilityAction.trim(),
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       'service_name': serviceName,
     };
@@ -272,6 +448,19 @@ class HomeRepository {
     throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
   }
 
+  Future<List<UnavailabilityOption>> getOrderUnavailabilityOptions({
+    required String token,
+  }) async {
+    final data = await _get(
+      endpoint: '/user/orders/unavailability-options',
+      token: token,
+    );
+    return _asList(data['data'])
+        .map(UnavailabilityOption.fromJson)
+        .where((option) => option.value.isNotEmpty)
+        .toList(growable: false);
+  }
+
   Future<Map<String, dynamic>> createTaxiOrder({
     required String token,
     required int vehicleCategoryId,
@@ -279,6 +468,7 @@ class HomeRepository {
     required double pickupLng,
     required double dropoffLat,
     required double dropoffLng,
+    String? couponCode,
     String paymentMethod = 'cash',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/taxi');
@@ -288,6 +478,8 @@ class HomeRepository {
       'pickup_lng': pickupLng.toString(),
       'dropoff_lat': dropoffLat.toString(),
       'dropoff_lng': dropoffLng.toString(),
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'coupon_code': couponCode.trim(),
       'payment_method': paymentMethod,
     };
     _logApiRequest(method: 'POST', uri: uri, body: payload);
@@ -329,6 +521,7 @@ class HomeRepository {
     required double destLng,
     String? packageType,
     bool? isBreakable,
+    String? couponCode,
     String paymentMethod = 'cash',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/shipping/calculate');
@@ -344,6 +537,8 @@ class HomeRepository {
       if (packageType != null && packageType.trim().isNotEmpty)
         'package_type': packageType.trim(),
       if (isBreakable != null) 'is_breakable': isBreakable,
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'coupon_code': couponCode.trim(),
       'payment_method': paymentMethod,
     };
     try {
@@ -409,6 +604,7 @@ class HomeRepository {
     String? region,
     String? street,
     String? addressDetails,
+    String? couponCode,
     String paymentMethod = 'cash',
   }) async {
     final uri = Uri.parse('$_baseUrl/user/orders/shipping');
@@ -431,6 +627,8 @@ class HomeRepository {
       if (street != null && street.trim().isNotEmpty) 'street': street.trim(),
       if (addressDetails != null && addressDetails.trim().isNotEmpty)
         'address_details': addressDetails.trim(),
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'coupon_code': couponCode.trim(),
       'payment_method': paymentMethod,
     };
     _logApiRequest(method: 'POST', uri: uri, body: payload);
@@ -562,6 +760,39 @@ class HomeRepository {
     final data = _safeJsonDecode(res.body);
     final ok = data['status'] == true || data['success'] == true;
     if (res.statusCode >= 200 && res.statusCode < 300 && ok) return;
+    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+  }
+
+  Future<Map<String, dynamic>> validateCoupon({
+    required String token,
+    required String code,
+    required double orderAmount,
+    int? vendorId,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/user/coupons/validate');
+    final payload = {
+      'code': code.trim(),
+      'order_amount': orderAmount,
+      if (vendorId != null) 'vendor_id': vendorId,
+    };
+    _logApiRequest(method: 'POST', uri: uri, body: payload);
+    final res = await _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'POST', uri: uri, response: res);
+    final data = _safeJsonDecode(res.body);
+    final ok = _isSuccess(data);
+    if (res.statusCode >= 200 && res.statusCode < 300 && ok) {
+      return data;
+    }
     throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
   }
 

@@ -455,7 +455,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
       await widget.onSave(payload);
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showSnack('تم', 'تم حفظ عنوان التوصيل بنجاح');
+      _showSnack('تم', 'تم اضافة العنوان بنجاح');
     } on HomeApiException catch (e) {
       _showSnack('خطأ', e.message);
     } catch (_) {
@@ -468,8 +468,23 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
   }
 
   void _showSnack(String title, String message) {
+    final isSuccess = title == 'تم';
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$title: $message')),
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        backgroundColor: isSuccess ? Colors.white : const Color(0xFF2F2F2F),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSuccess ? AppColors.primary : Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 

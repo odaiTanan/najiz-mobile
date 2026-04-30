@@ -3,7 +3,7 @@ import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
 import 'package:najiz_go_express/features/home/views/profile_screen.dart';
-import 'package:najiz_go_express/features/home/views/wallet_screen.dart';
+import 'package:najiz_go_express/features/home/views/search_screen.dart';
 
 class MainBottomNav {
   MainBottomNav._();
@@ -29,12 +29,7 @@ class MainBottomNav {
         );
         break;
       case 2:
-        await AuthGuardService.runOrRequestLogin(
-          onAuthenticated: (authToken) async {
-            Get.offAll(() => WalletScreen(token: authToken));
-          },
-          message: 'يرجى تسجيل الدخول لعرض المحفظة',
-        );
+        Get.offAll(() => SearchScreen(token: token));
         break;
       case 3:
         Get.offAll(() => ProfileScreen(token: token));

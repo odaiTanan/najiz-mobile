@@ -9,6 +9,7 @@ import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/shipping_controller.dart';
 import 'package:najiz_go_express/features/home/views/transport_order_tracking_screen.dart';
+import 'package:najiz_go_express/features/home/widgets/coupon_picker_sheet.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 
@@ -294,6 +295,67 @@ class _ShippingScreenState extends State<ShippingScreen> {
               ),
               const SizedBox(height: 10),
               _StepCard(
+                title: 'الخطوة 4: كوبون الخصم',
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.local_offer_outlined,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          controller.appliedCouponCode.value == null
+                              ? 'أضف كوبون لتخفيض تكلفة الشحن'
+                              : 'الكوبون: ${controller.appliedCouponCode.value}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final selected = await showCouponPickerSheet(
+                            context: context,
+                            coupons: controller.availableCoupons,
+                            initialCode: controller.appliedCouponCode.value,
+                          );
+                          if (selected == null || selected.trim().isEmpty) return;
+                          try {
+                            await controller.applyCoupon(selected);
+                          } on HomeApiException catch (e) {
+                            Get.snackbar('خطأ', e.message);
+                          }
+                        },
+                        child: const Text('أضف كوبون'),
+                      ),
+                      if (controller.appliedCouponCode.value != null)
+                        IconButton(
+                          onPressed: () => controller.clearCoupon(),
+                          icon: const Icon(Icons.close, size: 18),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _StepCard(
                 title: 'بيانات المرسل',
                 child: Column(
                   children: [
@@ -360,6 +422,8 @@ class _ShippingScreenState extends State<ShippingScreen> {
                 isCalculating: controller.isCalculating.value,
                 total: controller.total.value,
                 deliveryFee: controller.deliveryFee.value,
+                couponDiscount: controller.couponDiscount.value,
+                appliedCouponCode: controller.appliedCouponCode.value,
                 distance: controller.distance.value,
                 parcelCategory: controller.parcelCategory.value,
               ),
@@ -1428,6 +1492,8 @@ class _PriceCard extends StatelessWidget {
   final bool isCalculating;
   final double? total;
   final double? deliveryFee;
+  final double couponDiscount;
+  final String? appliedCouponCode;
   final double? distance;
   final String? parcelCategory;
 
@@ -1435,6 +1501,8 @@ class _PriceCard extends StatelessWidget {
     required this.isCalculating,
     required this.total,
     required this.deliveryFee,
+    required this.couponDiscount,
+    required this.appliedCouponCode,
     required this.distance,
     required this.parcelCategory,
   });
@@ -1495,6 +1563,16 @@ class _PriceCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                if (appliedCouponCode != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'خصم الكوبون (${appliedCouponCode!}): -${couponDiscount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(
                   'السعر الإجمالي: ${total!.toStringAsFixed(0)}',
@@ -1631,6 +1709,8 @@ class _ShippingFindingDriverDialogState extends State<_ShippingFindingDriverDial
   Timer? _pollTimer;
   bool _isAssigned = false;
   bool _isCancelling = false;
+  bool _isPollingRequestInFlight = false;
+  DateTime? _lastTimeoutPopupAt;
   String _latestStatus = '';
   String _latestDispatchStatus = '';
 
@@ -1699,107 +1779,157 @@ class _ShippingFindingDriverDialogState extends State<_ShippingFindingDriverDial
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      try {
-        final latest = await _repository.getOrderById(
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollOnce());
+    _pollOnce();
+  }
+
+  Future<void> _pollOnce({bool force = false}) async {
+    if (!mounted) return;
+    if (_isPollingRequestInFlight && !force) return;
+    _isPollingRequestInFlight = true;
+    try {
+      final latest = await _repository.getOrderById(
+        token: widget.token,
+        orderId: widget.orderId,
+      );
+      if (!mounted || latest.isEmpty) return;
+
+      final status = (latest['status'] ?? '').toString();
+      final dispatchStatus = (latest['dispatch_status'] ?? '').toString();
+      _latestStatus = status;
+      _latestDispatchStatus = dispatchStatus;
+      final accepted = _isAccepted(status: status, dispatchStatus: dispatchStatus);
+
+      final deliveryMan = _asMap(latest['delivery_man'] ?? latest['deliveryMan']);
+      if (deliveryMan != null) {
+        _driverVehicleType = _firstNonEmpty([
+          deliveryMan['vehicle_type'],
+          deliveryMan['vehicleType'],
+          deliveryMan['vehicle'],
+          _driverVehicleType,
+        ]);
+        _driverPlate = _firstNonEmpty([
+          deliveryMan['license_plate'],
+          deliveryMan['plate_number'],
+          deliveryMan['plate'],
+          _driverPlate,
+        ]);
+        _driverRating = _firstNonEmpty([
+          deliveryMan['rating'],
+          deliveryMan['rate'],
+          _driverRating,
+        ]);
+        final driverUser = _asMap(
+          deliveryMan['user'] ??
+              deliveryMan['driver_user'] ??
+              deliveryMan['driverUser'] ??
+              deliveryMan['account'],
+        );
+        if (driverUser != null) {
+          _driverName = _firstNonEmpty([
+            driverUser['name'],
+            driverUser['full_name'],
+            driverUser['username'],
+            _driverName,
+          ]);
+        }
+        _driverName ??= _firstNonEmpty([
+          deliveryMan['name'],
+          deliveryMan['full_name'],
+          deliveryMan['driver_name'],
+        ]);
+      }
+
+      if ((_driverName ?? '').isEmpty) {
+        final driver = await _repository.getOrderDriverByOrderId(
           token: widget.token,
           orderId: widget.orderId,
         );
-        if (!mounted || latest.isEmpty) return;
-
-        final status = (latest['status'] ?? '').toString();
-        final dispatchStatus = (latest['dispatch_status'] ?? '').toString();
-        _latestStatus = status;
-        _latestDispatchStatus = dispatchStatus;
-        final accepted = _isAccepted(status: status, dispatchStatus: dispatchStatus);
-
-        final deliveryMan = _asMap(latest['delivery_man'] ?? latest['deliveryMan']);
-        if (deliveryMan != null) {
+        if (driver.isNotEmpty) {
+          _driverName = _firstNonEmpty([
+            driver['driver_name'],
+            driver['name'],
+            _driverName,
+          ]);
           _driverVehicleType = _firstNonEmpty([
-            deliveryMan['vehicle_type'],
-            deliveryMan['vehicleType'],
-            deliveryMan['vehicle'],
+            driver['vehicle_type'],
+            driver['vehicle'],
             _driverVehicleType,
           ]);
           _driverPlate = _firstNonEmpty([
-            deliveryMan['license_plate'],
-            deliveryMan['plate_number'],
-            deliveryMan['plate'],
+            driver['license_plate'],
+            driver['plate_number'],
             _driverPlate,
           ]);
           _driverRating = _firstNonEmpty([
-            deliveryMan['rating'],
-            deliveryMan['rate'],
+            driver['rating'],
+            driver['rate'],
             _driverRating,
           ]);
-          final driverUser = _asMap(
-            deliveryMan['user'] ??
-                deliveryMan['driver_user'] ??
-                deliveryMan['driverUser'] ??
-                deliveryMan['account'],
-          );
-          if (driverUser != null) {
-            _driverName = _firstNonEmpty([
-              driverUser['name'],
-              driverUser['full_name'],
-              driverUser['username'],
-              _driverName,
-            ]);
-          }
-          _driverName ??= _firstNonEmpty([
-            deliveryMan['name'],
-            deliveryMan['full_name'],
-            deliveryMan['driver_name'],
-          ]);
         }
-
-        if ((_driverName ?? '').isEmpty) {
-          final driver = await _repository.getOrderDriverByOrderId(
-            token: widget.token,
-            orderId: widget.orderId,
-          );
-          if (driver.isNotEmpty) {
-            _driverName = _firstNonEmpty([
-              driver['driver_name'],
-              driver['name'],
-              _driverName,
-            ]);
-            _driverVehicleType = _firstNonEmpty([
-              driver['vehicle_type'],
-              driver['vehicle'],
-              _driverVehicleType,
-            ]);
-            _driverPlate = _firstNonEmpty([
-              driver['license_plate'],
-              driver['plate_number'],
-              _driverPlate,
-            ]);
-            _driverRating = _firstNonEmpty([
-              driver['rating'],
-              driver['rate'],
-              _driverRating,
-            ]);
-          }
-        }
-
-        if (accepted && !_isAssigned) {
-          _isAssigned = true;
-          if (mounted) {
-            setState(() {});
-            Get.snackbar(
-              'تم تعيين السائق',
-              'تم قبول طلب الشحن من قبل السائق',
-              snackPosition: SnackPosition.BOTTOM,
-              duration: const Duration(seconds: 2),
-            );
-          }
-        } else if (mounted) {
-          setState(() {});
-        }
-      } catch (_) {
-        // Keep popup stable on transient errors.
       }
-    });
+
+      if (accepted && !_isAssigned) {
+        _isAssigned = true;
+        if (mounted) {
+          setState(() {});
+          Get.snackbar(
+            'تم تعيين السائق',
+            'تم قبول طلب الشحن من قبل السائق',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 2),
+          );
+        }
+      } else if (mounted) {
+        setState(() {});
+      }
+    } on HomeApiException catch (e) {
+      if (_isTimeoutMessage(e.message)) {
+        _showTimeoutPopup();
+      }
+    } catch (_) {
+      // Keep popup stable on transient errors.
+    } finally {
+      _isPollingRequestInFlight = false;
+    }
+  }
+
+  bool _isTimeoutMessage(String message) {
+    final normalized = message.trim().toLowerCase();
+    return normalized.contains('timeout') ||
+        normalized.contains('timed out') ||
+        normalized.contains('مهلة');
+  }
+
+  Future<void> _showTimeoutPopup() async {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final previous = _lastTimeoutPopupAt;
+    if (previous != null && now.difference(previous) < const Duration(seconds: 20)) {
+      return;
+    }
+    _lastTimeoutPopupAt = now;
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('انقطاع الاتصال'),
+        content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('إغلاق'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _pollOnce(force: true);
+            },
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cancelOrder() async {

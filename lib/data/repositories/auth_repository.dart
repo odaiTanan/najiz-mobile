@@ -8,12 +8,14 @@ import 'package:najiz_go_express/core/constants/api_config.dart';
 class AuthResult {
   final String message;
   final String? token;
+  final String? resetToken;
   final bool needsVerification;
   final String? phone;
 
   const AuthResult({
     required this.message,
     this.token,
+    this.resetToken,
     this.needsVerification = false,
     this.phone,
   });
@@ -155,6 +157,7 @@ class AuthRepository {
     required String phone,
     required String password,
     String? email,
+    String? referralCode,
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/register');
 
@@ -164,6 +167,8 @@ class AuthRepository {
         'name': name,
         'phone': phone,
         if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (referralCode != null && referralCode.trim().isNotEmpty)
+          'referral_code': referralCode.trim(),
         'password': password,
         // Laravel "confirmed" expects password_confirmation
         'password_confirmation': password,
@@ -229,7 +234,7 @@ class AuthRepository {
 
   Future<AuthResult> resetPassword({
     required String phone,
-    required String code,
+    required String resetToken,
     required String password,
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/reset-password');
@@ -238,7 +243,7 @@ class AuthRepository {
       uri: uri,
       body: {
         'phone': phone,
-        'code': code,
+        'reset_token': resetToken,
         'password': password,
         // Laravel "confirmed" expects password_confirmation
         'password_confirmation': password,
@@ -250,6 +255,52 @@ class AuthRepository {
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return AuthResult(message: message);
+    }
+
+    throw AuthApiException(message, statusCode: res.statusCode);
+  }
+
+  Future<AuthResult> forgotPassword({required String phone}) async {
+    final uri = Uri.parse('$_baseUrl/auth/forgot-password');
+
+    final res = await _postJsonWithRetry(
+      uri: uri,
+      body: {'phone': phone},
+    );
+
+    final data = _safeJsonDecode(res.body);
+    final message = _extractMessage(data);
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return AuthResult(message: message, phone: phone);
+    }
+
+    throw AuthApiException(message, statusCode: res.statusCode);
+  }
+
+  Future<AuthResult> verifyPasswordReset({
+    required String phone,
+    required String otpToken,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/auth/verify-password-reset');
+
+    final res = await _postJsonWithRetry(
+      uri: uri,
+      body: {
+        'phone': phone,
+        'token': otpToken,
+      },
+    );
+
+    final data = _safeJsonDecode(res.body);
+    final message = _extractMessage(data);
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return AuthResult(
+        message: message,
+        phone: data['phone']?.toString() ?? phone,
+        resetToken: data['reset_token']?.toString(),
+      );
     }
 
     throw AuthApiException(message, statusCode: res.statusCode);

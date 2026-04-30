@@ -7,6 +7,7 @@ class SessionService {
   static const _userNameKey = 'user_name';
   static const _userPhoneKey = 'user_phone';
   static const _userEmailKey = 'user_email';
+  static const _userReferralCodeKey = 'user_referral_code';
   static const _userAddressKey = 'user_address';
   static const _userAvatarPathKey = 'user_avatar_path';
   static const _localeCodeKey = 'locale_code';
@@ -29,6 +30,7 @@ class SessionService {
     await prefs.remove(_userNameKey);
     await prefs.remove(_userPhoneKey);
     await prefs.remove(_userEmailKey);
+    await prefs.remove(_userReferralCodeKey);
     await prefs.remove(_userAddressKey);
     await prefs.remove(_userAvatarPathKey);
   }
@@ -37,6 +39,7 @@ class SessionService {
     String? name,
     String? phone,
     String? email,
+    String? referralCode,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     if (name != null && name.trim().isNotEmpty) {
@@ -48,6 +51,9 @@ class SessionService {
     if (email != null && email.trim().isNotEmpty) {
       await prefs.setString(_userEmailKey, email.trim());
     }
+    if (referralCode != null && referralCode.trim().isNotEmpty) {
+      await prefs.setString(_userReferralCodeKey, referralCode.trim());
+    }
   }
 
   static Future<Map<String, String?>> getUserIdentity() async {
@@ -56,6 +62,7 @@ class SessionService {
       'name': prefs.getString(_userNameKey),
       'phone': prefs.getString(_userPhoneKey),
       'email': prefs.getString(_userEmailKey),
+      'referralCode': prefs.getString(_userReferralCodeKey),
       'address': prefs.getString(_userAddressKey),
       'avatarPath': prefs.getString(_userAvatarPathKey),
     };

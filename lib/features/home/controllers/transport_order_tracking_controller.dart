@@ -39,6 +39,7 @@ class TransportOrderTrackingController extends GetxController {
   final driverVehicleType = RxnString();
   final driverPlate = RxnString();
   final driverRating = RxnString();
+  final deliveryCode = RxnString();
   final tripDistanceKm = RxnDouble();
   final finalFare = RxnDouble();
   final isSubmittingRating = false.obs;
@@ -52,6 +53,8 @@ class TransportOrderTrackingController extends GetxController {
   Timer? _pollTimer;
   bool _didNotifyNearDestination = false;
   bool _didNotifyArrivedWaitingAtDestination = false;
+  bool _isPollingRequestInFlight = false;
+  DateTime? _lastTimeoutPopupAt;
 
   String? _firstNonEmpty(List<dynamic> candidates) {
     for (final raw in candidates) {
@@ -126,6 +129,11 @@ class TransportOrderTrackingController extends GetxController {
     currentDispatchStatus.value =
         (payload['dispatch_status'] ?? currentDispatchStatus.value).toString();
     finalFare.value = _asDouble(payload['total']) ?? finalFare.value;
+    deliveryCode.value = _firstNonEmpty([
+      payload['delivery_code'],
+      payload['deliveryCode'],
+      deliveryCode.value,
+    ]);
 
     final taxiOrder = _asMap(payload['taxi_order'] ?? payload['taxiOrder']);
     if (taxiOrder != null) {
@@ -242,6 +250,11 @@ class TransportOrderTrackingController extends GetxController {
       payload['rate'],
       driverRating.value,
     ]);
+    deliveryCode.value = _firstNonEmpty([
+      payload['delivery_code'],
+      payload['deliveryCode'],
+      deliveryCode.value,
+    ]);
 
     final lat = double.tryParse(payload['current_lat']?.toString() ?? '');
     final lng = double.tryParse(payload['current_lng']?.toString() ?? '');
@@ -252,29 +265,68 @@ class TransportOrderTrackingController extends GetxController {
 
   void _startPollingOrderState() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
-      if (_isDelivered()) return;
-      try {
-        final latest = await _repository.getOrderById(
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _pollOrderState());
+    _pollOrderState();
+  }
+
+  Future<void> _pollOrderState({bool force = false}) async {
+    if (_isDelivered()) return;
+    if (_isPollingRequestInFlight && !force) return;
+    _isPollingRequestInFlight = true;
+    try {
+      final latest = await _repository.getOrderById(
+        token: token,
+        orderId: orderId,
+      );
+      if (latest.isNotEmpty) {
+        _applyOrderPayload(latest);
+      }
+      if (_isDriverAccepted()) {
+        final driver = await _repository.getOrderDriverByOrderId(
           token: token,
           orderId: orderId,
         );
-        if (latest.isNotEmpty) {
-          _applyOrderPayload(latest);
+        if (driver.isNotEmpty) {
+          _applyDriverPayload(driver);
         }
-        if (_isDriverAccepted()) {
-          final driver = await _repository.getOrderDriverByOrderId(
-            token: token,
-            orderId: orderId,
-          );
-          if (driver.isNotEmpty) {
-            _applyDriverPayload(driver);
-          }
-        }
-      } catch (_) {
-        // Keep UI stable; websocket still acts as primary live source.
       }
-    });
+    } on HomeApiException catch (e) {
+      if (_isTimeoutMessage(e.message)) {
+        _showTimeoutPopup();
+      }
+    } catch (_) {
+      // Keep UI stable; websocket still acts as primary live source.
+    } finally {
+      _isPollingRequestInFlight = false;
+    }
+  }
+
+  bool _isTimeoutMessage(String message) {
+    final normalized = message.trim().toLowerCase();
+    return normalized.contains('timeout') ||
+        normalized.contains('timed out') ||
+        normalized.contains('مهلة');
+  }
+
+  void _showTimeoutPopup() {
+    final now = DateTime.now();
+    final previous = _lastTimeoutPopupAt;
+    if (previous != null && now.difference(previous) < const Duration(seconds: 20)) {
+      return;
+    }
+    _lastTimeoutPopupAt = now;
+    if (Get.isDialogOpen == true) return;
+
+    Get.defaultDialog(
+      title: 'انقطاع الاتصال',
+      middleText: 'انقطعت مهلة الاتصال بالخادم، أعد المحاولة',
+      textCancel: 'إغلاق',
+      textConfirm: 'إعادة المحاولة',
+      onConfirm: () {
+        Get.back();
+        _pollOrderState(force: true);
+      },
+    );
   }
 
   int get stageIndex {

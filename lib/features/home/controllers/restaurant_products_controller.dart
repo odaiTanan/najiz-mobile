@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/models/classification_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
+import 'package:najiz_go_express/features/home/models/create_address_payload.dart';
+import 'package:najiz_go_express/features/home/models/user_address.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
 import 'dart:convert';
 
@@ -12,8 +14,8 @@ enum VendorStatusFilter {
   all,
   active,
   inactive,
-  opened,
-  closed,
+  freeDelivery,
+  topRated,
 }
 
 class RestaurantProductsController extends GetxController {
@@ -36,6 +38,8 @@ class RestaurantProductsController extends GetxController {
 
   final allVendors = <VendorModel>[].obs;
   final vendors = <VendorModel>[].obs;
+  final savedAddresses = <UserAddress>[].obs;
+  final selectedAddressId = RxnInt();
   final selectedVendorId = RxnInt();
   final currentDeliveryAddress = 'جاري تحديد موقعك...'.obs;
   final isResolvingAddress = false.obs;
@@ -44,11 +48,68 @@ class RestaurantProductsController extends GetxController {
     defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
   );
 
+  String get deliveryAddressLabel {
+    final selectedId = selectedAddressId.value;
+    if (selectedId != null) {
+      for (final address in savedAddresses) {
+        if (address.id == selectedId) return address.toShortLabel();
+      }
+    }
+    return currentDeliveryAddress.value;
+  }
+
   @override
   void onInit() {
     super.onInit();
     load();
-    loadCurrentDeliveryAddress();
+    loadDeliveryAddress();
+  }
+
+  Future<void> loadDeliveryAddress() async {
+    final authToken = token?.trim() ?? '';
+    if (authToken.isNotEmpty) {
+      try {
+        final addresses = await _repository.getMyAddresses(token: authToken);
+        final sorted = [...addresses];
+        sorted.sort((a, b) {
+          final ad = DateTime.tryParse(a.updatedAt ?? a.createdAt ?? '');
+          final bd = DateTime.tryParse(b.updatedAt ?? b.createdAt ?? '');
+          if (ad == null && bd == null) return b.id.compareTo(a.id);
+          if (ad == null) return 1;
+          if (bd == null) return -1;
+          return bd.compareTo(ad);
+        });
+        savedAddresses.assignAll(sorted);
+        if (sorted.isNotEmpty) {
+          final latest = sorted.first;
+          selectedAddressId.value = latest.id;
+          currentDeliveryAddress.value = latest.toShortLabel();
+          return;
+        }
+      } catch (_) {
+        // Fall back to current location if loading saved addresses fails.
+      }
+    }
+    await loadCurrentDeliveryAddress();
+  }
+
+  void selectSavedAddress(UserAddress address) {
+    selectedAddressId.value = address.id;
+    currentDeliveryAddress.value = address.toShortLabel();
+  }
+
+  Future<void> useCurrentLocationAddress() async {
+    selectedAddressId.value = null;
+    await loadCurrentDeliveryAddress();
+  }
+
+  Future<void> addAddress(CreateAddressPayload payload) async {
+    final authToken = token?.trim() ?? '';
+    if (authToken.isEmpty) {
+      throw HomeApiException('يرجى تسجيل الدخول لإضافة عنوان جديد');
+    }
+    await _repository.addUserAddress(token: authToken, payload: payload.toJson());
+    await loadDeliveryAddress();
   }
 
   Future<void> load() async {
@@ -102,7 +163,11 @@ class RestaurantProductsController extends GetxController {
   Future<void> openVendorProducts(int vendorId) async {
     selectedVendorId.value = vendorId;
     await Get.to(
-      () => RestaurantVendorProductsScreen(token: token, vendorId: vendorId),
+      () => RestaurantVendorProductsScreen(
+        token: token,
+        vendorId: vendorId,
+        serviceId: serviceId,
+      ),
     );
   }
 
@@ -130,13 +195,25 @@ class RestaurantProductsController extends GetxController {
         VendorStatusFilter.all => true,
         VendorStatusFilter.active => vendor.isActive,
         VendorStatusFilter.inactive => !vendor.isActive,
-        VendorStatusFilter.opened => vendor.isOpened,
-        VendorStatusFilter.closed => !vendor.isOpened,
+        VendorStatusFilter.freeDelivery => _hasFreeDelivery(vendor),
+        VendorStatusFilter.topRated => true,
       };
       return matchesClassification && matchesStatus;
     }).toList();
+
+    if (selectedStatus == VendorStatusFilter.topRated) {
+      filtered.sort((a, b) => (b.rating ?? -1).compareTo(a.rating ?? -1));
+    }
+
     vendors.assignAll(filtered);
     selectedVendorId.value = vendors.isNotEmpty ? vendors.first.id : null;
+  }
+
+  bool _hasFreeDelivery(VendorModel vendor) {
+    final text = '${vendor.name} ${vendor.description ?? ''}'.toLowerCase();
+    return text.contains('توصيل مجاني') ||
+        text.contains('free delivery') ||
+        text.contains('مجاني');
   }
 
   Future<void> loadCurrentDeliveryAddress() async {

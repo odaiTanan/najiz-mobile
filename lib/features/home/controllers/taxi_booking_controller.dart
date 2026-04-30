@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/live_order_info.dart';
+import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
 import 'dart:convert';
 
 class TaxiBookingController extends GetxController {
@@ -35,6 +36,10 @@ class TaxiBookingController extends GetxController {
 
   final pricing = Rxn<TaxiPricingModel>();
   final selectedCategoryId = RxnInt();
+  final appliedCouponCode = RxnString();
+  final couponDiscount = 0.0.obs;
+  final availableCoupons = <UserCouponItem>[].obs;
+  final isLoadingCoupons = false.obs;
   static const String _mapsApiKey = String.fromEnvironment(
     'MAPS_API_KEY',
     defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
@@ -57,6 +62,7 @@ class TaxiBookingController extends GetxController {
   void onInit() {
     super.onInit();
     _initUserLocation();
+    loadCoupons();
   }
 
   Future<void> _initUserLocation() async {
@@ -105,8 +111,12 @@ class TaxiBookingController extends GetxController {
       pricing.value = result;
       if (result.categories.isNotEmpty) {
         selectedCategoryId.value = result.categories.first.vehicleCategory.id;
+        if (appliedCouponCode.value != null) {
+          _revalidateAppliedCoupon();
+        }
       } else {
         selectedCategoryId.value = null;
+        couponDiscount.value = 0;
       }
     } on HomeApiException catch (e) {
       errorMessage.value = e.message;
@@ -492,6 +502,9 @@ class TaxiBookingController extends GetxController {
 
   void selectCategory(int id) {
     selectedCategoryId.value = id;
+    if (appliedCouponCode.value != null) {
+      _revalidateAppliedCoupon();
+    }
   }
 
   TaxiPricingCategory? get selectedCategory {
@@ -526,6 +539,7 @@ class TaxiBookingController extends GetxController {
         pickupLng: pickupLng.value,
         dropoffLat: dropoffLat.value!,
         dropoffLng: dropoffLng.value!,
+        couponCode: appliedCouponCode.value,
         paymentMethod: 'cash',
       );
       final data = (response['data'] is Map)
@@ -552,6 +566,64 @@ class TaxiBookingController extends GetxController {
       );
     } finally {
       isPlacingOrder.value = false;
+    }
+  }
+
+  Future<void> loadCoupons() async {
+    final authToken = token.value;
+    if (authToken == null || authToken.trim().isEmpty) return;
+    isLoadingCoupons.value = true;
+    try {
+      final list = await _repository.getMyCoupons(token: authToken);
+      availableCoupons.assignAll(
+        list.where((e) => e.code.trim().isNotEmpty),
+      );
+    } catch (_) {
+      availableCoupons.clear();
+    } finally {
+      isLoadingCoupons.value = false;
+    }
+  }
+
+  Future<void> applyCoupon(String code) async {
+    final selected = selectedCategory;
+    final authToken = token.value;
+    final normalized = code.trim();
+    if (selected == null) {
+      throw HomeApiException('يرجى اختيار فئة تاكسي أولاً');
+    }
+    if (authToken == null || authToken.trim().isEmpty) {
+      throw HomeApiException('يرجى تسجيل الدخول لتطبيق الكوبون');
+    }
+    if (normalized.isEmpty) return;
+    final response = await _repository.validateCoupon(
+      token: authToken,
+      code: normalized,
+      orderAmount: selected.pricing.estimatedPrice,
+    );
+    final data = _asMap(response['data']) ?? <String, dynamic>{};
+    couponDiscount.value = _asDouble(data['discount']) ?? 0;
+    appliedCouponCode.value = normalized;
+    if (couponDiscount.value <= 0) {
+      Get.snackbar(
+        'تنبيه',
+        'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
+      );
+    }
+  }
+
+  Future<void> clearCoupon() async {
+    appliedCouponCode.value = null;
+    couponDiscount.value = 0;
+  }
+
+  Future<void> _revalidateAppliedCoupon() async {
+    final code = appliedCouponCode.value;
+    if (code == null || code.trim().isEmpty) return;
+    try {
+      await applyCoupon(code);
+    } catch (_) {
+      couponDiscount.value = 0;
     }
   }
 

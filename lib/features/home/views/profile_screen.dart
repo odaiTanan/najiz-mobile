@@ -9,7 +9,8 @@ import 'package:najiz_go_express/features/home/controllers/profile_controller.da
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
 import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
-import 'package:najiz_go_express/features/home/views/wallet_screen.dart';
+import 'package:najiz_go_express/features/home/views/referral_coupon_screen.dart';
+import 'package:najiz_go_express/features/home/views/search_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/support/views/support_chat_screen.dart';
@@ -266,10 +267,24 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _ActionCard(
-                  icon: Icons.credit_card_outlined,
-                  title: 'profile.paymentMethods'.tr,
-                  subtitle: 'profile.managePaymentMethods'.tr,
-                  onTap: () => Get.to(() => const WalletScreen()),
+                  icon: Icons.search_rounded,
+                  title: 'البحث',
+                  subtitle: 'ابحث عن المطاعم والمتاجر والمنتجات',
+                  onTap: () => Get.to(() => SearchScreen(token: token)),
+                ),
+                const SizedBox(height: 10),
+                _ActionCard(
+                  icon: Icons.card_giftcard_rounded,
+                  title: 'الإحالة والكوبونات',
+                  subtitle: 'شارك كودك واطلع على كوبوناتك',
+                  onTap: () {
+                    final currentToken = auth.token.value;
+                    if (currentToken == null || currentToken.trim().isEmpty) {
+                      Get.to(() => const LoginScreen());
+                      return;
+                    }
+                    Get.to(() => ReferralCouponScreen(token: currentToken));
+                  },
                 ),
                 const SizedBox(height: 10),
                 _ActionCard(

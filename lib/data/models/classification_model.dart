@@ -2,6 +2,7 @@ class ClassificationModel {
   final int id;
   final String name;
   final String? image;
+  final String? icon;
   final int? serviceId;
   final bool isActive;
 
@@ -9,6 +10,7 @@ class ClassificationModel {
     required this.id,
     required this.name,
     this.image,
+    this.icon,
     this.serviceId,
     this.isActive = false,
   });
@@ -18,6 +20,7 @@ class ClassificationModel {
       id: _asInt(json['id']),
       name: (json['name'] ?? '').toString(),
       image: json['image']?.toString(),
+      icon: json['icon']?.toString(),
       serviceId: _asNullableInt(json['service_id']),
       isActive: _asBool(json['is_active']),
     );

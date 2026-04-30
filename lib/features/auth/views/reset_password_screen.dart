@@ -9,12 +9,12 @@ import 'package:najiz_go_express/features/auth/widgets/auth_text_field.dart';
 
 class ResetPasswordScreen extends StatelessWidget {
   final String phone;
-  final String code;
+  final String resetToken;
 
   const ResetPasswordScreen({
     super.key,
     required this.phone,
-    required this.code,
+    required this.resetToken,
   });
 
   @override
@@ -22,7 +22,7 @@ class ResetPasswordScreen extends StatelessWidget {
     final controller = Get.put(
       ResetPasswordController(
         phone: phone,
-        code: code,
+        resetToken: resetToken,
       ),
     );
 

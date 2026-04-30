@@ -185,6 +185,14 @@ class SignupScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+                AuthTextField(
+                  label: 'كود الإحالة (اختياري)',
+                  hintText: 'مثال: ABC123',
+                  controller: controller.referralCodeController,
+                  textCapitalization: TextCapitalization.characters,
+                  prefixIcon: const Icon(Icons.card_giftcard_outlined),
+                ),
                 const SizedBox(height: 18),
                 Obx(
                   () => AuthButton(

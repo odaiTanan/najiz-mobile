@@ -24,7 +24,7 @@ class ForgotPasswordController extends GetxController {
     isLoading.value = true;
     try {
       final result =
-          await _authRepository.resendOtp(phone: phoneController.text.trim());
+          await _authRepository.forgotPassword(phone: phoneController.text.trim());
 
       Get.to(
         () => OtpVerificationScreen(

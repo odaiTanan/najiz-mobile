@@ -15,6 +15,7 @@ class AuthTextField extends StatelessWidget {
   final int? maxLength;
   final AutovalidateMode autovalidateMode;
   final ValueChanged<String>? onChanged;
+  final TextCapitalization textCapitalization;
 
   const AuthTextField({
     super.key,
@@ -30,6 +31,7 @@ class AuthTextField extends StatelessWidget {
     this.maxLength,
     this.autovalidateMode = AutovalidateMode.disabled,
     this.onChanged,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -55,6 +57,7 @@ class AuthTextField extends StatelessWidget {
           onChanged: onChanged,
           maxLength: maxLength,
           inputFormatters: inputFormatters,
+          textCapitalization: textCapitalization,
           decoration: InputDecoration(
             hintText: hintText,
             prefixIcon: prefixIcon,

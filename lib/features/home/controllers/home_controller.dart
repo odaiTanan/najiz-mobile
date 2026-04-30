@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
@@ -11,6 +13,7 @@ import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/order_tracking_screen.dart';
+import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_products_screen.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/home/views/shipping_screen.dart';
@@ -33,6 +36,8 @@ class HomeController extends GetxController {
   final offers = <OfferModel>[].obs;
   final services = <ServiceModel>[].obs;
   final vendors = <VendorModel>[].obs;
+  final vendorActiveFilter = RxnBool();
+  final vendorCuisineFilter = RxnString();
   final selectedServiceId = RxnInt();
   final restaurantServiceId = RxnInt();
   final activeOrders = <UserOrder>[].obs;
@@ -45,6 +50,18 @@ class HomeController extends GetxController {
   UserOrder? get primaryActiveOrder =>
       activeOrders.isEmpty ? null : activeOrders.first;
   bool get hasMoreActiveOrders => activeOrders.length > 1;
+  List<VendorModel> get filteredVendors {
+    return vendors.where((vendor) {
+      final activeOk = vendorActiveFilter.value == null
+          ? true
+          : (vendorActiveFilter.value! ? vendor.isOpened : !vendor.isOpened);
+      final cuisine = vendorCuisineFilter.value;
+      final cuisineOk = cuisine == null
+          ? true
+          : _vendorMatchesCuisine(vendor: vendor, cuisine: cuisine);
+      return activeOk && cuisineOk;
+    }).toList(growable: false);
+  }
 
   @override
   void onInit() {
@@ -52,6 +69,7 @@ class HomeController extends GetxController {
     _authStateManager = Get.find<AuthStateManager>();
     _pushNotificationService = Get.find<PushNotificationService>();
     _loadIdentity();
+    _initSavedCartIfAny();
     loadHomeData();
   }
 
@@ -111,6 +129,42 @@ class HomeController extends GetxController {
     }
   }
 
+  void _initSavedCartIfAny() {
+    Future.microtask(() async {
+      final cart = Get.find<AppCartService>();
+      final restored = await cart.restoreSavedCartIfAny();
+      if (!restored) return;
+      final vendorId = cart.vendorId.value;
+      final items = cart.items.toList(growable: false);
+      if (vendorId == null || items.isEmpty) return;
+
+      final ctx = Get.overlayContext ?? Get.context;
+      if (ctx == null) return;
+
+      // Show a snackbar once after app opens.
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: const Text('لديك سلة محفوظة'),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: '→',
+            onPressed: () {
+              cart.consumeSavedCart();
+              Get.to(
+                () => OrderCheckoutScreen(
+                  token: activeToken,
+                  vendorId: vendorId,
+                  items: items,
+                  serviceId: selectedServiceId.value,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
+
   Future<void> _loadActiveOrders() async {
     final authToken = activeToken;
     if (authToken == null || authToken.trim().isEmpty || isGuest) {
@@ -147,6 +201,8 @@ class HomeController extends GetxController {
         serviceId: serviceId,
       );
       vendors.assignAll(loadedVendors);
+      vendorActiveFilter.value = null;
+      vendorCuisineFilter.value = null;
     } on HomeApiException catch (e) {
       errorMessage.value = e.message;
       vendors.clear();
@@ -184,6 +240,7 @@ class HomeController extends GetxController {
       () => RestaurantVendorProductsScreen(
         token: activeToken,
         vendorId: vendor.id,
+        serviceId: selectedServiceId.value ?? vendor.serviceId,
       ),
     );
   }
@@ -267,5 +324,39 @@ class HomeController extends GetxController {
         name.contains('food') ||
         name.contains('مطاعم') ||
         service.id == 1;
+  }
+
+  void toggleVendorActiveFilter(bool active) {
+    vendorActiveFilter.value = vendorActiveFilter.value == active ? null : active;
+  }
+
+  void toggleVendorCuisineFilter(String cuisine) {
+    vendorCuisineFilter.value = vendorCuisineFilter.value == cuisine ? null : cuisine;
+  }
+
+  bool _vendorMatchesCuisine({
+    required VendorModel vendor,
+    required String cuisine,
+  }) {
+    final haystack = '${vendor.name} ${vendor.description ?? ''}'.toLowerCase();
+    switch (cuisine) {
+      case 'fastfood':
+        return haystack.contains('وجبات سريعة') ||
+            haystack.contains('fast') ||
+            haystack.contains('burger') ||
+            haystack.contains('shawarma');
+      case 'western':
+        return haystack.contains('غربي') ||
+            haystack.contains('western') ||
+            haystack.contains('pizza') ||
+            haystack.contains('burger');
+      case 'eastern':
+        return haystack.contains('شرقي') ||
+            haystack.contains('eastern') ||
+            haystack.contains('مشاوي') ||
+            haystack.contains('عربي');
+      default:
+        return true;
+    }
   }
 }

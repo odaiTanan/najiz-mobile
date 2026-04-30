@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
-import 'package:najiz_go_express/core/constants/app_images.dart';
 import 'package:najiz_go_express/core/constants/app_strings.dart';
 import 'package:najiz_go_express/core/theme/text_styles.dart';
 import 'package:najiz_go_express/core/utils/validators.dart';
@@ -9,7 +8,6 @@ import 'package:najiz_go_express/features/auth/controllers/login_controller.dart
 import 'package:najiz_go_express/features/auth/widgets/auth_button.dart';
 import 'package:najiz_go_express/features/auth/widgets/auth_header.dart';
 import 'package:najiz_go_express/features/auth/widgets/auth_text_field.dart';
-import 'package:najiz_go_express/features/auth/widgets/social_button.dart';
 import 'package:najiz_go_express/features/auth/views/forgot_password_screen.dart';
 import 'package:najiz_go_express/features/auth/views/signup_screen.dart';
 
@@ -79,25 +77,6 @@ class LoginScreen extends StatelessWidget {
                     isLoading: controller.isLoading.value,
                     onPressed: controller.login,
                   ),
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: Text(
-                    AppStrings.orContinueWith,
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SocialButton(
-                  text: AppStrings.google,
-                  assetPath: AppImages.logoGoogle,
-                  onPressed: () {},
-                ),
-                const SizedBox(height: 10),
-                SocialButton(
-                  text: AppStrings.apple,
-                  assetPath: AppImages.logoApple,
-                  onPressed: () {},
                 ),
                 const SizedBox(height: 18),
                 Center(

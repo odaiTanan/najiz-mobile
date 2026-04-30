@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/core/utils/error_mappers.dart';
+import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/data/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
@@ -60,51 +62,79 @@ class LoginController extends GetxController {
 
     isLoading.value = true;
     try {
-      final result = await _authRepository.login(
-        phone: phoneOrEmailController.text.trim(),
-        password: passwordController.text,
-      );
-
-      if (result.needsVerification) {
-        errorMessage.value = result.message;
-        Get.snackbar('رمز التحقق', result.message);
-        Get.to(
-          () => OtpVerificationScreen(
-            purpose: OtpPurpose.login,
-            phone: result.phone ?? phoneOrEmailController.text.trim(),
+      await _performLoginAttempt();
+    } on AuthApiException catch (e) {
+      if (ErrorMappers.isNoInternetErrorMessage(e.message)) {
+        // Stop button loading and show full-screen offline retry.
+        isLoading.value = false;
+        await Get.dialog(
+          NoInternetScreen(
+            onRetry: _performLoginAttempt,
+            onError: (err) {
+              if (err is AuthApiException) {
+                final raw = err.message;
+                if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
+                  final mapped = ErrorMappers.mapLoginErrorMessage(raw);
+                  errorMessage.value = mapped;
+                  Get.snackbar('خطأ', mapped);
+                  Get.back();
+                }
+              }
+            },
           ),
+          barrierDismissible: false,
         );
         return;
       }
 
-      token = result.token;
-      final fallbackPhone = phoneOrEmailController.text.trim();
-      if (token != null && token!.isNotEmpty) {
-        await _syncIdentityFromBackend(
-          authToken: token!,
-          fallbackPhone: fallbackPhone,
-        );
-        await Get.find<AuthStateManager>().markAuthenticated(token!);
-      } else {
-        await SessionService.saveUserIdentity(phone: fallbackPhone);
-      }
-      Get.snackbar('تم بنجاح', result.message);
-      Get.offAll(() => HomeScreen(token: token));
-    } on AuthApiException catch (e) {
-      errorMessage.value = e.message;
-      debugPrint('Login API error: status=${e.statusCode}, message=${e.message}');
-      Get.snackbar('خطأ', e.message);
-    } on TimeoutException catch (e) {
-      errorMessage.value = 'انتهت مهلة الخادم. يرجى المحاولة مرة أخرى.';
-      debugPrint('Login timeout: $e');
-      Get.snackbar(
-        'خطأ',
-        'انتهت مهلة الخادم. يرجى التحقق من الاتصال ومحاولة مرة أخرى.',
+      final mapped = ErrorMappers.mapLoginErrorMessage(e.message);
+      errorMessage.value = mapped;
+      debugPrint(
+        'Login API error: status=${e.statusCode}, message=${e.message}',
       );
+      Get.snackbar('خطأ', mapped);
+    } on TimeoutException catch (e) {
+      debugPrint('Login timeout: $e');
+      isLoading.value = false;
+      await Get.dialog(
+        NoInternetScreen(
+          onRetry: _performLoginAttempt,
+          onError: (err) {
+            if (err is AuthApiException) {
+              final raw = err.message;
+              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
+                final mapped = ErrorMappers.mapLoginErrorMessage(raw);
+                errorMessage.value = mapped;
+                Get.snackbar('خطأ', mapped);
+                Get.back();
+              }
+            }
+          },
+        ),
+        barrierDismissible: false,
+      );
+      return;
     } on SocketException catch (e) {
-      errorMessage.value = 'لا يوجد اتصال بالإنترنت';
       debugPrint('Login socket error: $e');
-      Get.snackbar('خطأ', 'لا يوجد اتصال بالإنترنت');
+      isLoading.value = false;
+      await Get.dialog(
+        NoInternetScreen(
+          onRetry: _performLoginAttempt,
+          onError: (err) {
+            if (err is AuthApiException) {
+              final raw = err.message;
+              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
+                final mapped = ErrorMappers.mapLoginErrorMessage(raw);
+                errorMessage.value = mapped;
+                Get.snackbar('خطأ', mapped);
+                Get.back();
+              }
+            }
+          },
+        ),
+        barrierDismissible: false,
+      );
+      return;
     } catch (e) {
       errorMessage.value = 'خطأ في الشبكة';
       debugPrint('Login unexpected error: $e');
@@ -112,6 +142,39 @@ class LoginController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _performLoginAttempt() async {
+    final result = await _authRepository.login(
+      phone: phoneOrEmailController.text.trim(),
+      password: passwordController.text,
+    );
+
+    if (result.needsVerification) {
+      errorMessage.value = result.message;
+      Get.snackbar('رمز التحقق', result.message);
+      Get.to(
+        () => OtpVerificationScreen(
+          purpose: OtpPurpose.login,
+          phone: result.phone ?? phoneOrEmailController.text.trim(),
+        ),
+      );
+      return;
+    }
+
+    token = result.token;
+    final fallbackPhone = phoneOrEmailController.text.trim();
+    if (token != null && token!.isNotEmpty) {
+      await _syncIdentityFromBackend(
+        authToken: token!,
+        fallbackPhone: fallbackPhone,
+      );
+      await Get.find<AuthStateManager>().markAuthenticated(token!);
+    } else {
+      await SessionService.saveUserIdentity(phone: fallbackPhone);
+    }
+    Get.snackbar('تم بنجاح', result.message);
+    Get.offAll(() => HomeScreen(token: token));
   }
 
   @override

@@ -6,14 +6,14 @@ import 'package:najiz_go_express/features/home/views/home_screen.dart';
 class ResetPasswordController extends GetxController {
   ResetPasswordController({
     required this.phone,
-    required this.code,
+    required this.resetToken,
     AuthRepository? authRepository,
   }) : _authRepository = authRepository ?? AuthRepository();
 
   final AuthRepository _authRepository;
 
   final String phone;
-  final String code;
+  final String resetToken;
 
   final formKey = GlobalKey<FormState>();
 
@@ -42,7 +42,7 @@ class ResetPasswordController extends GetxController {
     try {
       final result = await _authRepository.resetPassword(
         phone: phone,
-        code: code,
+        resetToken: resetToken,
         password: passwordController.text,
       );
 

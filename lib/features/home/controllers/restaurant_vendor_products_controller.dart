@@ -49,16 +49,55 @@ class RestaurantVendorProductsController extends GetxController {
     selectedCategoryId.value = categoryId;
   }
 
-  List<VendorProductItem> get filteredProducts {
+  List<VendorProductsCategory> get regularCategories {
+    final data = vendorProducts.value;
+    if (data == null) return const [];
+    return data.categories
+        .where((category) => category.type == 'regular')
+        .toList(growable: false);
+  }
+
+  List<VendorProductItem> get filteredRegularProducts {
     final data = vendorProducts.value;
     if (data == null) return const [];
 
-    final categoryId = selectedCategoryId.value;
-    if (categoryId == null) return data.products;
+    final regularCategoryIds = regularCategories.map((c) => c.id).toSet();
+    final regularProducts = data.products.where((product) {
+      final byCategoryId = product.categoryId != null &&
+          regularCategoryIds.contains(product.categoryId);
+      final byInlineCategoryType = product.categoryType == 'regular';
+      return byCategoryId || byInlineCategoryType;
+    });
 
-    return data.products
+    final categoryId = selectedCategoryId.value;
+    if (categoryId == null) return regularProducts.toList(growable: false);
+
+    return regularProducts
         .where((product) => product.categoryId == categoryId)
         .toList(growable: false);
+  }
+
+  List<VendorProductItem> get offerProducts {
+    final data = vendorProducts.value;
+    if (data == null) return const [];
+
+    final offerCategoryIds = data.categories
+        .where((category) => category.type == 'offers')
+        .map((category) => category.id)
+        .toSet();
+
+    return data.products.where((product) {
+      final byCategoryId = product.categoryId != null &&
+          offerCategoryIds.contains(product.categoryId);
+      final byInlineCategoryType = product.categoryType == 'offers';
+      return byCategoryId || byInlineCategoryType;
+    }).toList(growable: false);
+  }
+
+  List<VendorProductItem> get filteredProducts {
+    final regular = filteredRegularProducts;
+    final offers = offerProducts;
+    return [...regular, ...offers];
   }
 }
 

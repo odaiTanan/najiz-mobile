@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
@@ -10,24 +12,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PushNotificationService extends GetxService {
   static const String _oneSignalAppId = '9281c288-37c8-4a61-8a13-72feafc8b32a';
   static const String _storageKey = 'app_notifications_history';
+  static const String _orderNotificationIdsKey = 'order_progress_notification_ids';
+  static const String _chatNotificationIdsKey = 'chat_progress_notification_ids';
+  static const String _ordersChannelId = 'orders_progress_channel';
+  static const String _chatChannelId = 'chat_updates_channel';
 
   final _http = http.Client();
   final Map<String, DateTime> _recentLocalKeys = <String, DateTime>{};
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+  final Map<String, int> _orderNotificationIds = <String, int>{};
+  final Map<String, int> _chatNotificationIds = <String, int>{};
 
   final notifications = <AppNotificationItem>[].obs;
   final unreadCount = 0.obs;
   bool _initialized = false;
+  bool _localInitialized = false;
 
   Future<void> initialize({String? token}) async {
     if (_initialized) return;
     _initialized = true;
 
     await _loadFromStorage();
+    await _loadNotificationIdMappings();
+    await _initLocalNotifications();
     OneSignal.initialize(_oneSignalAppId);
     await OneSignal.Notifications.requestPermission(true);
 
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
       final notification = event.notification;
+      _handleLocalProgressNotification(notification.additionalData);
       _handleOrderStatusMilestones(notification.additionalData);
       _appendNotification(
         title: notification.title ?? 'إشعار جديد',
@@ -39,6 +53,7 @@ class PushNotificationService extends GetxService {
 
     OneSignal.Notifications.addClickListener((event) {
       final notification = event.notification;
+      _handleLocalProgressNotification(notification.additionalData);
       _handleOrderStatusMilestones(notification.additionalData);
       _appendNotification(
         title: notification.title ?? 'إشعار جديد',
@@ -51,6 +66,255 @@ class PushNotificationService extends GetxService {
     if (token != null && token.trim().isNotEmpty) {
       await subscribeDevice(token);
     }
+  }
+
+  Future<void> _initLocalNotifications() async {
+    if (_localInitialized) return;
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const settings = InitializationSettings(android: android);
+    await _localNotifications.initialize(settings);
+    _localInitialized = true;
+  }
+
+  Future<void> _loadNotificationIdMappings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ordersRaw = prefs.getString(_orderNotificationIdsKey);
+    if (ordersRaw != null && ordersRaw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(ordersRaw);
+        if (decoded is Map) {
+          _orderNotificationIds
+            ..clear()
+            ..addAll(
+              decoded.map((key, value) => MapEntry(
+                    key.toString(),
+                    int.tryParse(value.toString()) ?? _stableInt(key.toString()),
+                  )),
+            );
+        }
+      } catch (_) {}
+    }
+
+    final chatsRaw = prefs.getString(_chatNotificationIdsKey);
+    if (chatsRaw != null && chatsRaw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(chatsRaw);
+        if (decoded is Map) {
+          _chatNotificationIds
+            ..clear()
+            ..addAll(
+              decoded.map((key, value) => MapEntry(
+                    key.toString(),
+                    int.tryParse(value.toString()) ?? _stableInt(key.toString()),
+                  )),
+            );
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _saveNotificationIdMappings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _orderNotificationIdsKey,
+      jsonEncode(_orderNotificationIds),
+    );
+    await prefs.setString(
+      _chatNotificationIdsKey,
+      jsonEncode(_chatNotificationIds),
+    );
+  }
+
+  Future<void> _handleLocalProgressNotification(Map<String, dynamic>? data) async {
+    if (data == null || !_localInitialized) return;
+    final type = data['type']?.toString().trim().toLowerCase();
+    if (type == 'order_status') {
+      await _upsertOrderProgressNotification(data);
+      return;
+    }
+    if (type == 'chat') {
+      await _upsertChatNotification(data);
+    }
+  }
+
+  Future<void> _upsertOrderProgressNotification(Map<String, dynamic> data) async {
+    final orderId = data['order_id']?.toString().trim();
+    if (orderId == null || orderId.isEmpty) return;
+
+    final collapseId = data['collapse_id']?.toString().trim();
+    final orderKey =
+        collapseId != null && collapseId.isNotEmpty
+            ? collapseId
+            : data['notification_key']?.toString().trim().isNotEmpty == true
+            ? data['notification_key']!.toString().trim()
+            : 'order_$orderId';
+    final androidGroup = data['android_group']?.toString().trim();
+    final groupKey = androidGroup != null && androidGroup.isNotEmpty
+        ? androidGroup
+        : 'order_$orderId';
+    final explicitNotificationId =
+        _asInt(data['android_notification_id']) ?? _asInt(data['order_id']);
+    final notificationId = explicitNotificationId ??
+        _resolveNotificationId(
+          key: orderKey,
+          store: _orderNotificationIds,
+        );
+    if (explicitNotificationId == null) {
+      await _saveNotificationIdMappings();
+    }
+
+    final resolvedStepTotal = _asInt(data['step_total']) ?? 4;
+    final resolvedStepIndex = _asInt(data['step_index']) ??
+        _statusToStepIndex(
+          _normalizeStatus(
+            data['status']?.toString() ?? data['order_status']?.toString() ?? '',
+          ),
+          resolvedStepTotal,
+        );
+
+    final clampedTotal = resolvedStepTotal <= 0 ? 4 : resolvedStepTotal;
+    final clampedStep =
+        resolvedStepIndex.clamp(0, clampedTotal) as int;
+    final orderNumber = data['order_number']?.toString().trim();
+    final statusText = data['status_label']?.toString().trim().isNotEmpty == true
+        ? data['status_label'].toString().trim()
+        : _defaultStatusLabel(data['status']?.toString() ?? data['order_status']?.toString() ?? '');
+    final title = orderNumber != null && orderNumber.isNotEmpty
+        ? 'طلبك $orderNumber'
+        : 'تحديث حالة الطلب';
+    final body = '$statusText ($clampedStep/$clampedTotal)';
+    final isFinished = _isTerminalOrderStatus(
+      data['status']?.toString() ?? data['order_status']?.toString() ?? '',
+    );
+
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _ordersChannelId,
+        'Order Progress',
+        channelDescription: 'Live order progress updates',
+        color: const Color(0xFFFF8A00),
+        importance: Importance.low,
+        priority: Priority.low,
+        showProgress: !isFinished,
+        maxProgress: clampedTotal,
+        progress: clampedStep,
+        groupKey: groupKey,
+        onlyAlertOnce: true,
+        playSound: false,
+        enableVibration: false,
+        enableLights: false,
+        ongoing: !isFinished,
+        autoCancel: isFinished,
+        styleInformation: BigTextStyleInformation(body),
+      ),
+    );
+    await _localNotifications.show(notificationId, title, body, details);
+  }
+
+  Future<void> _upsertChatNotification(Map<String, dynamic> data) async {
+    final conversationId = data['conversation_id']?.toString().trim();
+    if (conversationId == null || conversationId.isEmpty) return;
+    final key = 'chat_$conversationId';
+    final notificationId = _resolveNotificationId(
+      key: key,
+      store: _chatNotificationIds,
+    );
+    await _saveNotificationIdMappings();
+
+    final sender = data['sender_name']?.toString().trim();
+    final message = data['message']?.toString().trim();
+    final title = (sender != null && sender.isNotEmpty)
+        ? 'رسالة جديدة من $sender'
+        : 'رسالة جديدة';
+    final body = (message != null && message.isNotEmpty)
+        ? message
+        : 'لديك رسالة جديدة في المحادثة';
+
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _chatChannelId,
+        'Chat Updates',
+        channelDescription: 'Chat updates by conversation',
+        importance: Importance.high,
+        priority: Priority.high,
+        onlyAlertOnce: true,
+        styleInformation: BigTextStyleInformation(body),
+      ),
+    );
+    await _localNotifications.show(notificationId, title, body, details);
+  }
+
+  int _resolveNotificationId({
+    required String key,
+    required Map<String, int> store,
+  }) {
+    final existing = store[key];
+    if (existing != null) return existing;
+    final generated = _stableInt(key);
+    store[key] = generated;
+    return generated;
+  }
+
+  int _stableInt(String input) {
+    var hash = 0;
+    for (final code in input.codeUnits) {
+      hash = ((hash * 31) + code) & 0x7fffffff;
+    }
+    if (hash == 0) return 1;
+    return hash;
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  int _statusToStepIndex(String status, int stepTotal) {
+    final normalizedTotal = stepTotal <= 0 ? 4 : stepTotal;
+    final lookup = <String, int>{
+      'pending': 0,
+      'accepted': 1,
+      'on_the_way_to_pickup': 2,
+      'picked_up': 3,
+      'on_way': normalizedTotal - 1,
+      'delivered': normalizedTotal,
+      'completed': normalizedTotal,
+      'cancelled': normalizedTotal,
+      'canceled': normalizedTotal,
+    };
+    return lookup[status] ?? 0;
+  }
+
+  String _defaultStatusLabel(String statusRaw) {
+    final status = _normalizeStatus(statusRaw);
+    switch (status) {
+      case 'pending':
+        return 'بانتظار القبول';
+      case 'accepted':
+        return 'تم قبول الطلب';
+      case 'on_the_way_to_pickup':
+        return 'السائق متجه للاستلام';
+      case 'picked_up':
+        return 'تم الاستلام';
+      case 'on_way':
+        return 'في الطريق للتسليم';
+      case 'delivered':
+      case 'completed':
+        return 'تم التسليم';
+      case 'cancelled':
+      case 'canceled':
+        return 'تم إلغاء الطلب';
+      default:
+        return 'تحديث جديد على الطلب';
+    }
+  }
+
+  bool _isTerminalOrderStatus(String statusRaw) {
+    final status = _normalizeStatus(statusRaw);
+    return status == 'delivered' ||
+        status == 'completed' ||
+        status == 'cancelled' ||
+        status == 'canceled';
   }
 
   Future<void> _handleOrderStatusMilestones(Map<String, dynamic>? data) async {

@@ -32,12 +32,12 @@ class ForgotPasswordScreen extends StatelessWidget {
                 AuthHeader(
                   title: 'إعادة تعيين كلمة المرور',
                   subtitle:
-                      'لا تقلق، يحدث ذلك للجميع. أدخل البريد الإلكتروني أو رقم الجوال المسجل لتصلك رابط آمن.',
+                      'أدخل رقم الجوال المرتبط بحسابك وسنرسل لك رمز تحقق (OTP) لإعادة تعيين كلمة المرور.',
                 ),
                 const SizedBox(height: 18),
                 AuthTextField(
                   label: 'رقم الجوال',
-                  hintText: 'مثال: +9665xxxxxxxx',
+                  hintText: 'مثال: 0991234567',
                   controller: controller.phoneController,
                   keyboardType: TextInputType.phone,
                   validator: Validators.phone,
@@ -45,7 +45,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 Obx(
                   () => AuthButton(
-                    text: 'إرسال رابط إعادة التعيين',
+                    text: 'إرسال رمز التحقق',
                     isLoading: controller.isLoading.value,
                     onPressed: controller.sendCode,
                   ),

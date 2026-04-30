@@ -12,6 +12,7 @@ import 'package:najiz_go_express/features/home/widgets/home_restaurant_card.dart
 import 'package:najiz_go_express/features/home/widgets/home_section_title.dart';
 import 'package:najiz_go_express/features/home/widgets/home_service_card.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
+import 'package:najiz_go_express/features/home/views/all_services_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -115,6 +116,21 @@ class HomeScreen extends StatelessWidget {
                 HomeSectionTitle(
                   title: 'home.ourServices'.tr,
                   actionText: 'home.showAll'.tr,
+                  onActionTap: () {
+                    final orderedServices = _orderedHomeServices(
+                      controller.services,
+                    );
+                    Get.to(
+                      () => AllServicesScreen(
+                        services: orderedServices,
+                        selectedServiceId: controller.selectedServiceId.value,
+                        onServiceTap: (service) {
+                          Get.back();
+                          controller.onServiceTap(service);
+                        },
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 10),
                 if (controller.services.isEmpty)
@@ -128,10 +144,13 @@ class HomeScreen extends StatelessWidget {
                       final orderedServices = _orderedHomeServices(
                         controller.services,
                       );
+                      final previewServices = orderedServices
+                          .take(4)
+                          .toList(growable: false);
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: orderedServices.length,
+                        itemCount: previewServices.length,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
@@ -140,7 +159,7 @@ class HomeScreen extends StatelessWidget {
                               mainAxisSpacing: 12,
                             ),
                         itemBuilder: (_, index) {
-                          final service = orderedServices[index];
+                          final service = previewServices[index];
                           return HomeServiceCard(
                             title: service.name,
                             imageUrl: service.icon,
@@ -155,7 +174,8 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 HomeSectionTitle(title: 'home.mostOrderedRestaurants'.tr),
                 const SizedBox(height: 10),
-                if (controller.vendors.isEmpty)
+                const SizedBox(height: 10),
+                if (controller.filteredVendors.isEmpty)
                   Text(
                     'home.noRestaurants'.tr,
                     style: TextStyle(color: AppColors.textSecondary),
@@ -165,11 +185,11 @@ class HomeScreen extends StatelessWidget {
                     height: 188,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: controller.vendors.length,
+                      itemCount: controller.filteredVendors.length,
                       separatorBuilder: (_, unusedIndex) =>
                           const SizedBox(width: 12),
                       itemBuilder: (_, index) {
-                        final vendor = controller.vendors[index];
+                        final vendor = controller.filteredVendors[index];
                         return HomeRestaurantCard(
                           name: vendor.name,
                           imageUrl: vendor.image ?? vendor.logo,
@@ -358,6 +378,7 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     return const [
       'home.foodStepConfirmed',
       'home.foodStepPreparing',
+      'home.foodStepDriverAssigned',
       'home.foodStepOnWay',
       'home.foodStepDelivered',
     ];
@@ -389,10 +410,12 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     }
 
     // Food/stores generic flow.
-    if (status == 'on_way') return 2;
-    if (status == 'ready') return 2;
+    if (status == 'on_way') return 3;
+    if (status == 'ready' || status == 'picked_up' || dispatch == 'assigned') {
+      return 2;
+    }
     if (status == 'preparing') return 1;
-    if (status == 'accepted' || dispatch == 'accepted' || dispatch == 'assigned') {
+    if (status == 'accepted' || dispatch == 'accepted') {
       return 0;
     }
     if (status == 'pending') return 0;
@@ -424,6 +447,7 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     const icons = [
       Icons.receipt_rounded,
       Icons.restaurant_menu_rounded,
+      Icons.delivery_dining_rounded,
       Icons.two_wheeler_rounded,
       Icons.check_circle_rounded,
     ];

@@ -5,6 +5,7 @@ import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/data/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
+import 'package:najiz_go_express/core/utils/error_mappers.dart';
 import 'package:najiz_go_express/features/auth/views/reset_password_screen.dart';
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 
@@ -57,7 +58,8 @@ class OtpVerificationController extends GetxController {
 
   void _startCountdown() {
     _countdownTimer?.cancel();
-    remainingSeconds.value = 119;
+    // Allow resend after ~1 minute.
+    remainingSeconds.value = 60;
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingSeconds.value <= 0) {
         timer.cancel();
@@ -70,7 +72,9 @@ class OtpVerificationController extends GetxController {
   Future<void> resendCode() async {
     if (remainingSeconds.value > 0) return;
     try {
-      final result = await _authRepository.resendOtp(phone: phone);
+      final result = purpose == OtpPurpose.forgotPassword
+          ? await _authRepository.forgotPassword(phone: phone)
+          : await _authRepository.resendOtp(phone: phone);
       Get.snackbar('رمز التحقق', result.message);
       _startCountdown();
     } on AuthApiException catch (e) {
@@ -90,20 +94,28 @@ class OtpVerificationController extends GetxController {
     final code = codeController.text.trim();
     isLoading.value = true;
     try {
-      final result = await _authRepository.verifyOtp(
-        phone: phone,
-        code: code,
-      );
-
       if (purpose == OtpPurpose.forgotPassword) {
+        final result = await _authRepository.verifyPasswordReset(
+          phone: phone,
+          otpToken: code,
+        );
+        final resetToken = result.resetToken;
+        if (resetToken == null || resetToken.trim().isEmpty) {
+          throw AuthApiException('تعذر استلام رمز إعادة التعيين من الخادم');
+        }
         Get.to(
           () => ResetPasswordScreen(
             phone: phone,
-            code: code,
+            resetToken: resetToken,
           ),
         );
         return;
       }
+
+      final result = await _authRepository.verifyOtp(
+        phone: phone,
+        code: code,
+      );
 
       if (result.token != null && result.token!.trim().isNotEmpty) {
         await _syncIdentityFromBackend(
@@ -114,8 +126,9 @@ class OtpVerificationController extends GetxController {
       }
       Get.offAll(() => HomeScreen(token: result.token));
     } on AuthApiException catch (e) {
-      errorMessage.value = e.message;
-      Get.snackbar('خطأ', e.message);
+      final mapped = ErrorMappers.mapOtpErrorMessage(e.message);
+      errorMessage.value = mapped;
+      Get.snackbar('خطأ', mapped);
     } catch (_) {
       errorMessage.value = 'خطأ في الشبكة';
       Get.snackbar('خطأ', 'خطأ في الشبكة');

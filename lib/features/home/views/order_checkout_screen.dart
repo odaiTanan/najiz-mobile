@@ -5,22 +5,27 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
+import 'package:najiz_go_express/core/utils/error_mappers.dart';
+import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/order_checkout_controller.dart';
 import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
 import 'package:najiz_go_express/features/home/views/order_tracking_screen.dart';
+import 'package:najiz_go_express/features/home/widgets/coupon_picker_sheet.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 
 class OrderCheckoutScreen extends StatelessWidget {
   final String? token;
   final int vendorId;
   final List<CheckoutCartItem> items;
+  final int? serviceId;
 
   const OrderCheckoutScreen({
     super.key,
     required this.token,
     required this.vendorId,
     required this.items,
+    this.serviceId,
   });
 
   @override
@@ -30,7 +35,48 @@ class OrderCheckoutScreen extends StatelessWidget {
       tag: 'checkout-$vendorId',
     );
 
-    return Scaffold(
+    Future<bool> _confirmLeaveCheckoutIfNeeded() async {
+      if (controller.isPlacingOrder.value) return false;
+      if (controller.orderPlaced.value) return true;
+
+      if (!Get.isRegistered<AppCartService>()) return true;
+      final cart = Get.find<AppCartService>();
+      if (cart.vendorId.value != vendorId || !cart.hasItems) return true;
+
+      final shouldSave = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('حفظ السلة؟'),
+          content: const Text('هل تريد حفظ السلة'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('نعم'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('لا'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldSave == null) return false;
+
+      if (shouldSave) {
+        await cart.persistCurrentCart();
+        cart.clear();
+      } else {
+        await cart.clearSavedCart();
+      }
+
+      return true;
+    }
+
+    return WillPopScope(
+      onWillPop: _confirmLeaveCheckoutIfNeeded,
+      child: Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
         child: Obx(() {
@@ -190,6 +236,152 @@ class OrderCheckoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _SectionCard(
+                title: 'أضف كوبون',
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFED7AA)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.local_offer_outlined,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'وفر على طلبك',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: 'اختر كوبون',
+                            icon: const Icon(
+                              Icons.add_circle_outline_rounded,
+                              color: AppColors.primary,
+                            ),
+                            onSelected: (selectedCode) async {
+                              try {
+                                await controller.applyCoupon(selectedCode);
+                              } on HomeApiException catch (e) {
+                                Get.snackbar('خطأ', e.message);
+                              }
+                            },
+                            itemBuilder: (context) {
+                              final coupons = controller.availableCoupons;
+                              if (coupons.isEmpty) {
+                                return const [
+                                  PopupMenuItem<String>(
+                                    enabled: false,
+                                    value: '',
+                                    child: Text('لا توجد كوبونات مفعلة'),
+                                  ),
+                                ];
+                              }
+                              return coupons
+                                  .map(
+                                    (coupon) => PopupMenuItem<String>(
+                                      value: coupon.code,
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              coupon.code,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            coupon.valueLabel,
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                  .toList(growable: false);
+                            },
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final selected = await showCouponPickerSheet(
+                                context: context,
+                                coupons: controller.availableCoupons,
+                                initialCode: controller.appliedCouponCode.value,
+                              );
+                              if (selected == null || selected.trim().isEmpty) {
+                                return;
+                              }
+                              try {
+                                await controller.applyCoupon(selected);
+                              } on HomeApiException catch (e) {
+                                Get.snackbar('خطأ', e.message);
+                              }
+                            },
+                            child: const Text('كتابة'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (controller.appliedCouponCode.value != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.discount_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                controller.appliedCouponCode.value!,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => controller.clearCoupon(),
+                              icon: const Icon(Icons.close, size: 18),
+                              color: AppColors.textSecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _SectionCard(
                 title: 'checkout.paymentMethod'.tr,
                 child: Row(
                   children: [
@@ -232,6 +424,48 @@ class OrderCheckoutScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+              Obx(
+                () => controller.unavailabilityOptions.isEmpty
+                    ? const SizedBox.shrink()
+                    : _SectionCard(
+                        title: 'في حال عدم توفر منتج',
+                        child: Column(
+                          children: controller.unavailabilityOptions
+                              .map(
+                                (option) => RadioListTile<String>(
+                                  value: option.value,
+                                  groupValue:
+                                      controller.selectedUnavailabilityAction.value,
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    controller.selectUnavailabilityAction(value);
+                                  },
+                                  contentPadding: EdgeInsets.zero,
+                                  activeColor: AppColors.primary,
+                                  title: Text(
+                                    option.label,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    _resolveUnavailabilityDescription(
+                                      original: option.description,
+                                      serviceId: serviceId,
+                                    ),
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 12),
               _InvoiceCard(controller: controller),
               const SizedBox(height: 16),
               Obx(
@@ -256,7 +490,8 @@ class OrderCheckoutScreen extends StatelessWidget {
                                 try {
                                   final placed = await controller.placeOrder();
                                   if (Get.isRegistered<AppCartService>()) {
-                                    Get.find<AppCartService>().clear();
+                                    await Get.find<AppCartService>()
+                                        .clearSavedCart();
                                   }
                                   Get.off(
                                     () => OrderTrackingScreen(
@@ -269,6 +504,34 @@ class OrderCheckoutScreen extends StatelessWidget {
                                     ),
                                   );
                                 } on HomeApiException catch (e) {
+                                  if (ErrorMappers.isNoInternetErrorMessage(e.message)) {
+                                    Future<void> _retryPlaceOrder() async {
+                                      final placed =
+                                          await controller.placeOrder();
+                                      if (Get.isRegistered<AppCartService>()) {
+                                        await Get.find<AppCartService>()
+                                            .clearSavedCart();
+                                      }
+                                      Get.off(
+                                        () => OrderTrackingScreen(
+                                          token: authToken,
+                                          orderId: placed.orderId,
+                                          orderNumber: placed.orderNumber,
+                                          initialStatus: placed.status,
+                                          initialDispatchStatus:
+                                              placed.dispatchStatus,
+                                        ),
+                                      );
+                                    }
+
+                                    await Get.dialog(
+                                      NoInternetScreen(
+                                        onRetry: _retryPlaceOrder,
+                                      ),
+                                      barrierDismissible: false,
+                                    );
+                                    return;
+                                  }
                                   Get.snackbar('orders.error'.tr, e.message);
                                 } catch (_) {
                                   Get.snackbar(
@@ -313,6 +576,7 @@ class OrderCheckoutScreen extends StatelessWidget {
             ],
           );
         }),
+      ),
       ),
     );
   }
@@ -414,6 +678,14 @@ class _InvoiceCard extends StatelessWidget {
               hasCalculatedPricing: controller.hasCalculatedPricing.value,
             ),
           ),
+          const SizedBox(height: 8),
+          if (controller.appliedCouponCode.value != null)
+            _row(
+              'خصم الكوبون',
+              controller.hasCalculatedPricing.value
+                  ? '-${_price(controller.couponDiscount.value)}'
+                  : '--',
+            ),
           const Divider(height: 22),
           _row(
             'checkout.total'.tr,
@@ -458,6 +730,26 @@ String _priceOrPlaceholder({
   required double value,
   required bool hasCalculatedPricing,
 }) => hasCalculatedPricing ? _price(value) : '--';
+
+String _resolveUnavailabilityDescription({
+  required String original,
+  required int? serviceId,
+}) {
+  final normalized = original.trim();
+  if (normalized.isEmpty) return normalized;
+  if (serviceId != 1 && serviceId != 3) {
+    if (normalized.contains('المطعم/المتجر')) return 'سيتم التواصل معك';
+    return normalized;
+  }
+
+  final entity = serviceId == 3 ? 'المتجر' : 'المطعم';
+  var result = normalized;
+  result = result.replaceAll(RegExp(r'المطعم\s*/\s*المتجر'), entity);
+  result = result.replaceAll(RegExp(r'المطعم\s*-\s*المتجر'), entity);
+  result = result.replaceAll(RegExp(r'المتجر\s*/\s*المطعم'), entity);
+  result = result.replaceAll(RegExp(r'المتجر\s*-\s*المطعم'), entity);
+  return result;
+}
 
 Future<void> _openLocationPicker(
   BuildContext context,

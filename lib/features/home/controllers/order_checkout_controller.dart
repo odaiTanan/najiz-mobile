@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
+import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
+import 'package:najiz_go_express/features/home/models/unavailability_option.dart';
 import 'dart:convert';
 
 class OrderCheckoutController extends GetxController {
@@ -21,12 +23,16 @@ class OrderCheckoutController extends GetxController {
   final HomeRepository _repository;
   void setAuthToken(String newToken) {
     token.value = newToken;
+    if (unavailabilityOptions.isEmpty) {
+      loadUnavailabilityOptions();
+    }
   }
 
   final isLoading = false.obs;
   final isPlacingOrder = false.obs;
   final errorMessage = RxnString();
   final hasCalculatedPricing = false.obs;
+  final orderPlaced = false.obs;
 
   final lat = '33.5138'.obs;
   final lng = '36.2765'.obs;
@@ -40,12 +46,21 @@ class OrderCheckoutController extends GetxController {
   final subtotal = 0.0.obs;
   final deliveryFee = 0.0.obs;
   final serviceFee = 0.0.obs;
+  final couponDiscount = 0.0.obs;
   final total = 0.0.obs;
+  final appliedCouponCode = RxnString();
+  final availableCoupons = <UserCouponItem>[].obs;
+  final isLoadingCoupons = false.obs;
+  final unavailabilityOptions = <UnavailabilityOption>[].obs;
+  final selectedUnavailabilityAction = RxnString();
+  final isLoadingUnavailabilityOptions = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     _initUserLocationAndCalculate();
+    loadCoupons();
+    loadUnavailabilityOptions();
   }
 
   String? get notes => _buildOrderNotes();
@@ -235,6 +250,8 @@ class OrderCheckoutController extends GetxController {
         customAddressName: customAddressName.value,
         paymentMethod: paymentMethod,
         items: apiItems,
+        couponCode: appliedCouponCode.value,
+        unavailabilityAction: selectedUnavailabilityAction.value,
         notes: notes,
         serviceName: 'food',
       );
@@ -244,6 +261,7 @@ class OrderCheckoutController extends GetxController {
 
       subtotal.value = _asDouble(data['subtotal']);
       deliveryFee.value = _asDouble(data['delivery_fee']);
+      couponDiscount.value = _asDouble(data['coupon_discount']);
       total.value = _asDouble(data['total']);
       final computedService = total.value - subtotal.value - deliveryFee.value;
       serviceFee.value = computedService < 0 ? 0 : computedService;
@@ -272,6 +290,8 @@ class OrderCheckoutController extends GetxController {
         customAddressName: customAddressName.value,
         paymentMethod: paymentMethod,
         items: apiItems,
+        couponCode: appliedCouponCode.value,
+        unavailabilityAction: selectedUnavailabilityAction.value,
         notes: notes,
         serviceName: 'food',
       );
@@ -282,6 +302,7 @@ class OrderCheckoutController extends GetxController {
       if (orderId == null) {
         throw HomeApiException('لم يتم استلام رقم الطلب من الخادم');
       }
+      orderPlaced.value = true;
       return PlacedOrderInfo(
         orderId: orderId,
         orderNumber: (data['order_number'] ?? '').toString(),
@@ -291,6 +312,66 @@ class OrderCheckoutController extends GetxController {
     } finally {
       isPlacingOrder.value = false;
     }
+  }
+
+  Future<void> loadCoupons() async {
+    final authToken = token.value;
+    if (authToken == null || authToken.trim().isEmpty) return;
+    isLoadingCoupons.value = true;
+    try {
+      final list = await _repository.getMyCoupons(token: authToken);
+      availableCoupons.assignAll(
+        list.where((e) => e.code.trim().isNotEmpty),
+      );
+    } catch (_) {
+      availableCoupons.clear();
+    } finally {
+      isLoadingCoupons.value = false;
+    }
+  }
+
+  Future<void> applyCoupon(String code) async {
+    final normalized = code.trim();
+    if (normalized.isEmpty) return;
+    appliedCouponCode.value = normalized;
+    await calculate();
+    if (hasCalculatedPricing.value &&
+        appliedCouponCode.value != null &&
+        couponDiscount.value <= 0) {
+      Get.snackbar(
+        'تنبيه',
+        'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
+      );
+    }
+  }
+
+  Future<void> clearCoupon() async {
+    appliedCouponCode.value = null;
+    await calculate();
+  }
+
+  Future<void> loadUnavailabilityOptions() async {
+    final authToken = token.value;
+    if (authToken == null || authToken.trim().isEmpty) return;
+    isLoadingUnavailabilityOptions.value = true;
+    try {
+      final options = await _repository.getOrderUnavailabilityOptions(
+        token: authToken,
+      );
+      unavailabilityOptions.assignAll(options);
+      if (selectedUnavailabilityAction.value == null && options.isNotEmpty) {
+        selectedUnavailabilityAction.value = options.first.value;
+      }
+    } catch (_) {
+      unavailabilityOptions.clear();
+    } finally {
+      isLoadingUnavailabilityOptions.value = false;
+    }
+  }
+
+  void selectUnavailabilityAction(String value) {
+    if (value.trim().isEmpty) return;
+    selectedUnavailabilityAction.value = value.trim();
   }
 }
 

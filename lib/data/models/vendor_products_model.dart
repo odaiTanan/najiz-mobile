@@ -65,16 +65,19 @@ class VendorProductsVendor {
 class VendorProductsCategory {
   final int id;
   final String name;
+  final String type;
 
   const VendorProductsCategory({
     required this.id,
     required this.name,
+    required this.type,
   });
 
   factory VendorProductsCategory.fromJson(Map<String, dynamic> json) {
     return VendorProductsCategory(
       id: _asInt(json['id']),
       name: (json['name'] ?? '').toString(),
+      type: (json['type'] ?? 'regular').toString().toLowerCase(),
     );
   }
 }
@@ -87,7 +90,9 @@ class VendorProductItem {
   final String? description;
   final String? image;
   final double? price;
+  final double? originalPrice;
   final int? stock;
+  final String? categoryType;
   final List<VendorProductExtra> activeExtras;
 
   const VendorProductItem({
@@ -98,7 +103,9 @@ class VendorProductItem {
     this.description,
     this.image,
     this.price,
+    this.originalPrice,
     this.stock,
+    this.categoryType,
     this.activeExtras = const [],
   });
 
@@ -111,7 +118,11 @@ class VendorProductItem {
       description: json['description']?.toString(),
       image: json['image']?.toString(),
       price: _asNullableDouble(json['price']),
+      originalPrice: _asNullableDouble(json['original_price']),
       stock: _asNullableInt(json['stock']),
+      categoryType: (json['category'] is Map)
+          ? (json['category']['type']?.toString().toLowerCase())
+          : null,
       activeExtras: _asList(
         json['active_extras'] ?? json['extras'] ?? const <dynamic>[],
       ).map(VendorProductExtra.fromJson).toList(growable: false),

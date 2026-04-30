@@ -50,31 +50,40 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     String formatUnit(int value) => value.toString().padLeft(2, '0');
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          child: Form(
-            key: controller.formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                IconButton(
-                  onPressed: () => Get.back(),
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.inputBorder),
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) {
+        // If the system didn't pop, we still allow leaving the screen.
+        if (!didPop && mounted) Get.back();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 16,
+            ),
+            child: Form(
+              key: controller.formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.arrow_back),
                   ),
-                  child: Column(
-                    children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.inputBorder),
+                    ),
+                    child: Column(
+                      children: [
                       const Row(
                         children: [
                           Icon(Icons.arrow_back, size: 18),
@@ -124,7 +133,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       Stack(
                         children: [
                           Opacity(
-                            opacity: 0.0,
+                            // Keep it hit-testable while still invisible.
+                            opacity: 0.01,
                             child: TextFormField(
                               controller: controller.codeController,
                               focusNode: _codeFocusNode,
@@ -145,7 +155,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           ),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => _codeFocusNode.requestFocus(),
+                            onTap: () {
+                              _codeFocusNode.requestFocus();
+                              // Place cursor at the end for easier editing/deleting.
+                              final text = controller.codeController.text;
+                              controller.codeController.selection =
+                                  TextSelection.collapsed(offset: text.length);
+                            },
                             child: ValueListenableBuilder<TextEditingValue>(
                               valueListenable: controller.codeController,
                               builder: (_, value, unusedValue) {
@@ -270,7 +286,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     ),
                   );
                 }),
-              ],
+                ],
+              ),
             ),
           ),
         ),

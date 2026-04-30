@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/core/utils/validators.dart';
+import 'package:najiz_go_express/core/utils/error_mappers.dart';
+import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
 import 'package:najiz_go_express/data/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
 import 'package:najiz_go_express/features/auth/views/otp_verification_screen.dart';
@@ -21,6 +25,7 @@ class SignupController extends GetxController {
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final referralCodeController = TextEditingController();
 
   final isLoading = false.obs;
   final isPasswordHidden = true.obs;
@@ -71,34 +76,104 @@ class SignupController extends GetxController {
 
     isLoading.value = true;
     try {
-      final result = await _authRepository.register(
-        name: nameController.text.trim(),
-        phone: fullPhoneNumber,
-        email: emailController.text.trim(),
-        password: passwordController.text,
-      );
-      await SessionService.saveUserIdentity(
-        name: nameController.text.trim(),
-        phone: fullPhoneNumber,
-        email: emailController.text.trim(),
-      );
-
-      // Backend always sends OTP after registration.
-      Get.to(
-        () => OtpVerificationScreen(
-          purpose: OtpPurpose.signup,
-          phone: result.phone ?? fullPhoneNumber,
-        ),
-      );
+      await _performSignUpAttempt();
     } on AuthApiException catch (e) {
-      errorMessage.value = e.message;
-      Get.snackbar('خطأ', e.message);
+      if (ErrorMappers.isNoInternetErrorMessage(e.message)) {
+        isLoading.value = false;
+        await Get.dialog(
+          NoInternetScreen(
+            onRetry: _performSignUpAttempt,
+            onError: (err) {
+              if (err is AuthApiException) {
+                final raw = err.message;
+                if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
+                  final mapped = ErrorMappers.mapSignupErrorMessage(raw);
+                  errorMessage.value = mapped;
+                  Get.snackbar('خطأ', mapped);
+                  Get.back();
+                }
+              }
+            },
+          ),
+          barrierDismissible: false,
+        );
+        return;
+      }
+
+      final mapped = ErrorMappers.mapSignupErrorMessage(e.message);
+      errorMessage.value = mapped;
+      Get.snackbar('خطأ', mapped);
+    } on TimeoutException catch (_) {
+      isLoading.value = false;
+      await Get.dialog(
+        NoInternetScreen(
+          onRetry: _performSignUpAttempt,
+          onError: (err) {
+            if (err is AuthApiException) {
+              final raw = err.message;
+              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
+                final mapped = ErrorMappers.mapSignupErrorMessage(raw);
+                errorMessage.value = mapped;
+                Get.snackbar('خطأ', mapped);
+                Get.back();
+              }
+            }
+          },
+        ),
+        barrierDismissible: false,
+      );
+      return;
+    } on SocketException catch (_) {
+      isLoading.value = false;
+      await Get.dialog(
+        NoInternetScreen(
+          onRetry: _performSignUpAttempt,
+          onError: (err) {
+            if (err is AuthApiException) {
+              final raw = err.message;
+              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
+                final mapped = ErrorMappers.mapSignupErrorMessage(raw);
+                errorMessage.value = mapped;
+                Get.snackbar('خطأ', mapped);
+                Get.back();
+              }
+            }
+          },
+        ),
+        barrierDismissible: false,
+      );
+      return;
     } catch (_) {
       errorMessage.value = 'خطأ في الشبكة';
       Get.snackbar('خطأ', 'خطأ في الشبكة');
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _performSignUpAttempt() async {
+    final result = await _authRepository.register(
+      name: nameController.text.trim(),
+      phone: fullPhoneNumber,
+      email: emailController.text.trim(),
+      password: passwordController.text,
+      referralCode: referralCodeController.text.trim(),
+    );
+
+    await SessionService.saveUserIdentity(
+      name: nameController.text.trim(),
+      phone: fullPhoneNumber,
+      email: emailController.text.trim(),
+      referralCode: referralCodeController.text.trim(),
+    );
+
+    // Backend always sends OTP after registration.
+    Get.to(
+      () => OtpVerificationScreen(
+        purpose: OtpPurpose.signup,
+        phone: result.phone ?? fullPhoneNumber,
+      ),
+    );
   }
 
   @override
@@ -109,6 +184,7 @@ class SignupController extends GetxController {
     phoneController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    referralCodeController.dispose();
     super.onClose();
   }
 }

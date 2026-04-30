@@ -10,6 +10,7 @@ import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/taxi_booking_controller.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/transport_order_tracking_screen.dart';
+import 'package:najiz_go_express/features/home/widgets/coupon_picker_sheet.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 
@@ -169,6 +170,70 @@ class TaxiBookingScreen extends StatelessWidget {
                         ),
                       ),
                     const SizedBox(height: 4),
+                    Obx(
+                      () => Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3E8),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.local_offer_outlined,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                controller.appliedCouponCode.value == null
+                                    ? 'أضف كوبون لرحلتك'
+                                    : 'الكوبون: ${controller.appliedCouponCode.value}',
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                final selected = await showCouponPickerSheet(
+                                  context: context,
+                                  coupons: controller.availableCoupons,
+                                  initialCode: controller.appliedCouponCode.value,
+                                );
+                                if (selected == null ||
+                                    selected.trim().isEmpty) {
+                                  return;
+                                }
+                                try {
+                                  await controller.applyCoupon(selected);
+                                } on HomeApiException catch (e) {
+                                  Get.snackbar('خطأ', e.message);
+                                }
+                              },
+                              child: const Text('أضف كوبون'),
+                            ),
+                            if (controller.appliedCouponCode.value != null)
+                              IconButton(
+                                onPressed: () => controller.clearCoupon(),
+                                icon: const Icon(Icons.close, size: 18),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     const Row(
                       children: [
                         Icon(
@@ -185,6 +250,38 @@ class TaxiBookingScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    Obx(() {
+                      final selected = controller.selectedCategory;
+                      if (selected == null ||
+                          controller.appliedCouponCode.value == null) {
+                        return const SizedBox.shrink();
+                      }
+                      final discountedPrice =
+                          selected.pricing.estimatedPrice -
+                          controller.couponDiscount.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'خصم الكوبون: -${controller.couponDiscount.value.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'الإجمالي بعد الخصم: \$${discountedPrice.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
@@ -1247,6 +1344,8 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
   Timer? _pollTimer;
   bool _isAssigned = false;
   bool _isCancelling = false;
+  bool _isPollingRequestInFlight = false;
+  DateTime? _lastTimeoutPopupAt;
 
   String? _driverName;
   String? _driverVehicleType;
@@ -1301,96 +1400,144 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      try {
-        final latest = await _repository.getOrderById(
-          token: widget.token,
-          orderId: widget.orderId,
-        );
-        if (!mounted || latest.isEmpty) return;
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pollOnce());
+    _pollOnce();
+  }
 
-        final status = (latest['status'] ?? '').toString();
-        final dispatchStatus = (latest['dispatch_status'] ?? '').toString();
-        final accepted = _isAccepted(status: status, dispatchStatus: dispatchStatus);
+  Future<void> _pollOnce({bool force = false}) async {
+    if (!mounted) return;
+    if (_isPollingRequestInFlight && !force) return;
+    _isPollingRequestInFlight = true;
+    try {
+      final latest = await _repository.getOrderById(
+        token: widget.token,
+        orderId: widget.orderId,
+      );
+      if (!mounted || latest.isEmpty) return;
 
-        final deliveryMan = _asMap(latest['delivery_man'] ?? latest['deliveryMan']);
-        if (deliveryMan != null) {
-          _driverVehicleType = _firstNonEmpty([
-            deliveryMan['vehicle_type'],
-            deliveryMan['vehicleType'],
-            deliveryMan['vehicle'],
-          ]);
-          _driverPlate = _firstNonEmpty([
-            deliveryMan['license_plate'],
-            deliveryMan['plate_number'],
-            deliveryMan['plate'],
-          ]);
-          _driverRating = _firstNonEmpty([deliveryMan['rating'], deliveryMan['rate']]);
-          final driverUser = _asMap(
-            deliveryMan['user'] ??
-                deliveryMan['driver_user'] ??
-                deliveryMan['driverUser'] ??
-                deliveryMan['account'],
-          );
-          if (driverUser != null) {
-            _driverName = _firstNonEmpty([
-              driverUser['name'],
-              driverUser['full_name'],
-              driverUser['username'],
-            ]);
-          }
-          _driverName ??= _firstNonEmpty([
-            deliveryMan['name'],
-            deliveryMan['full_name'],
-            deliveryMan['driver_name'],
-          ]);
-        }
-        final flatDriverUser = _asMap(
-          latest['delivery_man_user'] ??
-              latest['driver_user'] ??
-              latest['deliveryManUser'],
+      final status = (latest['status'] ?? '').toString();
+      final dispatchStatus = (latest['dispatch_status'] ?? '').toString();
+      final accepted = _isAccepted(status: status, dispatchStatus: dispatchStatus);
+
+      final deliveryMan = _asMap(latest['delivery_man'] ?? latest['deliveryMan']);
+      if (deliveryMan != null) {
+        _driverVehicleType = _firstNonEmpty([
+          deliveryMan['vehicle_type'],
+          deliveryMan['vehicleType'],
+          deliveryMan['vehicle'],
+        ]);
+        _driverPlate = _firstNonEmpty([
+          deliveryMan['license_plate'],
+          deliveryMan['plate_number'],
+          deliveryMan['plate'],
+        ]);
+        _driverRating = _firstNonEmpty([deliveryMan['rating'], deliveryMan['rate']]);
+        final driverUser = _asMap(
+          deliveryMan['user'] ??
+              deliveryMan['driver_user'] ??
+              deliveryMan['driverUser'] ??
+              deliveryMan['account'],
         );
-        if (flatDriverUser != null) {
-          _driverName ??= _firstNonEmpty([
-            flatDriverUser['name'],
-            flatDriverUser['full_name'],
-            flatDriverUser['username'],
+        if (driverUser != null) {
+          _driverName = _firstNonEmpty([
+            driverUser['name'],
+            driverUser['full_name'],
+            driverUser['username'],
           ]);
         }
         _driverName ??= _firstNonEmpty([
-          latest['delivery_man_name'],
-          latest['driver_name'],
-          latest['captain_name'],
-          latest['deliveryManName'],
+          deliveryMan['name'],
+          deliveryMan['full_name'],
+          deliveryMan['driver_name'],
         ]);
-
-        // Fallback: some responses don't include full driver user details.
-        // Pull driver profile directly from dedicated endpoint.
-        if (accepted &&
-            ((_driverName ?? '').isEmpty ||
-                (_driverVehicleType ?? '').isEmpty ||
-                (_driverPlate ?? '').isEmpty)) {
-          await _loadDriverDetailsFromDriverEndpoint();
-        }
-
-        if (accepted && !_isAssigned) {
-          _isAssigned = true;
-          if (mounted) {
-            setState(() {});
-            Get.snackbar(
-              'تم تعيين السائق',
-              'تم قبول طلبك من قبل السائق',
-              snackPosition: SnackPosition.BOTTOM,
-              duration: const Duration(seconds: 2),
-            );
-          }
-        } else if (mounted) {
-          setState(() {});
-        }
-      } catch (_) {
-        // Ignore transient polling failures in modal state.
       }
-    });
+      final flatDriverUser = _asMap(
+        latest['delivery_man_user'] ?? latest['driver_user'] ?? latest['deliveryManUser'],
+      );
+      if (flatDriverUser != null) {
+        _driverName ??= _firstNonEmpty([
+          flatDriverUser['name'],
+          flatDriverUser['full_name'],
+          flatDriverUser['username'],
+        ]);
+      }
+      _driverName ??= _firstNonEmpty([
+        latest['delivery_man_name'],
+        latest['driver_name'],
+        latest['captain_name'],
+        latest['deliveryManName'],
+      ]);
+
+      // Fallback: some responses don't include full driver user details.
+      // Pull driver profile directly from dedicated endpoint.
+      if (accepted &&
+          ((_driverName ?? '').isEmpty ||
+              (_driverVehicleType ?? '').isEmpty ||
+              (_driverPlate ?? '').isEmpty)) {
+        await _loadDriverDetailsFromDriverEndpoint();
+      }
+
+      if (accepted && !_isAssigned) {
+        _isAssigned = true;
+        if (mounted) {
+          setState(() {});
+          Get.snackbar(
+            'تم تعيين السائق',
+            'تم قبول طلبك من قبل السائق',
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 2),
+          );
+        }
+      } else if (mounted) {
+        setState(() {});
+      }
+    } on HomeApiException catch (e) {
+      if (_isTimeoutMessage(e.message)) {
+        _showTimeoutPopup();
+      }
+    } catch (_) {
+      // Ignore transient polling failures in modal state.
+    } finally {
+      _isPollingRequestInFlight = false;
+    }
+  }
+
+  bool _isTimeoutMessage(String message) {
+    final normalized = message.trim().toLowerCase();
+    return normalized.contains('timeout') ||
+        normalized.contains('timed out') ||
+        normalized.contains('مهلة');
+  }
+
+  Future<void> _showTimeoutPopup() async {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final previous = _lastTimeoutPopupAt;
+    if (previous != null && now.difference(previous) < const Duration(seconds: 20)) {
+      return;
+    }
+    _lastTimeoutPopupAt = now;
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('انقطاع الاتصال'),
+        content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('إغلاق'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _pollOnce(force: true);
+            },
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadDriverDetailsFromDriverEndpoint() async {

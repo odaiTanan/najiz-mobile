@@ -68,8 +68,8 @@ class HomeBottomBar extends StatelessWidget {
                 onTap: () => onTap?.call(1),
               ),
               _BottomItem(
-                icon: Icons.wallet_rounded,
-                text: 'nav.wallet'.tr,
+                icon: Icons.search_rounded,
+                text: 'بحث',
                 active: activeIndex == 2,
                 onTap: () => onTap?.call(2),
               ),

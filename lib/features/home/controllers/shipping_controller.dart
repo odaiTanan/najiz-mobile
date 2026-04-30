@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/live_order_info.dart';
+import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
 
 class ShippingController extends GetxController {
   ShippingController({String? token, HomeRepository? repository})
@@ -55,9 +56,13 @@ class ShippingController extends GetxController {
 
   final subtotal = RxnDouble();
   final deliveryFee = RxnDouble();
+  final couponDiscount = 0.0.obs;
   final total = RxnDouble();
   final distance = RxnDouble();
   final parcelCategory = RxnString();
+  final appliedCouponCode = RxnString();
+  final availableCoupons = <UserCouponItem>[].obs;
+  final isLoadingCoupons = false.obs;
   static const String _mapsApiKey = String.fromEnvironment(
     'MAPS_API_KEY',
     defaultValue: 'AIzaSyDZ08IdUEAJm7mfGB_nAiX4mH7EkrcvJh8',
@@ -69,6 +74,7 @@ class ShippingController extends GetxController {
   void onInit() {
     super.onInit();
     _initUserLocation();
+    loadCoupons();
   }
 
   @override
@@ -484,6 +490,7 @@ class ShippingController extends GetxController {
         destLng: destLng.value!,
         packageType: packageType.value,
         isBreakable: isBreakable.value,
+        couponCode: appliedCouponCode.value,
         paymentMethod: 'cash',
       );
       final data =
@@ -493,6 +500,7 @@ class ShippingController extends GetxController {
           <String, dynamic>{};
       subtotal.value = _numToDouble(data['subtotal']);
       deliveryFee.value = _numToDouble(data['delivery_fee']);
+      couponDiscount.value = _numToDouble(data['coupon_discount']) ?? 0;
       total.value = _numToDouble(data['total']);
       distance.value = _numToDouble(data['distance']);
       parcelCategory.value = data['parcel_category']?.toString();
@@ -500,6 +508,7 @@ class ShippingController extends GetxController {
       errorMessage.value = e.message;
       subtotal.value = null;
       deliveryFee.value = null;
+      couponDiscount.value = 0;
       total.value = null;
       distance.value = null;
       parcelCategory.value = null;
@@ -507,6 +516,7 @@ class ShippingController extends GetxController {
       errorMessage.value = 'تعذر حساب سعر الشحن: $e';
       subtotal.value = null;
       deliveryFee.value = null;
+      couponDiscount.value = 0;
       total.value = null;
       distance.value = null;
       parcelCategory.value = null;
@@ -570,6 +580,7 @@ class ShippingController extends GetxController {
         addressDetails: destinationDetails.value.trim().isNotEmpty
             ? destinationDetails.value.trim()
             : pickupDetails.value.trim(),
+        couponCode: appliedCouponCode.value,
         paymentMethod: 'cash',
       );
       final data = (response['data'] is Map)
@@ -592,6 +603,40 @@ class ShippingController extends GetxController {
     } finally {
       isCreatingOrder.value = false;
     }
+  }
+
+  Future<void> loadCoupons() async {
+    final authToken = token.value;
+    if (authToken == null || authToken.trim().isEmpty) return;
+    isLoadingCoupons.value = true;
+    try {
+      final list = await _repository.getMyCoupons(token: authToken);
+      availableCoupons.assignAll(
+        list.where((e) => e.code.trim().isNotEmpty),
+      );
+    } catch (_) {
+      availableCoupons.clear();
+    } finally {
+      isLoadingCoupons.value = false;
+    }
+  }
+
+  Future<void> applyCoupon(String code) async {
+    final normalized = code.trim();
+    if (normalized.isEmpty) return;
+    appliedCouponCode.value = normalized;
+    await calculateShippingPrice();
+    if (appliedCouponCode.value != null && couponDiscount.value <= 0) {
+      Get.snackbar(
+        'تنبيه',
+        'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
+      );
+    }
+  }
+
+  Future<void> clearCoupon() async {
+    appliedCouponCode.value = null;
+    await calculateShippingPrice();
   }
 
   Future<void> _resolveAddress({

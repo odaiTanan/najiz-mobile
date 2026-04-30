@@ -11,11 +11,13 @@ import 'package:najiz_go_express/features/home/widgets/network_image_with_fallba
 class RestaurantVendorProductsScreen extends StatefulWidget {
   final String? token;
   final int vendorId;
+  final int? serviceId;
 
   const RestaurantVendorProductsScreen({
     super.key,
     required this.token,
     required this.vendorId,
+    this.serviceId,
   });
 
   @override
@@ -30,6 +32,50 @@ class _RestaurantVendorProductsScreenState
   List<VendorProductItem> _latestProducts = const [];
   late final AppCartService _cartService;
   bool _hydratedFromSharedCart = false;
+
+  bool _hasCartForThisVendor() {
+    return _cartService.vendorId.value == widget.vendorId &&
+        _cartService.items.isNotEmpty;
+  }
+
+  Future<bool> _confirmLeaveCartIfNeeded() async {
+    if (!_hasCartForThisVendor()) return true;
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حفظ السلة؟'),
+        content: const Text('هل تريد حفظ السلة'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('نعم'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('لا'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSave == null) return false;
+
+    if (shouldSave) {
+      await _cartService.persistCurrentCart();
+      // Leave the cart view without showing items anymore.
+      _cartService.clear();
+    } else {
+      await _cartService.clearSavedCart();
+    }
+
+    return true;
+  }
+
+  Future<bool> _onWillPop() async {
+    return _confirmLeaveCartIfNeeded();
+  }
 
   @override
   void initState() {
@@ -123,6 +169,7 @@ class _RestaurantVendorProductsScreenState
         token: widget.token,
         vendorId: widget.vendorId,
         items: checkoutItems,
+        serviceId: widget.serviceId,
       ),
     );
   }
@@ -141,10 +188,12 @@ class _RestaurantVendorProductsScreenState
       tag: 'vendor-menu-${widget.vendorId}',
     );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
-      body: SafeArea(
-        child: Obx(() {
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F6F6),
+        body: SafeArea(
+          child: Obx(() {
           if (controller.isLoading.value &&
               controller.vendorProducts.value == null) {
             return const Center(child: CircularProgressIndicator());
@@ -169,7 +218,8 @@ class _RestaurantVendorProductsScreenState
             return Center(child: Text('services.noMenu'.tr));
           }
 
-          final products = controller.filteredProducts;
+          final regularProducts = controller.filteredRegularProducts;
+          final offerProducts = controller.offerProducts;
           _latestProducts = data.products;
           final total = _cartTotal(data.products);
           _hydrateFromSharedCartIfNeeded(data.products);
@@ -217,14 +267,32 @@ class _RestaurantVendorProductsScreenState
                     ),
                     const SizedBox(height: 14),
                     _MenuCategoryPills(
-                      categories: data.categories,
+                      categories: controller.regularCategories,
                       selectedCategoryId: controller.selectedCategoryId.value,
                       onSelectCategory: controller.selectCategory,
                     ),
                     const SizedBox(height: 14),
+                    if (offerProducts.isNotEmpty) ...[
+                      Text(
+                        'العروض',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...offerProducts.map(
+                        (p) => _MenuProductTile(
+                          product: p,
+                          onTap: () => _openProductCustomizationSheet(p),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     Text(
                       _sectionTitleForSelectedCategory(
-                        categories: data.categories,
+                        categories: controller.regularCategories,
                         selectedCategoryId: controller.selectedCategoryId.value,
                       ),
                       style: const TextStyle(
@@ -234,13 +302,13 @@ class _RestaurantVendorProductsScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (products.isEmpty)
+                    if (regularProducts.isEmpty)
                       Text(
                         'services.noProducts'.tr,
                         style: TextStyle(color: AppColors.textSecondary),
                       )
                     else
-                      ...products.map(
+                      ...regularProducts.map(
                         (p) => _MenuProductTile(
                           product: p,
                           onTap: () => _openProductCustomizationSheet(p),
@@ -262,6 +330,7 @@ class _RestaurantVendorProductsScreenState
             ],
           );
         }),
+        ),
       ),
     );
   }
@@ -585,8 +654,24 @@ class _MenuProductTile extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 10),
+                  if (product.originalPrice != null &&
+                      product.price != null &&
+                      product.originalPrice! > product.price!) ...[
+                    Text(
+                      '\$${product.originalPrice!.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   Text(
-                    product.price == null ? '-' : '\$${product.price!.toStringAsFixed(2)}',
+                    product.price == null
+                        ? '-'
+                        : '\$${product.price!.toStringAsFixed(2)}',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w900,

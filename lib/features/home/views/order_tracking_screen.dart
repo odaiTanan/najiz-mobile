@@ -20,6 +20,10 @@ class OrderTrackingScreen extends StatelessWidget {
     required this.initialDispatchStatus,
   });
 
+  void _handleBack(OrderTrackingController controller, BuildContext context) {
+    Get.off(() => HomeScreen(token: controller.token));
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(
@@ -35,7 +39,7 @@ class OrderTrackingScreen extends StatelessWidget {
 
     return WillPopScope(
       onWillPop: () async {
-        Get.off(() => HomeScreen(token: controller.token));
+        _handleBack(controller, context);
         return false;
       },
       child: Scaffold(
@@ -43,7 +47,7 @@ class OrderTrackingScreen extends StatelessWidget {
         appBar: AppBar(
           leading: IconButton(
             onPressed: () async {
-              Get.off(() => HomeScreen(token: controller.token));
+              _handleBack(controller, context);
             },
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
           ),
@@ -86,7 +90,10 @@ class OrderTrackingScreen extends StatelessWidget {
                       value: _dispatchLabel(controller.currentDispatchStatus.value),
                     ),
                     const SizedBox(height: 14),
-                    _TimelineCard(status: controller.currentStatus.value),
+                    _TimelineCard(
+                      status: controller.currentStatus.value,
+                      dispatchStatus: controller.currentDispatchStatus.value,
+                    ),
                   ],
                 ),
               ),
@@ -191,38 +198,99 @@ Future<void> _showDeliveryCompletedChoiceDialog(
   await showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: Text(
-        'tracking.orderCompleted'.tr,
-        textAlign: TextAlign.center,
-        style: TextStyle(fontWeight: FontWeight.w800),
-      ),
-      content: Text(
-        'tracking.rateNowQuestion'.tr,
-        textAlign: TextAlign.center,
-      ),
-      actionsAlignment: MainAxisAlignment.center,
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            controller.postponeRating();
-          },
-          child: Text('tracking.later'.tr),
+    builder: (_) => Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: iconAnimation,
+              child: Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E8),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.primary,
+                  size: 40,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'tracking.orderCompleted'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 30,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'tracking.rateNowQuestion'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      controller.postponeRating();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      'tracking.later'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showRatingDialog(context, controller, iconAnimation);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      'tracking.yesNow'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            _showRatingDialog(context, controller, iconAnimation);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-          ),
-          child: Text('tracking.yesNow'.tr),
-        ),
-      ],
+      ),
     ),
   );
 }
@@ -612,21 +680,23 @@ class _StatusCard extends StatelessWidget {
 
 class _TimelineCard extends StatelessWidget {
   final String status;
+  final String dispatchStatus;
 
-  const _TimelineCard({required this.status});
+  const _TimelineCard({required this.status, required this.dispatchStatus});
 
   @override
   Widget build(BuildContext context) {
-    final statuses = [
-      'pending',
-      'accepted',
-      'preparing',
-      'ready',
-      'picked_up',
-      'on_way',
-      'delivered',
+    final stages = const [
+      'food_accepted',
+      'food_preparing',
+      'food_driver_assigned',
+      'food_on_way',
+      'food_delivered',
     ];
-    final currentIndex = statuses.indexOf(status);
+    final currentIndex = _foodTimelineIndex(
+      status: status,
+      dispatchStatus: dispatchStatus,
+    );
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -660,16 +730,17 @@ class _TimelineCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ...statuses.asMap().entries.map((entry) {
+          ...stages.asMap().entries.map((entry) {
             final i = entry.key;
             final s = entry.value;
             final done = currentIndex >= i;
             final current = currentIndex == i;
             return _TimelineStepTile(
               label: _statusLabel(s),
+              icon: _foodStageIcon(s),
               isDone: done,
               isCurrent: current,
-              isLast: i == statuses.length - 1,
+              isLast: i == stages.length - 1,
             );
           }),
         ],
@@ -680,12 +751,14 @@ class _TimelineCard extends StatelessWidget {
 
 class _TimelineStepTile extends StatelessWidget {
   final String label;
+  final IconData icon;
   final bool isDone;
   final bool isCurrent;
   final bool isLast;
 
   const _TimelineStepTile({
     required this.label,
+    required this.icon,
     required this.isDone,
     required this.isCurrent,
     required this.isLast,
@@ -706,15 +779,23 @@ class _TimelineStepTile extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  width: isCurrent ? 14 : 12,
-                  height: isCurrent ? 14 : 12,
+                  width: isCurrent ? 28 : 26,
+                  height: isCurrent ? 28 : 26,
                   decoration: BoxDecoration(
-                    color: activeColor,
+                    color: isDone ? const Color(0xFFFFF3E8) : const Color(0xFFF1F5F9),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isCurrent ? const Color(0xFFFFD7B0) : activeColor,
-                      width: isCurrent ? 3 : 0,
+                      color: isDone
+                          ? AppColors.primary
+                          : const Color(0xFFCBD5E1),
+                      width: isCurrent ? 1.8 : 1.1,
                     ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    icon,
+                    size: isCurrent ? 14 : 13,
+                    color: isDone ? AppColors.primary : const Color(0xFF94A3B8),
                   ),
                 ),
                 if (!isLast)
@@ -758,6 +839,16 @@ class _TimelineStepTile extends StatelessWidget {
 
 String _statusLabel(String status) {
   switch (status) {
+    case 'food_accepted':
+      return 'tracking.foodAccepted'.tr;
+    case 'food_preparing':
+      return 'tracking.foodPreparing'.tr;
+    case 'food_driver_assigned':
+      return 'tracking.foodDriverAssigned'.tr;
+    case 'food_on_way':
+      return 'tracking.foodOnWay'.tr;
+    case 'food_delivered':
+      return 'tracking.foodDelivered'.tr;
     case 'pending':
       return 'tracking.pending'.tr;
     case 'accepted':
@@ -776,6 +867,38 @@ String _statusLabel(String status) {
       return 'tracking.cancelled'.tr;
     default:
       return status;
+  }
+}
+
+int _foodTimelineIndex({
+  required String status,
+  required String dispatchStatus,
+}) {
+  final s = status.trim().toLowerCase();
+  final d = dispatchStatus.trim().toLowerCase();
+
+  if (s == 'delivered') return 4;
+  if (s == 'on_way') return 3;
+  if (d == 'assigned' || s == 'ready' || s == 'picked_up') return 2;
+  if (s == 'preparing') return 1;
+  if (s == 'accepted' || d == 'accepted' || s == 'pending') return 0;
+  return 0;
+}
+
+IconData _foodStageIcon(String stage) {
+  switch (stage) {
+    case 'food_accepted':
+      return Icons.done_all_rounded;
+    case 'food_preparing':
+      return Icons.local_dining_rounded;
+    case 'food_driver_assigned':
+      return Icons.moped_rounded;
+    case 'food_on_way':
+      return Icons.alt_route_rounded;
+    case 'food_delivered':
+      return Icons.done_all_rounded;
+    default:
+      return Icons.radio_button_checked_rounded;
   }
 }
 
