@@ -114,9 +114,9 @@ class TransportOrderTrackingController extends GetxController {
         onOrderUpdated: _onOrderUpdated,
       );
       isLiveConnected.value = true;
-    } catch (e) {
+    } catch (_) {
       isLiveConnected.value = false;
-      errorMessage.value = 'تعذر الاتصال بالتتبع اللحظي: $e';
+      errorMessage.value = 'تعذر الاتصال بالتتبع اللحظي. حاول لاحقاً.';
     }
   }
 

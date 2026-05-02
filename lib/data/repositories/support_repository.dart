@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
+import 'package:najiz_go_express/core/constants/app_error_messages.dart';
+import 'package:najiz_go_express/core/network/connectivity_guard.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/support/models/support_chat_models.dart';
 
@@ -52,28 +56,37 @@ class SupportRepository {
     required int conversationId,
     required String message,
   }) async {
+    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl/chat/messages/$conversationId');
     final payload = {'message': message};
-    final res = await _client
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(payload),
-        )
-        .timeout(ApiConfig.timeout);
-    final data = _safeJsonDecodeAny(res.body);
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      final map = _extractDataMap(data, fallback: _asMap(data));
-      return _toMessage(map);
+    try {
+      final res = await _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(ApiConfig.timeout);
+      final data = _safeJsonDecodeAny(res.body);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final map = _extractDataMap(data, fallback: _asMap(data));
+        return _toMessage(map);
+      }
+      throw HomeApiException.fromServer(
+        _extractMessage(_asMap(data)),
+        res.statusCode,
+      );
+    } on TimeoutException {
+      throw HomeApiException(AppErrorMessages.requestTimeout);
+    } on SocketException {
+      throw HomeApiException(AppErrorMessages.noInternet);
+    } on http.ClientException {
+      throw HomeApiException(AppErrorMessages.connectionFailed);
     }
-    throw HomeApiException(
-      _extractMessage(_asMap(data)),
-      statusCode: res.statusCode,
-    );
   }
 
   Future<void> markMessagesAsRead({
@@ -82,48 +95,66 @@ class SupportRepository {
     required List<int> messageIds,
   }) async {
     if (messageIds.isEmpty) return;
+    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl/chat/messages/$conversationId/read');
     final payload = {'message_ids': messageIds};
-    final res = await _client
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(payload),
-        )
-        .timeout(ApiConfig.timeout);
-    if (res.statusCode >= 200 && res.statusCode < 300) return;
-    final data = _safeJsonDecodeAny(res.body);
-    throw HomeApiException(
-      _extractMessage(_asMap(data)),
-      statusCode: res.statusCode,
-    );
+    try {
+      final res = await _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(ApiConfig.timeout);
+      if (res.statusCode >= 200 && res.statusCode < 300) return;
+      final data = _safeJsonDecodeAny(res.body);
+      throw HomeApiException.fromServer(
+        _extractMessage(_asMap(data)),
+        res.statusCode,
+      );
+    } on TimeoutException {
+      throw HomeApiException(AppErrorMessages.requestTimeout);
+    } on SocketException {
+      throw HomeApiException(AppErrorMessages.noInternet);
+    } on http.ClientException {
+      throw HomeApiException(AppErrorMessages.connectionFailed);
+    }
   }
 
   Future<dynamic> _get({
     required String endpoint,
     required String token,
   }) async {
+    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl$endpoint');
-    final res = await _client
-        .get(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        )
-        .timeout(ApiConfig.timeout);
-    final data = _safeJsonDecodeAny(res.body);
-    if (res.statusCode >= 200 && res.statusCode < 300) return data;
-    throw HomeApiException(
-      _extractMessage(_asMap(data)),
-      statusCode: res.statusCode,
-    );
+    try {
+      final res = await _client
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(ApiConfig.timeout);
+      final data = _safeJsonDecodeAny(res.body);
+      if (res.statusCode >= 200 && res.statusCode < 300) return data;
+      throw HomeApiException.fromServer(
+        _extractMessage(_asMap(data)),
+        res.statusCode,
+      );
+    } on TimeoutException {
+      throw HomeApiException(AppErrorMessages.requestTimeout);
+    } on SocketException {
+      throw HomeApiException(AppErrorMessages.noInternet);
+    } on http.ClientException {
+      throw HomeApiException(AppErrorMessages.connectionFailed);
+    }
   }
 
   Map<String, dynamic> _extractDataMap(

@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
+import 'package:najiz_go_express/core/constants/app_error_messages.dart';
+import 'package:najiz_go_express/core/errors/home_api_exception.dart';
+import 'package:najiz_go_express/core/network/connectivity_guard.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
@@ -15,6 +18,8 @@ import 'package:najiz_go_express/features/home/models/user_address.dart';
 import 'package:najiz_go_express/features/home/models/search_models.dart';
 import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
 import 'package:najiz_go_express/features/home/models/unavailability_option.dart';
+
+export 'package:najiz_go_express/core/errors/home_api_exception.dart';
 
 class HomeRepository {
   final http.Client _client;
@@ -155,7 +160,7 @@ class HomeRepository {
       return data;
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<Map<String, dynamic>> addUserAddress({
@@ -187,7 +192,7 @@ class HomeRepository {
       return data;
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<List<UserAddress>> getMyAddresses({required String token}) async {
@@ -226,7 +231,7 @@ class HomeRepository {
     if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
       return SearchResultModel.fromJson(data);
     }
-    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), response.statusCode);
   }
 
   Future<List<String>> searchSuggestions({
@@ -256,7 +261,7 @@ class HomeRepository {
       final raw = (data['suggestions'] is List) ? data['suggestions'] as List : const [];
       return raw.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).toList();
     }
-    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), response.statusCode);
   }
 
   Future<List<SearchTrendingItem>> getTrendingSearches({
@@ -285,7 +290,7 @@ class HomeRepository {
     if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
       return _asList(data['data']).map(SearchTrendingItem.fromJson).toList();
     }
-    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), response.statusCode);
   }
 
   Future<List<SearchHistoryItem>> getSearchHistory({
@@ -312,7 +317,7 @@ class HomeRepository {
     if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
       return _asList(data['data']).map(SearchHistoryItem.fromJson).toList();
     }
-    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), response.statusCode);
   }
 
   Future<void> clearSearchHistory({required String token}) async {
@@ -332,7 +337,7 @@ class HomeRepository {
     final data = _safeJsonDecode(response.body);
     final ok = _isSuccess(data);
     if (response.statusCode >= 200 && response.statusCode < 300 && ok) return;
-    throw HomeApiException(_extractMessage(data), statusCode: response.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), response.statusCode);
   }
 
   Future<ReferralCodeInfo> getMyReferralCode({required String token}) async {
@@ -403,7 +408,7 @@ class HomeRepository {
       return data;
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<TaxiPricingModel> calculateTaxiPrice({
@@ -445,7 +450,7 @@ class HomeRepository {
       return TaxiPricingModel.fromJson(data);
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<List<UnavailabilityOption>> getOrderUnavailabilityOptions({
@@ -506,7 +511,7 @@ class HomeRepository {
       return data;
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<Map<String, dynamic>> calculateShippingPrice({
@@ -567,21 +572,21 @@ class HomeRepository {
         return data;
       }
 
-      throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+      throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
     } on HomeApiException {
       rethrow;
     } on TimeoutException catch (e) {
       _logApiError(method: 'POST', uri: uri, error: e);
-      throw HomeApiException('انتهت مهلة الطلب. حاول مجددا.');
+      throw HomeApiException(AppErrorMessages.requestTimeout);
     } on SocketException catch (e) {
       _logApiError(method: 'POST', uri: uri, error: e);
-      throw HomeApiException('فشل الاتصال بالانترنت. تحقق من الشبكة.');
+      throw HomeApiException(AppErrorMessages.noInternet);
     } on http.ClientException catch (e) {
       _logApiError(method: 'POST', uri: uri, error: e);
-      throw HomeApiException('تعذر الاتصال بالخادم حاليا.');
+      throw HomeApiException(AppErrorMessages.connectionFailed);
     } catch (e) {
       _logApiError(method: 'POST', uri: uri, error: e);
-      throw HomeApiException('حدث خطأ غير متوقع أثناء حساب الشحن.');
+      throw HomeApiException(AppErrorMessages.unexpected);
     }
   }
 
@@ -655,7 +660,7 @@ class HomeRepository {
       return data;
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<Map<String, dynamic>> rateOrder({
@@ -692,7 +697,7 @@ class HomeRepository {
       return data;
     }
 
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<List<UserOrder>> getMyOrders({required String token}) async {
@@ -760,7 +765,7 @@ class HomeRepository {
     final data = _safeJsonDecode(res.body);
     final ok = data['status'] == true || data['success'] == true;
     if (res.statusCode >= 200 && res.statusCode < 300 && ok) return;
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<Map<String, dynamic>> validateCoupon({
@@ -793,13 +798,14 @@ class HomeRepository {
     if (res.statusCode >= 200 && res.statusCode < 300 && ok) {
       return data;
     }
-    throw HomeApiException(_extractMessage(data), statusCode: res.statusCode);
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 
   Future<Map<String, dynamic>> _get({
     required String endpoint,
     String? token,
   }) async {
+    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl$endpoint');
     Object? lastError;
     const retries = 1;
@@ -828,9 +834,9 @@ class HomeRepository {
           return data;
         }
 
-        throw HomeApiException(
+        throw HomeApiException.fromServer(
           _extractMessage(data),
-          statusCode: res.statusCode,
+          res.statusCode,
         );
       } on TimeoutException catch (e) {
         _logApiError(method: 'GET', uri: uri, error: e);
@@ -849,15 +855,13 @@ class HomeRepository {
     }
 
     if (lastError is TimeoutException) {
-      throw HomeApiException('Server timeout. Please try again.');
+      throw HomeApiException(AppErrorMessages.requestTimeout);
     }
     if (lastError is SocketException || lastError is http.ClientException) {
-      throw HomeApiException(
-        'Connection failed. Please check your internet and try again.',
-      );
+      throw HomeApiException(AppErrorMessages.connectionFailed);
     }
 
-    throw HomeApiException('Network request failed');
+    throw HomeApiException(AppErrorMessages.unexpected);
   }
 }
 
@@ -894,12 +898,3 @@ List<Map<String, dynamic>> _asList(dynamic data) {
       .toList();
 }
 
-class HomeApiException implements Exception {
-  final String message;
-  final int? statusCode;
-
-  HomeApiException(this.message, {this.statusCode});
-
-  @override
-  String toString() => 'HomeApiException($statusCode): $message';
-}

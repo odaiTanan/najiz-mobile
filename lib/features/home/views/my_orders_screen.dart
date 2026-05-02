@@ -926,7 +926,8 @@ String _orderDisplayTitle(UserOrder order) {
     _ => 'home.orderFood'.tr,
   };
   final compact = _compactOrderToken(order.orderNumber, order.id);
-  return '$prefix ${'home.orderNumberPrefix'.tr} $compact';
+  const lrm = '\u200e';
+  return '$prefix ${'home.orderNumberPrefix'.tr} $lrm$compact';
 }
 
 String _compactOrderToken(String orderNumber, int fallbackId) {

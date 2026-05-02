@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/errors/global_error_hooks.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
@@ -13,6 +14,7 @@ import 'package:najiz_go_express/features/splash/views/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  installGlobalErrorHandling();
   await AppTranslations.init();
   final token = await SessionService.getToken();
   final savedLocale = await SessionService.getLocaleCode();
@@ -53,14 +55,19 @@ class MyApp extends StatelessWidget {
       ],
       builder: (context, child) {
         final localeCode = Localizations.localeOf(context).languageCode;
-        return Directionality(
-          textDirection: localeCode == 'ar'
-              ? TextDirection.rtl
-              : TextDirection.ltr,
-          child: child ?? const SizedBox.shrink(),
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(textScaler: const TextScaler.linear(0.88)),
+          child: Directionality(
+            textDirection: localeCode == 'ar'
+                ? TextDirection.rtl
+                : TextDirection.ltr,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       theme: ThemeData(
+        fontFamily: 'Cairo',
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,

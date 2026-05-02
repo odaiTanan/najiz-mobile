@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/errors/user_feedback.dart';
 import 'package:najiz_go_express/features/support/controllers/support_chat_controller.dart';
 import 'package:najiz_go_express/features/support/models/support_chat_models.dart';
 
@@ -62,7 +63,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     try {
       await _controller.sendMessage(text);
     } catch (e) {
-      Get.snackbar('orders.error'.tr, e.toString());
+      UserFeedback.showError(e, title: 'orders.error'.tr);
       _messageController.text = text;
     }
   }

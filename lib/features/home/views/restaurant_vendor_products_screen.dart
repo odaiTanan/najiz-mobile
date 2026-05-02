@@ -162,7 +162,13 @@ class _RestaurantVendorProductsScreenState
 
   void _openCheckout(List<VendorProductItem> allProducts) {
     final checkoutItems = _buildCheckoutItems(allProducts);
-    if (checkoutItems.isEmpty) return;
+    if (checkoutItems.isEmpty) {
+      Get.snackbar(
+        'services.cart'.tr,
+        'services.emptyCart'.tr,
+      );
+      return;
+    }
     _cartService.setCart(vendorId: widget.vendorId, items: checkoutItems);
     Get.to(
       () => OrderCheckoutScreen(
@@ -234,7 +240,7 @@ class _RestaurantVendorProductsScreenState
                     _TopBarTitle(
                       title: data.vendor.name,
                       onBack: () => Get.back(),
-                      onShare: () => _openCheckout(data.products),
+                      onCartTap: () => _openCheckout(data.products),
                     ),
                     const SizedBox(height: 12),
                     _HeroImageCard(
@@ -266,39 +272,50 @@ class _RestaurantVendorProductsScreenState
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _MenuCategoryPills(
+                    _CategoryUnderlineTabs(
                       categories: controller.regularCategories,
                       selectedCategoryId: controller.selectedCategoryId.value,
                       onSelectCategory: controller.selectCategory,
                     ),
                     const SizedBox(height: 14),
                     if (offerProducts.isNotEmpty) ...[
-                      Text(
-                        'العروض',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          'العروض',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A2B48),
+                            height: 1.1,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       ...offerProducts.map(
-                        (p) => _MenuProductTile(
+                        (p) => _OfferProductCard(
                           product: p,
                           onTap: () => _openProductCustomizationSheet(p),
                         ),
                       ),
                       const SizedBox(height: 8),
                     ],
-                    Text(
-                      _sectionTitleForSelectedCategory(
-                        categories: controller.regularCategories,
-                        selectedCategoryId: controller.selectedCategoryId.value,
-                      ),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        _sectionTitleForSelectedCategory(
+                          categories: controller.regularCategories,
+                          selectedCategoryId:
+                              controller.selectedCategoryId.value,
+                        ),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A2B48),
+                          height: 1.1,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -339,12 +356,12 @@ class _RestaurantVendorProductsScreenState
 class _TopBarTitle extends StatelessWidget {
   final String title;
   final VoidCallback onBack;
-  final VoidCallback onShare;
+  final VoidCallback onCartTap;
 
   const _TopBarTitle({
     required this.title,
     required this.onBack,
-    required this.onShare,
+    required this.onCartTap,
   });
 
   @override
@@ -380,18 +397,21 @@ class _TopBarTitle extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        InkWell(
-          onTap: onShare,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFEDEDED)),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onCartTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEDEDED)),
+              ),
+              child: const Icon(Icons.shopping_cart_outlined, size: 20),
             ),
-            child: const Icon(Icons.shopping_cart_outlined, size: 18),
           ),
         ),
       ],
@@ -530,12 +550,13 @@ class _InfoStatCard extends StatelessWidget {
   }
 }
 
-class _MenuCategoryPills extends StatelessWidget {
+/// Horizontal category strip: active tab uses primary color + bottom bar.
+class _CategoryUnderlineTabs extends StatelessWidget {
   final List<VendorProductsCategory> categories;
   final int? selectedCategoryId;
   final ValueChanged<int?> onSelectCategory;
 
-  const _MenuCategoryPills({
+  const _CategoryUnderlineTabs({
     required this.categories,
     required this.selectedCategoryId,
     required this.onSelectCategory,
@@ -543,59 +564,55 @@ class _MenuCategoryPills extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget pill({
-      required String text,
-      required bool selected,
-      required VoidCallback onTap,
-    }) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFE4CC) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFFFFC38A)
-                  : const Color(0xFFEDEDED),
-            ),
-          ),
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: selected ? AppColors.primary : AppColors.textPrimary,
-            ),
-          ),
-        ),
-      );
-    }
-
-    final items = <Widget>[
-      pill(
-        text: 'الكل',
-        selected: selectedCategoryId == null,
-        onTap: () => onSelectCategory(null),
-      ),
-      ...categories.map((c) {
-        return pill(
-          text: c.name,
-          selected: selectedCategoryId == c.id,
-          onTap: () => onSelectCategory(c.id),
-        );
-      }),
-    ];
-
     return SizedBox(
-      height: 40,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => items[i],
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        itemCount: categories.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 4),
+        itemBuilder: (_, index) {
+          final isAll = index == 0;
+          final label = isAll ? 'الكل' : categories[index - 1].name;
+          final id = isAll ? null : categories[index - 1].id;
+          final selected = selectedCategoryId == id;
+          return InkWell(
+            onTap: () => onSelectCategory(id),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w600,
+                      color: selected
+                          ? AppColors.primary
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    height: 3,
+                    width: selected ? 36 : 0,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -612,88 +629,253 @@ class _MenuProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFEDEDED)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE8ECF0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x120D253C),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    product.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                      color: AppColors.textPrimary,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: 82,
+                      height: 82,
+                      child: NetworkImageWithFallback(
+                        url: product.image,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  if (product.description != null &&
-                      product.description!.trim().isNotEmpty)
-                    Text(
-                      product.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        height: 1.25,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          textDirection: TextDirection.rtl,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: Color(0xFF1A2B48),
+                            height: 1.15,
+                          ),
+                        ),
+                        if (product.description != null &&
+                            product.description!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            product.description!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            textDirection: TextDirection.rtl,
+                            style: const TextStyle(
+                              color: Color(0xFF7D7D7D),
+                              fontSize: 11.5,
+                              height: 1.3,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        if (product.originalPrice != null &&
+                            product.price != null &&
+                            product.originalPrice! > product.price!) ...[
+                          Text(
+                            '\$${product.originalPrice!.toStringAsFixed(2)}',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              color: Color(0xFF9CA3AF),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                        ],
+                        Text(
+                          product.price == null
+                              ? '-'
+                              : '\$${product.price!.toStringAsFixed(2)}',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 10),
-                  if (product.originalPrice != null &&
-                      product.price != null &&
-                      product.originalPrice! > product.price!) ...[
-                    Text(
-                      '\$${product.originalPrice!.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                        decoration: TextDecoration.lineThrough,
+                  ),
+                  const SizedBox(width: 10),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onTap,
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFFFD2A0),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                  ],
-                  Text(
-                    product.price == null
-                        ? '-'
-                        : '\$${product.price!.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            ClipRRect(
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OfferProductCard extends StatelessWidget {
+  const _OfferProductCard({
+    required this.product,
+    required this.onTap,
+  });
+
+  final VendorProductItem product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 118,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                width: 74,
-                height: 74,
-                child: NetworkImageWithFallback(
-                  url: product.image,
-                  fit: BoxFit.cover,
+              border: Border.all(color: const Color(0xFFE8ECF0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x120D253C),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
                 ),
+              ],
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: 150,
+                      height: double.infinity,
+                      child: NetworkImageWithFallback(
+                        url: product.image,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 27 / 2,
+                            color: Color(0xFF1A2B48),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          (product.description ?? '').trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF7D7D7D),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              'اطلب الآن',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

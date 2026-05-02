@@ -1,19 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/features/home/controllers/home_controller.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
-import 'package:najiz_go_express/features/home/widgets/home_header_section.dart';
-import 'package:najiz_go_express/features/home/widgets/home_offer_banner.dart';
 import 'package:najiz_go_express/features/home/widgets/home_restaurant_card.dart';
-import 'package:najiz_go_express/features/home/widgets/home_section_title.dart';
-import 'package:najiz_go_express/features/home/widgets/home_service_card.dart';
+import 'package:najiz_go_express/features/home/widgets/home_service_grid.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/home/views/all_services_screen.dart';
+import 'package:najiz_go_express/features/home/views/restaurant_products_screen.dart';
 import 'package:shimmer/shimmer.dart';
+
+void _openAllServicesPage(HomeController controller) {
+  final orderedServices = _orderedHomeServices(controller.services);
+  Get.to(
+    () => AllServicesScreen(
+      services: orderedServices,
+      onServiceTap: (service) {
+        Get.back();
+        controller.onServiceTap(service);
+      },
+    ),
+  );
+}
 
 class HomeScreen extends StatelessWidget {
   final String? token;
@@ -26,7 +40,7 @@ class HomeScreen extends StatelessWidget {
     final authState = Get.find<AuthStateManager>();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 0,
         onTap: (index) => MainBottomNav.onTap(
@@ -44,11 +58,10 @@ class HomeScreen extends StatelessWidget {
           return RefreshIndicator(
             onRefresh: controller.loadHomeData,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               children: [
-                HomeHeaderSection(
+                _TopGreetingRow(
                   displayName: controller.displayName.value,
-                  isGuest: authState.isGuest,
                   onProfileTap: () => MainBottomNav.onTap(
                     index: 3,
                     currentIndex: 0,
@@ -57,7 +70,7 @@ class HomeScreen extends StatelessWidget {
                   onNotificationsTap: controller.openNotifications,
                   unreadNotifications: controller.unreadNotifications.value,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Obx(
                   () => authState.isGuest
                       ? Container(
@@ -89,7 +102,7 @@ class HomeScreen extends StatelessWidget {
                         )
                       : const SizedBox.shrink(),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 if (controller.errorMessage.value != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -98,9 +111,22 @@ class HomeScreen extends StatelessWidget {
                       style: const TextStyle(color: AppColors.error),
                     ),
                   ),
-                HomeOfferBanner(offers: controller.offers),
+                Obx(() {
+                  final offers = controller.offers.toList(growable: false);
+                  return _HeroPromoSlider(
+                    offers: offers,
+                    onTap: () {
+                      final orderedServices = _orderedHomeServices(
+                        controller.services,
+                      );
+                      if (orderedServices.isNotEmpty) {
+                        controller.onServiceTap(orderedServices.first);
+                      }
+                    },
+                  );
+                }),
                 if (controller.primaryActiveOrder != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   _ActiveOrderHomeCard(
                     order: controller.primaryActiveOrder!,
                     onTap: controller.openPrimaryActiveOrder,
@@ -113,24 +139,10 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 18),
-                HomeSectionTitle(
-                  title: 'home.ourServices'.tr,
-                  actionText: 'home.showAll'.tr,
-                  onActionTap: () {
-                    final orderedServices = _orderedHomeServices(
-                      controller.services,
-                    );
-                    Get.to(
-                      () => AllServicesScreen(
-                        services: orderedServices,
-                        selectedServiceId: controller.selectedServiceId.value,
-                        onServiceTap: (service) {
-                          Get.back();
-                          controller.onServiceTap(service);
-                        },
-                      ),
-                    );
-                  },
+                _SectionHeader(
+                  title: 'الخدمات',
+                  actionText: 'عرض الكل',
+                  onActionTap: () => _openAllServicesPage(controller),
                 ),
                 const SizedBox(height: 10),
                 if (controller.services.isEmpty)
@@ -144,36 +156,29 @@ class HomeScreen extends StatelessWidget {
                       final orderedServices = _orderedHomeServices(
                         controller.services,
                       );
-                      final previewServices = orderedServices
-                          .take(4)
-                          .toList(growable: false);
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: previewServices.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.93,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                        itemBuilder: (_, index) {
-                          final service = previewServices[index];
-                          return HomeServiceCard(
-                            title: service.name,
-                            imageUrl: service.icon,
-                            selected:
-                                controller.selectedServiceId.value == service.id,
-                            onTap: () => controller.onServiceTap(service),
-                          );
-                        },
+                      return HomeServiceGrid(
+                        services: orderedServices.take(4).toList(growable: false),
+                        onTap: (_) => _openAllServicesPage(controller),
                       );
                     },
                   ),
                 const SizedBox(height: 18),
-                HomeSectionTitle(title: 'home.mostOrderedRestaurants'.tr),
-                const SizedBox(height: 10),
+                _SectionHeader(
+                  title: 'المطاعم الأكثر طلباً',
+                  actionText: 'عرض الكل',
+                  onActionTap: () {
+                    final serviceId =
+                        controller.restaurantServiceId.value ??
+                            controller.selectedServiceId.value ??
+                            3;
+                    Get.to(
+                      () => RestaurantProductsScreen(
+                        token: controller.activeToken,
+                        serviceId: serviceId,
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 10),
                 if (controller.filteredVendors.isEmpty)
                   Text(
@@ -194,6 +199,7 @@ class HomeScreen extends StatelessWidget {
                           name: vendor.name,
                           imageUrl: vendor.image ?? vendor.logo,
                           rating: vendor.rating,
+                          subtitle: vendor.description,
                           onTap: () => controller.onRestaurantCardTap(vendor),
                         );
                       },
@@ -206,6 +212,128 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Progress row: each step keeps its dot and label in one column so labels stay
+/// centered under the icons; connectors are drawn in the shared stack layer.
+class _OrderTrackingStepsRow extends StatelessWidget {
+  const _OrderTrackingStepsRow({
+    required this.labels,
+    required this.icons,
+    required this.currentStep,
+  });
+
+  final List<String> labels;
+  final List<IconData> icons;
+  final int currentStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = labels.length;
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(n, (index) {
+          final isActive = index == currentStep;
+          final isDone = index < currentStep;
+          return Expanded(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 28,
+                  width: double.infinity,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      if (index < n - 1)
+                        Positioned(
+                          left: 0,
+                          right: 14,
+                          top: 13,
+                          child: Container(
+                            height: 1.2,
+                            color: currentStep > index
+                                ? const Color(0xFF9CA3AF)
+                                : const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                      if (index > 0)
+                        Positioned(
+                          left: 14,
+                          right: 0,
+                          top: 13,
+                          child: Container(
+                            height: 1.2,
+                            color: currentStep > index - 1
+                                ? const Color(0xFF9CA3AF)
+                                : const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? const Color(0xFF1F2937)
+                              : const Color(0xFFF1F3F5),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDone || isActive
+                                ? const Color(0xFFD1D5DB)
+                                : const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                        child: Icon(
+                          icons[index],
+                          size: 15,
+                          color: isActive
+                              ? Colors.white
+                              : const Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    labels[index],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: index == currentStep
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      height: 1.15,
+                      color: index == currentStep
+                          ? const Color(0xFF111827)
+                          : const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+/// Left-to-right mark before Latin/digits so RTL UI shows: «طلب تكسي رقم CEC7E1»
+/// instead of the bidirectional jump «CEC7E1 … رقم …».
+String _orderTitleRtlWithLatinToken({
+  required String prefix,
+  required String numberPrefix,
+  required String token,
+}) {
+  const lrm = '\u200e';
+  return '$prefix $numberPrefix $lrm$token';
 }
 
 class _ActiveOrderHomeCard extends StatelessWidget {
@@ -223,118 +351,105 @@ class _ActiveOrderHomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final steps = _stepsForType(order.type);
     final currentStep = _activeStepIndex(order);
+    const labels = ['تم الطلب', 'في الطريق', 'قريباً', 'تم الوصول'];
+    const icons = [
+      Icons.check_rounded,
+      Icons.directions_car_filled_rounded,
+      Icons.location_on_outlined,
+      Icons.outlined_flag_rounded,
+    ];
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE7ECF4)),
+          color: const Color(0xFFF7F7F8),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFEDEFF3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'home.activeOrderNow'.tr,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _orderTitle(order),
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: List.generate(steps.length, (index) {
-                final done = index <= currentStep;
-                final isCurrent = index == currentStep;
-                final isLast = index == steps.length - 1;
-                final isFuture = index > currentStep;
-                return Expanded(
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        width: isCurrent ? 38 : 32,
-                        height: isCurrent ? 38 : 32,
-                        decoration: BoxDecoration(
-                          gradient: done
-                              ? const LinearGradient(
-                                  colors: [Color(0xFFFFA238), Color(0xFFFF8A00)],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                )
-                              : const LinearGradient(
-                                  colors: [Color(0xFFF5F7FB), Color(0xFFE9EEF5)],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: done ? const Color(0xFFFFC278) : const Color(0xFFD8E0EC),
-                            width: isCurrent ? 1.8 : 1.1,
-                          ),
-                          boxShadow: done
-                              ? const [
-                                  BoxShadow(
-                                    color: Color(0x30FF8A00),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ]
-                              : const [],
-                        ),
-                        child: Icon(
-                          _iconForStep(order.type, index),
-                          size: isCurrent ? 21 : 18,
-                          color: done ? Colors.white : const Color(0xFF95A4BA),
-                        ),
-                      ),
-                      if (!isLast)
-                        Expanded(
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            margin: const EdgeInsets.symmetric(horizontal: 6),
-                            height: 3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(99),
-                              gradient: isFuture
-                                  ? const LinearGradient(
-                                      colors: [Color(0xFFE6ECF4), Color(0xFFDDE5EF)],
-                                    )
-                                  : const LinearGradient(
-                                      colors: [Color(0xFFFFAF4A), Color(0xFFFF8A00)],
-                                    ),
-                            ),
-                          ),
-                        ),
-                    ],
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.directions_car_outlined,
+                      size: 16,
+                    ),
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                steps[currentStep.clamp(0, steps.length - 1)].tr,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w900,
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _orderTitle(order),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: Color(0xFF1F2937),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                labels[currentStep.clamp(
+                                  0,
+                                  labels.length - 1,
+                                )],
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  color: Color(0xFF9CA3AF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEDEFF2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.chevron_left_rounded,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(height: 12),
+            _OrderTrackingStepsRow(
+              labels: labels,
+              icons: icons,
+              currentStep: currentStep,
             ),
             if (hasMore) ...[
               const SizedBox(height: 8),
@@ -385,73 +500,13 @@ class _ActiveOrderHomeCard extends StatelessWidget {
   }
 
   int _activeStepIndex(UserOrder order) {
-    final type = order.type.toLowerCase();
     final status = order.status.toLowerCase();
     final dispatch = order.dispatchStatus.toLowerCase();
-
-    if (type == 'shipping') {
-      if (status == 'on_way') return 3;
-      if (status == 'picked_up') return 2;
-      if (status == 'on_the_way_to_pickup') return 1;
-      if (status == 'accepted' || dispatch == 'accepted' || dispatch == 'assigned') {
-        return 0;
-      }
-      return 0;
-    }
-
-    if (type == 'taxi') {
-      if (status == 'on_way') return 3;
-      if (status == 'picked_up') return 2;
-      if (status == 'on_the_way_to_pickup') return 1;
-      if (status == 'accepted' || dispatch == 'accepted' || dispatch == 'assigned') {
-        return 0;
-      }
-      return 0;
-    }
-
-    // Food/stores generic flow.
-    if (status == 'on_way') return 3;
-    if (status == 'ready' || status == 'picked_up' || dispatch == 'assigned') {
-      return 2;
-    }
-    if (status == 'preparing') return 1;
-    if (status == 'accepted' || dispatch == 'accepted') {
-      return 0;
-    }
-    if (status == 'pending') return 0;
+    if (status == 'delivered' || status == 'completed') return 3;
+    if (status == 'on_way' || status == 'picked_up') return 1;
+    if (status == 'on_the_way_to_pickup' || status == 'near_destination') return 2;
+    if (status == 'accepted' || dispatch == 'accepted' || dispatch == 'assigned') return 0;
     return 0;
-  }
-
-  IconData _iconForStep(String type, int index) {
-    final t = type.toLowerCase();
-    if (t == 'shipping') {
-      const icons = [
-        Icons.verified_rounded,
-        Icons.delivery_dining_rounded,
-        Icons.inventory_rounded,
-        Icons.local_shipping_rounded,
-        Icons.check_circle_rounded,
-      ];
-      return icons[index.clamp(0, icons.length - 1)];
-    }
-    if (t == 'taxi') {
-      const icons = [
-        Icons.verified_rounded,
-        Icons.local_taxi_rounded,
-        Icons.pin_drop_rounded,
-        Icons.route_rounded,
-        Icons.check_circle_rounded,
-      ];
-      return icons[index.clamp(0, icons.length - 1)];
-    }
-    const icons = [
-      Icons.receipt_rounded,
-      Icons.restaurant_menu_rounded,
-      Icons.delivery_dining_rounded,
-      Icons.two_wheeler_rounded,
-      Icons.check_circle_rounded,
-    ];
-    return icons[index.clamp(0, icons.length - 1)];
   }
 
   String _orderTitle(UserOrder order) {
@@ -462,7 +517,11 @@ class _ActiveOrderHomeCard extends StatelessWidget {
       _ => 'home.orderFood'.tr,
     };
     final token = _compactOrderToken(order.orderNumber, order.id);
-    return '$prefix ${'home.orderNumberPrefix'.tr} $token';
+    return _orderTitleRtlWithLatinToken(
+      prefix: prefix,
+      numberPrefix: 'home.orderNumberPrefix'.tr,
+      token: token,
+    );
   }
 
   String _compactOrderToken(String orderNumber, int fallbackId) {
@@ -505,6 +564,382 @@ class _HomeShimmerSkeleton extends StatelessWidget {
           _ShimmerRestaurantsRow(),
         ],
       ),
+    );
+  }
+}
+
+class _TopGreetingRow extends StatelessWidget {
+  const _TopGreetingRow({
+    required this.displayName,
+    required this.onProfileTap,
+    required this.onNotificationsTap,
+    required this.unreadNotifications,
+  });
+
+  final String displayName;
+  final VoidCallback onProfileTap;
+  final VoidCallback onNotificationsTap;
+  final int unreadNotifications;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = displayName.trim().isEmpty ? 'عميلنا' : displayName.trim();
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onNotificationsTap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F3F5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.notifications_none_rounded),
+                ),
+                if (unreadNotifications > 0)
+                  Positioned(
+                    top: -1,
+                    right: -1,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0F172A),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unreadNotifications > 9 ? '9+' : '$unreadNotifications',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'مرحباً، $name',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'ماذا تريد طلبه اليوم؟',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroPromoSlider extends StatefulWidget {
+  const _HeroPromoSlider({required this.offers, required this.onTap});
+
+  final List<OfferModel> offers;
+  final VoidCallback onTap;
+
+  @override
+  State<_HeroPromoSlider> createState() => _HeroPromoSliderState();
+}
+
+class _HeroPromoSliderState extends State<_HeroPromoSlider> {
+  static const _autoAdvanceInterval = Duration(seconds: 3);
+
+  late final PageController _pageController;
+  int _pageIndex = 0;
+  Timer? _autoTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.88);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restartAutoPlay());
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroPromoSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_effectivePageCount(oldWidget.offers) !=
+            _effectivePageCount(widget.offers) ||
+        oldWidget.offers.length != widget.offers.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _restartAutoPlay());
+    }
+  }
+
+  int _effectivePageCount(List<OfferModel> offers) {
+    if (offers.isEmpty) return 1;
+    if (offers.length == 1) return 3;
+    return offers.length;
+  }
+
+  @override
+  void dispose() {
+    _autoTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _restartAutoPlay() {
+    _autoTimer?.cancel();
+    if (_pageCount < 2) return;
+    _autoTimer = Timer.periodic(_autoAdvanceInterval, (_) => _advanceOnePage());
+  }
+
+  void _advanceOnePage() {
+    if (!mounted || !_pageController.hasClients || _pageCount < 2) return;
+    final next = (_pageIndex + 1) % _pageCount;
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 560),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  /// PageView length: duplicate a single real offer so the carousel can auto-advance.
+  int get _pageCount {
+    if (widget.offers.isEmpty) return 1;
+    if (widget.offers.length == 1) return 3;
+    return widget.offers.length;
+  }
+
+  bool get _showPageDots => widget.offers.length > 1;
+
+  String? _imageAt(int index) {
+    if (widget.offers.isEmpty) return null;
+    final i = widget.offers.length == 1 ? 0 : index;
+    final url = widget.offers[i].image?.toString().trim();
+    if (url == null || url.isEmpty) return null;
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 186,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _pageCount,
+              onPageChanged: (i) => setState(() => _pageIndex = i),
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: _HeroPromoSlide(
+                    imageUrl: _imageAt(index),
+                    onTap: widget.onTap,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        if (_showPageDots) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.offers.length, (i) {
+              final active = i == _pageIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: active ? 20 : 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: active
+                      ? AppColors.primary
+                      : const Color(0xFFCBD5E1).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+              );
+            }),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HeroPromoSlide extends StatelessWidget {
+  const _HeroPromoSlide({
+    required this.onTap,
+    this.imageUrl,
+  });
+
+  final VoidCallback onTap;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgUrl = imageUrl;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          height: 186,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (bgUrl != null && bgUrl.isNotEmpty)
+                  Image.network(bgUrl, fit: BoxFit.cover),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF111319).withValues(alpha: 0.88),
+                        const Color(0xFF111319).withValues(alpha: 0.36),
+                      ],
+                      begin: Alignment.centerRight,
+                      end: Alignment.centerLeft,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Spacer(),
+                      const Text(
+                        'رحلتك القادمة\nتبدأ براحة تامة',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'خدمة تكسي رقمية آمنة وسريعة',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Text(
+                                'احجز الآن',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(Icons.chevron_right_rounded, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    this.actionText,
+    this.onActionTap,
+  });
+
+  final String title;
+  final String? actionText;
+  final VoidCallback? onActionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF111827),
+          ),
+        ),
+        const Spacer(),
+        if (actionText != null && onActionTap != null)
+          GestureDetector(
+            onTap: onActionTap,
+            child: Text(
+              actionText!,
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

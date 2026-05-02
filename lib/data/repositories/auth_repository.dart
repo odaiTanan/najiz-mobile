@@ -4,6 +4,10 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
+import 'package:najiz_go_express/core/constants/app_error_messages.dart';
+import 'package:najiz_go_express/core/errors/error_sanitizer.dart';
+import 'package:najiz_go_express/core/errors/home_api_exception.dart';
+import 'package:najiz_go_express/core/network/connectivity_guard.dart';
 
 class AuthResult {
   final String message;
@@ -62,6 +66,11 @@ class AuthRepository {
     required Map<String, dynamic> body,
     int retries = 1,
   }) async {
+    try {
+      await ConnectivityGuard.requireOnline();
+    } on HomeApiException catch (e) {
+      throw AuthApiException(e.message);
+    }
     Object? lastError;
     for (var attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -93,12 +102,12 @@ class AuthRepository {
     }
 
     if (lastError is TimeoutException) {
-      throw AuthApiException('انتهت مهلة الخادم. يرجى المحاولة مرة أخرى.');
+      throw AuthApiException(AppErrorMessages.requestTimeout);
     }
     if (lastError is SocketException || lastError is http.ClientException) {
-      throw AuthApiException('فشل الاتصال. يرجى التحقق من الإنترنت والمحاولة مرة أخرى.');
+      throw AuthApiException(AppErrorMessages.connectionFailed);
     }
-    throw AuthApiException('فشل طلب الشبكة');
+    throw AuthApiException(AppErrorMessages.unexpected);
   }
 
   Future<http.Response> _getWithAuth({
@@ -149,7 +158,10 @@ class AuthRepository {
       );
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<AuthResult> register({
@@ -186,7 +198,10 @@ class AuthRepository {
       );
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<AuthResult> resendOtp({required String phone}) async {
@@ -208,7 +223,10 @@ class AuthRepository {
       );
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<AuthResult> verifyOtp({
@@ -229,7 +247,10 @@ class AuthRepository {
       return AuthResult(message: message, token: data['token']?.toString());
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<AuthResult> resetPassword({
@@ -257,7 +278,10 @@ class AuthRepository {
       return AuthResult(message: message);
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<AuthResult> forgotPassword({required String phone}) async {
@@ -275,7 +299,10 @@ class AuthRepository {
       return AuthResult(message: message, phone: phone);
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<AuthResult> verifyPasswordReset({
@@ -303,7 +330,10 @@ class AuthRepository {
       );
     }
 
-    throw AuthApiException(message, statusCode: res.statusCode);
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
   }
 
   Future<Map<String, dynamic>?> getCurrentUser({

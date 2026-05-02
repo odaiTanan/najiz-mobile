@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_products_controller.dart';
-import 'package:najiz_go_express/features/home/models/user_address.dart';
 import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
@@ -45,7 +45,7 @@ class RestaurantProductsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       bottomNavigationBar: HomeBottomBar(
-        activeIndex: 0,
+        activeIndex: -1,
         serviceText: isStoresService
             ? 'services.stores'.tr
             : 'services.restaurants'.tr,
@@ -94,7 +94,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                   cartCount: cartService.totalCount.value,
                   onCartTap: () {
                     final vendorId = cartService.vendorId.value;
-                    final items = cartService.items;
+                    final items = cartService.items.toList(growable: false);
                     if (vendorId == null || items.isEmpty) {
                       Get.snackbar(
                         'services.cart'.tr,
@@ -106,7 +106,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                       () => OrderCheckoutScreen(
                         token: token,
                         vendorId: vendorId,
-                        items: List.of(items),
+                        items: items,
                         serviceId: serviceId,
                       ),
                     );
@@ -253,26 +253,6 @@ class RestaurantProductsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   _VendorStatusBadge(vendor: vendor),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
-                              child: Row(
-                                children: [
-                                  _StatusText(
-                                    text: vendor.isActive
-                                        ? 'services.active'.tr
-                                        : 'services.inactive'.tr,
-                                    isPositive: vendor.isActive,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _StatusText(
-                                    text: vendor.isOpened
-                                        ? 'services.open'.tr
-                                        : 'services.closed'.tr,
-                                    isPositive: vendor.isOpened,
-                                  ),
                                 ],
                               ),
                             ),
@@ -491,91 +471,109 @@ class _MiniTopCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          InkWell(
-            onTap: onNotificationsTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(
-                  Icons.notifications_none,
-                  size: 18,
-                  color: AppColors.textSecondary,
-                ),
-                if (unreadNotifications > 0)
-                  Positioned(
-                    right: -7,
-                    top: -7,
-                    child: Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 14,
-                        minHeight: 14,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: Colors.white, width: 1),
-                      ),
-                      child: Text(
-                        unreadNotifications > 99 ? '99+' : '$unreadNotifications',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onNotificationsTap,
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.notifications_none,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    if (unreadNotifications > 0)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 3,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
+                          child: Text(
+                            unreadNotifications > 99
+                                ? '99+'
+                                : '$unreadNotifications',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 6),
-          InkWell(
-            onTap: onCartTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(
-                  Icons.shopping_cart_outlined,
-                  size: 18,
-                  color: AppColors.textSecondary,
-                ),
-                if (cartCount > 0)
-                  Positioned(
-                    right: -7,
-                    top: -7,
-                    child: Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 14,
-                        minHeight: 14,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: Colors.white, width: 1),
-                      ),
-                      child: Text(
-                        cartCount > 99 ? '99+' : '$cartCount',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
+          const SizedBox(width: 2),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onCartTap,
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.shopping_cart_outlined,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    if (cartCount > 0)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 3,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
+                          child: Text(
+                            cartCount > 99 ? '99+' : '$cartCount',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -661,10 +659,10 @@ class _VendorStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isReady = vendor.isActive && vendor.isOpened;
-    final bgColor = isReady ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1F1);
-    final fgColor = isReady ? const Color(0xFF1B8E4B) : const Color(0xFFC43D3D);
-    final label = isReady ? 'services.available'.tr : 'services.unavailable'.tr;
+    final isActive = vendor.isActive;
+    final bgColor = isActive ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1F1);
+    final fgColor = isActive ? const Color(0xFF1B8E4B) : const Color(0xFFC43D3D);
+    final label = isActive ? 'services.active'.tr : 'services.inactive'.tr;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -679,25 +677,6 @@ class _VendorStatusBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
-      ),
-    );
-  }
-}
-
-class _StatusText extends StatelessWidget {
-  final String text;
-  final bool isPositive;
-
-  const _StatusText({required this.text, required this.isPositive});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: isPositive ? const Color(0xFF1B8E4B) : AppColors.textSecondary,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -738,14 +717,10 @@ class _ClassificationIconItem extends StatelessWidget {
                 border: Border.all(color: const Color(0xFFEDEDED)),
               ),
               child: (backendIconUrl != null && backendIconUrl!.trim().isNotEmpty)
-                  ? Image.network(
-                      backendIconUrl!,
-                      width: 14,
-                      height: 14,
+                  ? _BackendClassificationIcon(
+                      iconUrl: backendIconUrl!,
                       color: fg,
-                      colorBlendMode: BlendMode.srcIn,
-                      errorBuilder: (_, __, ___) =>
-                          Icon(icon, size: 14, color: fg),
+                      fallbackIcon: icon,
                     )
                   : Icon(icon, size: 14, color: fg),
             ),
@@ -763,6 +738,45 @@ class _ClassificationIconItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BackendClassificationIcon extends StatelessWidget {
+  const _BackendClassificationIcon({
+    required this.iconUrl,
+    required this.color,
+    required this.fallbackIcon,
+  });
+
+  final String iconUrl;
+  final Color color;
+  final IconData fallbackIcon;
+
+  bool get _isSvg {
+    final lower = iconUrl.toLowerCase();
+    return lower.endsWith('.svg') || lower.contains('.svg?');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isSvg) {
+      return SvgPicture.network(
+        iconUrl,
+        width: 14,
+        height: 14,
+        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+        placeholderBuilder: (_) => Icon(fallbackIcon, size: 14, color: color),
+      );
+    }
+
+    return Image.network(
+      iconUrl,
+      width: 14,
+      height: 14,
+      color: color,
+      colorBlendMode: BlendMode.srcIn,
+      errorBuilder: (_, __, ___) => Icon(fallbackIcon, size: 14, color: color),
     );
   }
 }
