@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
+import 'package:najiz_go_express/features/home/views/favorites_screen.dart';
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
 import 'package:najiz_go_express/features/home/views/profile_screen.dart';
@@ -29,9 +30,12 @@ class MainBottomNav {
         );
         break;
       case 2:
-        Get.offAll(() => SearchScreen(token: token));
+        Get.offAll(() => const FavoritesScreen());
         break;
       case 3:
+        Get.offAll(() => SearchScreen(token: token));
+        break;
+      case 4:
         Get.offAll(() => ProfileScreen(token: token));
         break;
     }

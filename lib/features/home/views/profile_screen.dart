@@ -9,6 +9,7 @@ import 'package:najiz_go_express/features/home/controllers/profile_controller.da
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
 import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
+import 'package:najiz_go_express/features/home/views/favorites_screen.dart';
 import 'package:najiz_go_express/features/home/views/referral_coupon_screen.dart';
 import 'package:najiz_go_express/features/home/views/search_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
@@ -27,9 +28,9 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       bottomNavigationBar: HomeBottomBar(
-        activeIndex: 3,
+        activeIndex: 4,
         onTap: (index) =>
-            MainBottomNav.onTap(index: index, currentIndex: 3, token: token),
+            MainBottomNav.onTap(index: index, currentIndex: 4, token: token),
       ),
       body: SafeArea(
         child: Obx(() {
@@ -206,36 +207,9 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'profile.yourCode'.tr,
-                                    style: TextStyle(
-                                      color: Color(0xFF94A3B8),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () async {
-                                    const code = 'LUKAS10';
-                                    await Clipboard.setData(
-                                      const ClipboardData(text: code),
-                                    );
-                                    Get.snackbar(
-                                      'profile.inviteFriend'.tr,
-                                      'profile.copiedReferralCode'.tr,
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: Text('profile.copyCode'.tr),
-                                ),
-                              ],
+                            _ProfileReferralCodeBlock(
+                              controller: controller,
+                              isGuest: isGuest,
                             ),
                           ],
                         ),
@@ -271,6 +245,19 @@ class ProfileScreen extends StatelessWidget {
                   title: 'البحث',
                   subtitle: 'ابحث عن المطاعم والمتاجر والمنتجات',
                   onTap: () => Get.to(() => SearchScreen(token: token)),
+                ),
+                const SizedBox(height: 10),
+                _ActionCard(
+                  icon: Icons.favorite_rounded,
+                  title: 'favorites.title'.tr,
+                  subtitle: 'favorites.subtitle'.tr,
+                  onTap: () {
+                    if (auth.isGuest) {
+                      Get.to(() => const LoginScreen());
+                      return;
+                    }
+                    Get.to(() => const FavoritesScreen());
+                  },
                 ),
                 const SizedBox(height: 10),
                 _ActionCard(
@@ -392,6 +379,120 @@ class ProfileScreen extends StatelessWidget {
         }),
       ),
     );
+  }
+}
+
+class _ProfileReferralCodeBlock extends StatelessWidget {
+  const _ProfileReferralCodeBlock({
+    required this.controller,
+    required this.isGuest,
+  });
+
+  final ProfileController controller;
+  final bool isGuest;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (isGuest) {
+        return Text(
+          'profile.referralGuestHint'.tr,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+      }
+
+      if (controller.isLoading.value) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 10),
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      }
+
+      final info = controller.referralInfo.value;
+      final code = (info?.referralCode ?? '').trim();
+      final count = info?.referralsCount ?? 0;
+
+      if (code.isEmpty) {
+        return Text(
+          'profile.referralLoadError'.tr,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${'profile.referralCodeLabel'.tr} ',
+                        style: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                      TextSpan(
+                        text: code,
+                        style: const TextStyle(
+                          color: Color(0xFF1F2A37),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'profile.referralsCount'.trParams({'count': '$count'}),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              Get.snackbar(
+                'profile.inviteFriend'.tr,
+                'profile.copiedReferralCode'.trParams({'code': code}),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('profile.copyCode'.tr),
+          ),
+        ],
+      );
+    });
   }
 }
 

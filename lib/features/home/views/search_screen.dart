@@ -10,6 +10,7 @@ import 'package:najiz_go_express/features/home/models/search_models.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
+import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -181,10 +182,10 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       bottomNavigationBar: HomeBottomBar(
-        activeIndex: 2,
+        activeIndex: 3,
         onTap: (index) => MainBottomNav.onTap(
           index: index,
-          currentIndex: 2,
+          currentIndex: 3,
           token: _activeToken,
         ),
       ),
@@ -874,9 +875,26 @@ class _ProductRow extends StatelessWidget {
             fontSize: 12,
           ),
         ),
-        trailing: Text(
-          item.vendorName ?? '',
-          style: const TextStyle(color: Color(0xFF7A6052), fontSize: 11),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 80,
+              child: Text(
+                item.vendorName ?? '',
+                style: const TextStyle(color: Color(0xFF7A6052), fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+              ),
+            ),
+            FavoriteHeartButton(
+              favoriteType: 'product',
+              entityId: item.id,
+              variant: FavoriteHeartVariant.onLightCard,
+              size: 22,
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
         onTap: () {
           final vendorId = item.vendorId;
@@ -967,6 +985,14 @@ class _VendorRow extends StatelessWidget {
                 fontSize: 11,
               ),
             ),
+            const SizedBox(width: 4),
+            FavoriteHeartButton(
+              favoriteType: 'vendor',
+              entityId: item.id,
+              variant: FavoriteHeartVariant.onLightCard,
+              size: 22,
+              padding: EdgeInsets.zero,
+            ),
           ],
         ),
       ),
@@ -1053,6 +1079,14 @@ class _PreSearchVendorRow extends StatelessWidget {
                   ),
                 ],
               ),
+            const SizedBox(width: 4),
+            FavoriteHeartButton(
+              favoriteType: 'vendor',
+              entityId: item.id,
+              variant: FavoriteHeartVariant.onLightCard,
+              size: 22,
+              padding: EdgeInsets.zero,
+            ),
           ],
         ),
       ),

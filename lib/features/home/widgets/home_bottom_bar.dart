@@ -40,7 +40,7 @@ class HomeBottomBar extends StatelessWidget {
             _BottomItem(
               icon: Icons.home_rounded,
               text: 'nav.home'.tr,
-              active: !serviceActive && activeIndex == 0,
+              active: !serviceActive && activeIndex >= 0 && activeIndex == 0,
               onTap: () => onTap?.call(0),
             ),
             if (hasServiceItem)
@@ -53,20 +53,26 @@ class HomeBottomBar extends StatelessWidget {
             _BottomItem(
               icon: Icons.assignment_outlined,
               text: 'nav.orders'.tr,
-              active: activeIndex == 1,
+              active: activeIndex >= 0 && activeIndex == 1,
               onTap: () => onTap?.call(1),
             ),
             _BottomItem(
-              icon: Icons.search_rounded,
-              text: 'بحث',
-              active: activeIndex == 2,
+              icon: Icons.favorite_rounded,
+              text: 'nav.favorites'.tr,
+              active: activeIndex >= 0 && activeIndex == 2,
               onTap: () => onTap?.call(2),
+            ),
+            _BottomItem(
+              icon: Icons.search_rounded,
+              text: 'nav.search'.tr,
+              active: activeIndex >= 0 && activeIndex == 3,
+              onTap: () => onTap?.call(3),
             ),
             _BottomItem(
               icon: Icons.person_outline_rounded,
               text: 'nav.profile'.tr,
-              active: activeIndex == 3,
-              onTap: () => onTap?.call(3),
+              active: activeIndex >= 0 && activeIndex == 4,
+              onTap: () => onTap?.call(4),
             ),
           ],
         ),

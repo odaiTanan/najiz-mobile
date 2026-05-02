@@ -4,11 +4,33 @@
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "done": "تم",
-    "copy": "نسخ"
+    "copy": "نسخ",
+    "error": "خطأ",
+    "delete": "حذف"
+  },
+  "favorites": {
+    "title": "المفضلة",
+    "tabRestaurants": "المطاعم",
+    "tabMeals": "الوجبات",
+    "tabStores": "المتاجر",
+    "tabAll": "الكل",
+    "tabVendors": "المطاعم والمتاجر",
+    "tabProducts": "المنتجات",
+    "empty": "لا توجد عناصر في المفضلة بعد",
+    "loadFailed": "تعذر تحميل المفضلة",
+    "retry": "إعادة المحاولة",
+    "loginRequired": "يرجى تسجيل الدخول لاستخدام المفضلة",
+    "toggleFailed": "تعذر تحديث المفضلة",
+    "removed": "تمت الإزالة من المفضلة",
+    "subtitle": "مطاعمك ومتاجرك والوجبات التي أضفتها",
+    "open": "فتح",
+    "removeConfirm": "إزالة هذا العنصر من المفضلة؟"
   },
   "nav": {
     "home": "الرئيسية",
     "orders": "الطلبات",
+    "favorites": "المفضلة",
+    "search": "البحث",
     "wallet": "المحفظة",
     "profile": "الملف الشخصي"
   },
@@ -24,9 +46,12 @@
     "login": "تسجيل الدخول",
     "inviteFriend": "ادعُ صديقا",
     "inviteSubtitle": "شارك التطبيق واحصل على خصم في طلبك القادم.",
-    "yourCode": "رمزك: LUKAS10",
+    "referralCodeLabel": "رمزك:",
+    "referralsCount": "عدد الإحالات: @count",
+    "referralLoadError": "تعذر تحميل الرمز. اسحب للتحديث.",
+    "referralGuestHint": "سجّل الدخول لعرض رمز إحالتك ونسخه.",
     "copyCode": "نسخ الرمز",
-    "copiedReferralCode": "تم نسخ كود الإحالة LUKAS10",
+    "copiedReferralCode": "تم نسخ كود الإحالة @code",
     "accountSettings": "إعدادات الحساب",
     "addresses": "عناويني",
     "addAddress": "أضف عنوان التوصيل",
@@ -100,7 +125,12 @@
     "topDishes": "الأطباق الأكثر طلبا",
     "dishes": "الأطباق",
     "noProducts": "لا توجد منتجات",
-    "viewCart": "عرض السلة"
+    "viewCart": "عرض السلة",
+    "vendorUnitRestaurant": "المطعم",
+    "vendorUnitStore": "المتجر",
+    "vendorStatusAvailable": "@unit متاح لاستقبال الطلبات الآن",
+    "vendorStatusBusy": "@unit مزدحم حالياً، حاول بعد قليل",
+    "vendorStatusNotAccepting": "@unit لا يستقبل طلبات حالياً"
   },
   "notifications": {
     "title": "الإشعارات",

@@ -6,6 +6,7 @@ import 'package:najiz_go_express/data/models/vendor_products_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_vendor_products_controller.dart';
 import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
 import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
+import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 
 class RestaurantVendorProductsScreen extends StatefulWidget {
@@ -248,6 +249,7 @@ class _RestaurantVendorProductsScreenState
                       headers: authHeaders,
                       title: data.vendor.name,
                       subtitle: data.vendor.description ?? '',
+                      vendorId: widget.vendorId,
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -424,12 +426,14 @@ class _HeroImageCard extends StatelessWidget {
   final Map<String, String> headers;
   final String title;
   final String subtitle;
+  final int vendorId;
 
   const _HeroImageCard({
     required this.imageUrl,
     required this.headers,
     required this.title,
     required this.subtitle,
+    required this.vendorId,
   });
 
   @override
@@ -455,6 +459,16 @@ class _HeroImageCard extends StatelessWidget {
                 end: Alignment.topCenter,
                 colors: [Color(0xB20D253C), Color(0x220D253C)],
               ),
+            ),
+          ),
+          Positioned(
+            left: 10,
+            top: 10,
+            child: FavoriteHeartButton(
+              favoriteType: 'vendor',
+              entityId: vendorId,
+              variant: FavoriteHeartVariant.onDarkImage,
+              size: 28,
             ),
           ),
           Positioned(
@@ -733,7 +747,14 @@ class _MenuProductTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 6),
+                  FavoriteHeartButton(
+                    favoriteType: 'product',
+                    entityId: product.id,
+                    variant: FavoriteHeartVariant.onLightCard,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 4),
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -788,7 +809,10 @@ class _OfferProductCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          child: Container(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
             height: 118,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -875,6 +899,23 @@ class _OfferProductCard extends StatelessWidget {
                 ],
               ),
             ),
+              ),
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Material(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  shape: const CircleBorder(),
+                  child: FavoriteHeartButton(
+                    favoriteType: 'product',
+                    entityId: product.id,
+                    variant: FavoriteHeartVariant.onLightCard,
+                    size: 22,
+                    padding: const EdgeInsets.all(2),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

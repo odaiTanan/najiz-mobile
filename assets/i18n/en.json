@@ -4,11 +4,33 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "done": "Done",
-    "copy": "Copy"
+    "copy": "Copy",
+    "error": "Error",
+    "delete": "Delete"
+  },
+  "favorites": {
+    "title": "Favorites",
+    "tabRestaurants": "Restaurants",
+    "tabMeals": "Meals",
+    "tabStores": "Stores",
+    "tabAll": "All",
+    "tabVendors": "Restaurants & stores",
+    "tabProducts": "Products",
+    "empty": "No favorites yet",
+    "loadFailed": "Could not load favorites",
+    "retry": "Try again",
+    "loginRequired": "Please sign in to use favorites",
+    "toggleFailed": "Could not update favorites",
+    "removed": "Removed from favorites",
+    "subtitle": "Restaurants, stores, and meals you saved",
+    "open": "Open",
+    "removeConfirm": "Remove this item from favorites?"
   },
   "nav": {
     "home": "Home",
     "orders": "Orders",
+    "favorites": "Favorites",
+    "search": "Search",
     "wallet": "Wallet",
     "profile": "Profile"
   },
@@ -24,9 +46,12 @@
     "login": "Login",
     "inviteFriend": "Invite a friend",
     "inviteSubtitle": "Share the app and get a discount on your next order.",
-    "yourCode": "Your code: LUKAS10",
+    "referralCodeLabel": "Your code:",
+    "referralsCount": "Referrals: @count",
+    "referralLoadError": "Could not load your code. Pull to refresh.",
+    "referralGuestHint": "Sign in to see and copy your referral code.",
     "copyCode": "Copy code",
-    "copiedReferralCode": "Referral code LUKAS10 copied",
+    "copiedReferralCode": "Referral code @code copied",
     "accountSettings": "Account settings",
     "addresses": "My addresses",
     "addAddress": "Add delivery address",
@@ -100,7 +125,12 @@
     "topDishes": "Most ordered dishes",
     "dishes": "Dishes",
     "noProducts": "No products",
-    "viewCart": "View cart"
+    "viewCart": "View cart",
+    "vendorUnitRestaurant": "This restaurant",
+    "vendorUnitStore": "This store",
+    "vendorStatusAvailable": "@unit is accepting orders now",
+    "vendorStatusBusy": "@unit is busy right now — try again shortly",
+    "vendorStatusNotAccepting": "@unit is not accepting orders right now"
   },
   "notifications": {
     "title": "Notifications",

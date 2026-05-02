@@ -9,6 +9,8 @@ class VendorModel {
   final bool isOpened;
   final bool isActive;
   final double? rating;
+  /// From `/classifications/.../vendors`: `available` | `busy` | `not_accepting`
+  final String? vendorStatus;
 
   const VendorModel({
     required this.id,
@@ -21,9 +23,12 @@ class VendorModel {
     this.isOpened = false,
     this.isActive = false,
     this.rating,
+    this.vendorStatus,
   });
 
   factory VendorModel.fromJson(Map<String, dynamic> json) {
+    final statusRaw = json['vendor_status'] ?? json['vendorStatus'];
+    final statusStr = statusRaw?.toString().trim();
     return VendorModel(
       id: _asInt(json['id']),
       serviceId: _asNullableInt(json['service_id']),
@@ -35,6 +40,8 @@ class VendorModel {
       isOpened: _asBool(json['is_opened']),
       isActive: _asBool(json['is_active']),
       rating: _asNullableDouble(json['rating']),
+      vendorStatus:
+          (statusStr != null && statusStr.isNotEmpty) ? statusStr : null,
     );
   }
 }

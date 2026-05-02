@@ -1,7 +1,11 @@
 class ReferralCodeInfo {
   final String referralCode;
+  final int referralsCount;
 
-  const ReferralCodeInfo({required this.referralCode});
+  const ReferralCodeInfo({
+    required this.referralCode,
+    this.referralsCount = 0,
+  });
 
   factory ReferralCodeInfo.fromJson(Map<String, dynamic> json) {
     final data = (json['data'] is Map)
@@ -9,6 +13,7 @@ class ReferralCodeInfo {
         : <String, dynamic>{};
     return ReferralCodeInfo(
       referralCode: (data['referral_code'] ?? '').toString(),
+      referralsCount: _asInt(data['referrals_count']),
     );
   }
 }

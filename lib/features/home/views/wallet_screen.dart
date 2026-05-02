@@ -20,10 +20,10 @@ class WalletScreen extends StatelessWidget {
         elevation: 0,
       ),
       bottomNavigationBar: HomeBottomBar(
-        activeIndex: 2,
+        activeIndex: -1,
         onTap: (index) => MainBottomNav.onTap(
           index: index,
-          currentIndex: 2,
+          currentIndex: -1,
           token: token,
         ),
       ),

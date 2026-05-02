@@ -7,6 +7,7 @@ import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/data/repositories/auth_repository.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/create_address_payload.dart';
+import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
 import 'package:najiz_go_express/features/home/models/user_profile_model.dart';
 
 class ProfileController extends GetxController {
@@ -19,6 +20,7 @@ class ProfileController extends GetxController {
   final isLoading = false.obs;
   final isLoggingOut = false.obs;
   final profile = Rxn<UserProfileModel>();
+  final referralInfo = Rxn<ReferralCodeInfo>();
   final isUpdatingAvatar = false.obs;
 
   late final AuthStateManager _authState;
@@ -37,14 +39,17 @@ class ProfileController extends GetxController {
     final fallback = await SessionService.getUserIdentity();
     if (_authState.isGuest) {
       profile.value = UserProfileModel.fromBackend(null, fallback: fallback);
+      referralInfo.value = null;
       return;
     }
 
     isLoading.value = true;
+    referralInfo.value = null;
     try {
       final token = _authState.token.value;
       if (token == null || token.trim().isEmpty) {
         profile.value = UserProfileModel.fromBackend(null, fallback: fallback);
+        referralInfo.value = null;
         return;
       }
       final backendProfile = await _authRepository.getCurrentUser(token: token);
@@ -61,6 +66,13 @@ class ProfileController extends GetxController {
       await SessionService.saveAvatarPath(model.avatarPath);
       if (model.address != null && model.address!.trim().isNotEmpty) {
         await SessionService.saveAddress(model.address!);
+      }
+      try {
+        referralInfo.value = await _homeRepository.getMyReferralCode(
+          token: token,
+        );
+      } catch (_) {
+        referralInfo.value = const ReferralCodeInfo(referralCode: '');
       }
     } finally {
       isLoading.value = false;
@@ -141,6 +153,7 @@ class ProfileController extends GetxController {
         // Keep notifications list local as history; only unsubscribe device is needed.
       }
       await _authState.markGuest();
+      referralInfo.value = null;
       profile.value = UserProfileModel.fromBackend(
         null,
         fallback: await SessionService.getUserIdentity(),

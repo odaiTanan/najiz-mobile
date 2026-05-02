@@ -12,6 +12,7 @@ import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/data/models/vendor_products_model.dart';
 import 'package:najiz_go_express/data/models/classification_model.dart';
+import 'package:najiz_go_express/data/models/favorite_models.dart';
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/models/user_address.dart';
@@ -798,6 +799,92 @@ class HomeRepository {
     if (res.statusCode >= 200 && res.statusCode < 300 && ok) {
       return data;
     }
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
+  }
+
+  /// GET /favorites?type=…&page=…
+  Future<FavoritesPageResult> getFavoritesPage({
+    required String token,
+    String type = 'all',
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/favorites').replace(
+      queryParameters: <String, String>{
+        'type': type,
+        'page': page.toString(),
+      },
+    );
+    await ConnectivityGuard.requireOnline();
+    _logApiRequest(method: 'GET', uri: uri);
+    final res = await _client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'GET', uri: uri, response: res);
+    final data = _safeJsonDecode(res.body);
+    if (res.statusCode >= 200 && res.statusCode < 300 && _isSuccess(data)) {
+      return FavoritesPageResult.fromJson(data);
+    }
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
+  }
+
+  /// POST /favorites/toggle
+  Future<FavoriteToggleResult> toggleFavorite({
+    required String token,
+    required String type,
+    required int id,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/favorites/toggle');
+    final payload = <String, dynamic>{'type': type, 'id': id};
+    _logApiRequest(method: 'POST', uri: uri, body: payload);
+    final res = await _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'POST', uri: uri, response: res);
+    final data = _safeJsonDecode(res.body);
+    final ok = _isSuccess(data);
+    if (res.statusCode >= 200 && res.statusCode < 300 && ok) {
+      return FavoriteToggleResult.fromJson(data);
+    }
+    throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
+  }
+
+  /// DELETE /favorites/{type}/{id}
+  Future<void> deleteFavorite({
+    required String token,
+    required String type,
+    required int id,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/favorites/$type/$id');
+    _logApiRequest(method: 'DELETE', uri: uri);
+    final res = await _client
+        .delete(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(ApiConfig.timeout);
+    _logApiResponse(method: 'DELETE', uri: uri, response: res);
+    final data = _safeJsonDecode(res.body);
+    final ok = _isSuccess(data);
+    if (res.statusCode >= 200 && res.statusCode < 300 && ok) return;
     throw HomeApiException.fromServer(_extractMessage(data), res.statusCode);
   }
 

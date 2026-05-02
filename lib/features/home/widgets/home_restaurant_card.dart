@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 
 class HomeRestaurantCard extends StatelessWidget {
@@ -8,6 +9,7 @@ class HomeRestaurantCard extends StatelessWidget {
   final double? rating;
   final String? subtitle;
   final VoidCallback? onTap;
+  final int? vendorId;
 
   const HomeRestaurantCard({
     super.key,
@@ -16,6 +18,7 @@ class HomeRestaurantCard extends StatelessWidget {
     required this.rating,
     this.subtitle,
     this.onTap,
+    this.vendorId,
   });
 
   @override
@@ -49,52 +52,23 @@ class HomeRestaurantCard extends StatelessWidget {
                           fit: BoxFit.cover,
                         ),
                       ),
-                      const Positioned(
-                        left: 8,
-                        top: 8,
-                        child: Icon(
-                          Icons.favorite_border_rounded,
-                          color: Colors.white,
-                          size: 19,
+                      if (vendorId != null)
+                        Positioned(
+                          left: 8,
+                          top: 8,
+                          child: FavoriteHeartButton(
+                            favoriteType: 'vendor',
+                            entityId: vendorId!,
+                            variant: FavoriteHeartVariant.onDarkImage,
+                            size: 20,
+                            padding: EdgeInsets.zero,
+                          ),
                         ),
-                      ),
                       const Positioned(
                         left: 8,
                         bottom: 7,
                         child: _EtaBadge(),
                       ),
-                      if (false && rating != null)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  size: 12,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  rating!.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),

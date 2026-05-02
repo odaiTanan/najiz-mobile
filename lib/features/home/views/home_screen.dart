@@ -63,7 +63,7 @@ class HomeScreen extends StatelessWidget {
                 _TopGreetingRow(
                   displayName: controller.displayName.value,
                   onProfileTap: () => MainBottomNav.onTap(
-                    index: 3,
+                    index: 4,
                     currentIndex: 0,
                     token: controller.activeToken,
                   ),
@@ -158,7 +158,7 @@ class HomeScreen extends StatelessWidget {
                       );
                       return HomeServiceGrid(
                         services: orderedServices.take(4).toList(growable: false),
-                        onTap: (_) => _openAllServicesPage(controller),
+                        onTap: controller.onServiceTap,
                       );
                     },
                   ),
@@ -200,6 +200,7 @@ class HomeScreen extends StatelessWidget {
                           imageUrl: vendor.image ?? vendor.logo,
                           rating: vendor.rating,
                           subtitle: vendor.description,
+                          vendorId: vendor.id,
                           onTap: () => controller.onRestaurantCardTap(vendor),
                         );
                       },

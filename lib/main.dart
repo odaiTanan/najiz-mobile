@@ -7,6 +7,7 @@ import 'package:najiz_go_express/core/constants/app_strings.dart';
 import 'package:najiz_go_express/core/localization/app_translations.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/core/services/favorites_controller.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/features/auth/controllers/login_controller.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   final savedLocale = await SessionService.getLocaleCode();
   final authStateManager = Get.put(AuthStateManager(), permanent: true);
   await authStateManager.initialize(initialToken: token);
+  Get.put(FavoritesController(), permanent: true);
   Get.put(AppCartService(), permanent: true);
   final pushService = Get.put(PushNotificationService(), permanent: true);
   await pushService.initialize(token: token);

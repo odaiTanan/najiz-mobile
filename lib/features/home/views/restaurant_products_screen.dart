@@ -9,6 +9,7 @@ import 'package:najiz_go_express/features/home/controllers/restaurant_products_c
 import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
+import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
@@ -193,48 +194,92 @@ class RestaurantProductsScreen extends StatelessWidget {
                 )
               else
                 ...controller.vendors.map(
-                  (vendor) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => controller.openVendorProducts(vendor.id),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFEDEDED)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(14),
-                              ),
-                              child: SizedBox(
-                                height: 150,
-                                width: double.infinity,
-                                child: Stack(
-                                  children: [
-                                    Positioned.fill(
-                                      child: NetworkImageWithFallback(
-                                        url: vendor.image ?? vendor.logo,
-                                        fit: BoxFit.cover,
-                                        headers: authHeaders,
-                                      ),
-                                    ),
-                                    if (vendor.rating != null)
-                                      Positioned(
-                                        right: 10,
-                                        top: 10,
-                                        child: _RatingPill(
-                                          rating: vendor.rating!,
+                  (vendor) {
+                    final statusMsg = _vendorOperationalStatusMessage(
+                      vendor,
+                      isStoresService,
+                    );
+                    final overlayTop = statusMsg != null ? 46.0 : 10.0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => controller.openVendorProducts(vendor.id),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFEDEDED)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(14),
+                                ),
+                                child: SizedBox(
+                                  height: 150,
+                                  width: double.infinity,
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: NetworkImageWithFallback(
+                                          url: vendor.image ?? vendor.logo,
+                                          fit: BoxFit.cover,
+                                          headers: authHeaders,
                                         ),
                                       ),
-                                  ],
+                                      if (statusMsg != null)
+                                        Positioned(
+                                          top: 0,
+                                          left: 0,
+                                          right: 0,
+                                          child: Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 8,
+                                            ),
+                                            color: Colors.black
+                                                .withValues(alpha: 0.62),
+                                            child: Text(
+                                              statusMsg,
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.25,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      if (vendor.rating != null)
+                                        Positioned(
+                                          right: 10,
+                                          top: overlayTop,
+                                          child: _RatingPill(
+                                            rating: vendor.rating!,
+                                          ),
+                                        ),
+                                      Positioned(
+                                        left: 10,
+                                        top: overlayTop,
+                                        child: FavoriteHeartButton(
+                                          favoriteType: 'vendor',
+                                          entityId: vendor.id,
+                                          variant:
+                                              FavoriteHeartVariant.onDarkImage,
+                                          size: 26,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
                               child: Row(
@@ -296,7 +341,8 @@ class RestaurantProductsScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
+                    );
+                  },
                 ),
             ],
           );
@@ -649,6 +695,27 @@ class _AddressOptionTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+String? _vendorOperationalStatusMessage(
+  VendorModel vendor,
+  bool isStoresService,
+) {
+  final raw = vendor.vendorStatus?.trim().toLowerCase();
+  if (raw == null || raw.isEmpty) return null;
+  final unit = isStoresService
+      ? 'services.vendorUnitStore'.tr
+      : 'services.vendorUnitRestaurant'.tr;
+  switch (raw) {
+    case 'available':
+      return 'services.vendorStatusAvailable'.trParams({'unit': unit});
+    case 'busy':
+      return 'services.vendorStatusBusy'.trParams({'unit': unit});
+    case 'not_accepting':
+      return 'services.vendorStatusNotAccepting'.trParams({'unit': unit});
+    default:
+      return null;
   }
 }
 
