@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
-import 'package:najiz_go_express/data/models/vendor_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_products_controller.dart';
 import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
-import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
+import 'package:najiz_go_express/features/home/views/cart_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
+import 'package:najiz_go_express/features/home/widgets/vendor_order_status.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 
@@ -42,9 +43,9 @@ class RestaurantProductsScreen extends StatelessWidget {
     );
     final pushService = Get.find<PushNotificationService>();
     final cartService = Get.find<AppCartService>();
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: -1,
         serviceText: isStoresService
@@ -97,17 +98,15 @@ class RestaurantProductsScreen extends StatelessWidget {
                     final vendorId = cartService.vendorId.value;
                     final items = cartService.items.toList(growable: false);
                     if (vendorId == null || items.isEmpty) {
-                      Get.snackbar(
+                      AppSnackbar.show(
                         'services.cart'.tr,
                         'services.emptyCart'.tr,
                       );
                       return;
                     }
                     Get.to(
-                      () => OrderCheckoutScreen(
+                      () => CartScreen(
                         token: token,
-                        vendorId: vendorId,
-                        items: items,
                         serviceId: serviceId,
                       ),
                     );
@@ -126,7 +125,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                   prefixIcon: const Icon(Icons.search, size: 16),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: cs.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: const BorderSide(color: AppColors.inputBorder),
@@ -176,10 +175,10 @@ class RestaurantProductsScreen extends StatelessWidget {
                 children: [
                   Text(
                     featuredTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                 ],
@@ -190,14 +189,14 @@ class RestaurantProductsScreen extends StatelessWidget {
                   isStoresService
                       ? 'services.noStores'.tr
                       : 'services.noRestaurants'.tr,
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: cs.onSurfaceVariant),
                 )
               else
                 ...controller.vendors.map(
                   (vendor) {
-                    final statusMsg = _vendorOperationalStatusMessage(
-                      vendor,
-                      isStoresService,
+                    final statusMsg = VendorOrderStatus.blockingBannerMessage(
+                      vendor.vendorStatus,
+                      isStore: isStoresService,
                     );
                     final overlayTop = statusMsg != null ? 46.0 : 10.0;
                     return Padding(
@@ -207,9 +206,9 @@ class RestaurantProductsScreen extends StatelessWidget {
                         onTap: () => controller.openVendorProducts(vendor.id),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: cs.surface,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFEDEDED)),
+                            border: Border.all(color: cs.outlineVariant),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,15 +288,18 @@ class RestaurantProductsScreen extends StatelessWidget {
                                       vendor.name,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
+                                      style: TextStyle(
+                                        color: cs.onSurface,
                                         fontWeight: FontWeight.w700,
                                         fontSize: 14,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  _VendorStatusBadge(vendor: vendor),
+                                  VendorOrderStatusPill(
+                                    vendorStatus: vendor.vendorStatus,
+                                    isActive: vendor.isActive,
+                                  ),
                                 ],
                               ),
                             ),
@@ -305,31 +307,31 @@ class RestaurantProductsScreen extends StatelessWidget {
                               padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
                               child: Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.schedule,
                                     size: 12,
-                                    color: AppColors.textSecondary,
+                                    color: cs.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     '20-30 ${'services.minutesDelivery'.tr}',
                                     style: TextStyle(
-                                      color: AppColors.textSecondary,
+                                      color: cs.onSurfaceVariant,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(width: 10),
-                                  const Icon(
+                                  Icon(
                                     Icons.location_on_outlined,
                                     size: 12,
-                                    color: AppColors.textSecondary,
+                                    color: cs.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 4),
-                                  const Text(
+                                  Text(
                                     '1.2 km',
                                     style: TextStyle(
-                                      color: AppColors.textSecondary,
+                                      color: cs.onSurfaceVariant,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -358,11 +360,12 @@ class RestaurantProductsScreen extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
+        final sheetCs = Theme.of(sheetContext).colorScheme;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
@@ -376,18 +379,18 @@ class RestaurantProductsScreen extends StatelessWidget {
                       width: 48,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDCE3EE),
+                        color: sheetCs.outlineVariant,
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     'عنوان التوصيل',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: sheetCs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -475,6 +478,7 @@ class _MiniTopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(color: Colors.transparent),
@@ -497,10 +501,10 @@ class _MiniTopCard extends StatelessWidget {
                       '${'services.deliveryTo'.tr} $deliveryAddress',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: cs.onSurface,
                       ),
                     ),
                   ),
@@ -510,7 +514,7 @@ class _MiniTopCard extends StatelessWidget {
                     size: 16,
                     color: hasSavedAddresses
                         ? AppColors.primary
-                        : AppColors.textSecondary,
+                        : cs.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -529,10 +533,10 @@ class _MiniTopCard extends StatelessWidget {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.notifications_none,
                       size: 20,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurfaceVariant,
                     ),
                     if (unreadNotifications > 0)
                       Positioned(
@@ -550,7 +554,7 @@ class _MiniTopCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: Colors.white, width: 1),
+                            border: Border.all(color: cs.surface, width: 1),
                           ),
                           child: Text(
                             unreadNotifications > 99
@@ -583,10 +587,10 @@ class _MiniTopCard extends StatelessWidget {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.shopping_cart_outlined,
                       size: 20,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurfaceVariant,
                     ),
                     if (cartCount > 0)
                       Positioned(
@@ -604,7 +608,7 @@ class _MiniTopCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: Colors.white, width: 1),
+                            border: Border.all(color: cs.surface, width: 1),
                           ),
                           child: Text(
                             cartCount > 99 ? '99+' : '$cartCount',
@@ -645,16 +649,17 @@ class _AddressOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : const Color(0xFFE4E9F1),
+            color: selected ? AppColors.primary : cs.outlineVariant,
             width: selected ? 1.3 : 1,
           ),
         ),
@@ -666,8 +671,8 @@ class _AddressOptionTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: cs.onSurface,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -676,8 +681,8 @@ class _AddressOptionTile extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -688,61 +693,10 @@ class _AddressOptionTile extends StatelessWidget {
             const SizedBox(width: 8),
             Icon(
               icon,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected ? AppColors.primary : cs.onSurfaceVariant,
               size: 20,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-String? _vendorOperationalStatusMessage(
-  VendorModel vendor,
-  bool isStoresService,
-) {
-  final raw = vendor.vendorStatus?.trim().toLowerCase();
-  if (raw == null || raw.isEmpty) return null;
-  final unit = isStoresService
-      ? 'services.vendorUnitStore'.tr
-      : 'services.vendorUnitRestaurant'.tr;
-  switch (raw) {
-    case 'available':
-      return 'services.vendorStatusAvailable'.trParams({'unit': unit});
-    case 'busy':
-      return 'services.vendorStatusBusy'.trParams({'unit': unit});
-    case 'not_accepting':
-      return 'services.vendorStatusNotAccepting'.trParams({'unit': unit});
-    default:
-      return null;
-  }
-}
-
-class _VendorStatusBadge extends StatelessWidget {
-  final VendorModel vendor;
-
-  const _VendorStatusBadge({required this.vendor});
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = vendor.isActive;
-    final bgColor = isActive ? const Color(0xFFE8F7EE) : const Color(0xFFFFF1F1);
-    final fgColor = isActive ? const Color(0xFF1B8E4B) : const Color(0xFFC43D3D);
-    final label = isActive ? 'services.active'.tr : 'services.inactive'.tr;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: fgColor,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -766,8 +720,9 @@ class _ClassificationIconItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? AppColors.primary : Colors.white;
-    final fg = selected ? Colors.white : AppColors.textSecondary;
+    final cs = Theme.of(context).colorScheme;
+    final bg = selected ? AppColors.primary : cs.surface;
+    final fg = selected ? Colors.white : cs.onSurfaceVariant;
 
     return GestureDetector(
       onTap: onTap,
@@ -781,7 +736,7 @@ class _ClassificationIconItem extends StatelessWidget {
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFEDEDED)),
+                border: Border.all(color: cs.outlineVariant),
               ),
               child: (backendIconUrl != null && backendIconUrl!.trim().isNotEmpty)
                   ? _BackendClassificationIcon(
@@ -798,7 +753,7 @@ class _ClassificationIconItem extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 9,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
+                color: selected ? AppColors.primary : cs.onSurfaceVariant,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
@@ -855,12 +810,13 @@ class _RatingPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDEDED)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -869,10 +825,10 @@ class _RatingPill extends StatelessWidget {
           const SizedBox(width: 2),
           Text(
             rating.toStringAsFixed(1),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
             ),
           ),
         ],

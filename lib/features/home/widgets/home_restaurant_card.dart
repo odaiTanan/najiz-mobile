@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
+import 'package:najiz_go_express/features/home/widgets/vendor_order_status.dart';
 
 class HomeRestaurantCard extends StatelessWidget {
   final String name;
@@ -10,6 +10,7 @@ class HomeRestaurantCard extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
   final int? vendorId;
+  final String? vendorStatus;
 
   const HomeRestaurantCard({
     super.key,
@@ -19,10 +20,12 @@ class HomeRestaurantCard extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.vendorId,
+    this.vendorStatus,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       width: 132,
       child: InkWell(
@@ -30,9 +33,9 @@ class HomeRestaurantCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cs.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFF0F2F5)),
+            border: Border.all(color: cs.outlineVariant),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -81,8 +84,8 @@ class HomeRestaurantCard extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: cs.onSurface,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -98,12 +101,43 @@ class HomeRestaurantCard extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF8B95A7),
+                  style: TextStyle(
+                    color: cs.onSurfaceVariant,
                     fontSize: 11,
                   ),
                 ),
               ),
+              if (VendorOrderStatus.normalized(vendorStatus) != null)
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 0),
+                  child: Row(
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: VendorOrderStatus.statusDotColor(vendorStatus),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          VendorOrderStatus.shortLabel(vendorStatus),
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: cs.onSurface,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(8, 5, 8, 8),
                 child: Row(
@@ -120,17 +154,17 @@ class HomeRestaurantCard extends StatelessWidget {
                     const Spacer(),
                     Text(
                       rating?.toStringAsFixed(1) ?? '0.0',
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
+                      style: TextStyle(
+                        color: cs.onSurface,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 3),
-                    const Icon(
+                    Icon(
                       Icons.star_rounded,
                       size: 12,
-                      color: Color(0xFF111827),
+                      color: cs.onSurface,
                     ),
                   ],
                 ),
@@ -148,17 +182,18 @@ class _EtaBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: cs.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Text(
+      child: Text(
         '25-35',
         style: TextStyle(
           fontSize: 9.5,
-          color: Color(0xFF111827),
+          color: cs.onSurface,
           fontWeight: FontWeight.w600,
         ),
       ),

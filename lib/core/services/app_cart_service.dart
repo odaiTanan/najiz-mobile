@@ -26,6 +26,31 @@ class AppCartService extends GetxService {
     _recalculateCount();
   }
 
+  /// يحدّث كمية سطر؛ إذا أصبحت ≤ 0 يُزال السطر.
+  void setProductQuantity(int productId, int quantity) {
+    if (quantity <= 0) {
+      removeProduct(productId);
+      return;
+    }
+    final i = items.indexWhere((e) => e.productId == productId);
+    if (i < 0) return;
+    final next = [...items];
+    next[i] = next[i].copyWith(quantity: quantity);
+    items.assignAll(next);
+    _recalculateCount();
+  }
+
+  void removeProduct(int productId) {
+    items.removeWhere((e) => e.productId == productId);
+    if (items.isEmpty) {
+      vendorId.value = null;
+    }
+    _recalculateCount();
+  }
+
+  double get itemsSubtotal =>
+      items.fold<double>(0, (sum, e) => sum + e.lineTotal);
+
   Future<void> persistCurrentCart() async {
     final vId = vendorId.value;
     if (vId == null || items.isEmpty) return;
@@ -41,8 +66,9 @@ class AppCartService extends GetxService {
   }
 
   /// Restores the saved cart into memory if present.
+  /// [forVendorId] when set, restores only if the snapshot matches that vendor.
   /// Returns true if a saved cart was restored.
-  Future<bool> restoreSavedCartIfAny() async {
+  Future<bool> restoreSavedCartIfAny({int? forVendorId}) async {
     final prefs = await SharedPreferences.getInstance();
     final hasSaved = prefs.getBool(_hasSavedCartKey) ?? false;
     if (!hasSaved) return false;
@@ -54,6 +80,8 @@ class AppCartService extends GetxService {
     final vId = (decoded['vendorId'] as num?)?.toInt();
     final itemsRaw = decoded['items'];
     if (vId == null || itemsRaw is! List) return false;
+
+    if (forVendorId != null && vId != forVendorId) return false;
 
     final restoredItems = itemsRaw
         .whereType<Map>()

@@ -28,7 +28,7 @@ void installGlobalErrorHandling() {
       debugPrint('[ErrorWidget] ${details.exceptionAsString()}');
     }
     return Material(
-      color: Colors.white,
+      color: const Color(0xFF121212),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -38,7 +38,7 @@ void installGlobalErrorHandling() {
             style: const TextStyle(
               fontSize: 15,
               height: 1.4,
-              color: Color(0xFF1A2B48),
+              color: Color(0xFFE8E8E8),
               fontWeight: FontWeight.w600,
             ),
           ),

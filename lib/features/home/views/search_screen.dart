@@ -12,6 +12,7 @@ import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
+import 'package:najiz_go_express/features/home/widgets/vendor_order_status.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key, this.token});
@@ -158,14 +159,28 @@ class _SearchScreenState extends State<SearchScreen> {
       await _repository.clearSearchHistory(token: token);
       if (!mounted) return;
       setState(() => _history = const []);
+      final cs = Theme.of(context).colorScheme;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم مسح سجل البحث')),
+        SnackBar(
+          backgroundColor: cs.surface,
+          content: Text(
+            'تم مسح سجل البحث',
+            style: TextStyle(color: cs.onSurface),
+          ),
+        ),
       );
       await _loadMeta();
     } catch (e) {
       if (!mounted) return;
+      final cs = Theme.of(context).colorScheme;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر مسح السجل: $e')),
+        SnackBar(
+          backgroundColor: cs.surface,
+          content: Text(
+            'تعذر مسح السجل: $e',
+            style: TextStyle(color: cs.onSurface),
+          ),
+        ),
       );
     }
   }
@@ -179,8 +194,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 3,
         onTap: (index) => MainBottomNav.onTap(
@@ -202,18 +217,18 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF9AA8BC)),
+                  Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: cs.onSurfaceVariant),
                   const SizedBox(width: 2),
                   Text(
                     _locationLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF6C7E99)),
+                  Icon(Icons.location_on_rounded, size: 13, color: cs.onSurfaceVariant),
                 ],
               ),
             ),
@@ -227,10 +242,11 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSearchBar() {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F4F8),
+        color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(22),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -238,7 +254,7 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           IconButton(
             onPressed: () => Get.back(),
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF607086)),
+            icon: Icon(Icons.close_rounded, color: cs.onSurfaceVariant),
             splashRadius: 20,
           ),
           Expanded(
@@ -269,7 +285,7 @@ class _SearchScreenState extends State<SearchScreen> {
               icon: const Icon(Icons.clear_rounded, size: 20),
             )
           else
-            const Icon(Icons.search_rounded, color: Color(0xFF6E7E95)),
+            Icon(Icons.search_rounded, color: cs.onSurfaceVariant),
         ],
       ),
     );
@@ -326,6 +342,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSuggestions() {
+    final cs = Theme.of(context).colorScheme;
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       itemCount: _suggestions.length,
@@ -333,7 +350,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final suggestion = _suggestions[index];
         return ListTile(
           dense: true,
-          leading: const Icon(Icons.search_rounded, color: Color(0xFF7A8BA3)),
+          leading: Icon(Icons.search_rounded, color: cs.onSurfaceVariant),
           title: Text(suggestion),
           onTap: () {
             _searchController.text = suggestion;
@@ -345,6 +362,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildDiscovery() {
+    final cs = Theme.of(context).colorScheme;
     final filteredPreSearch = _filteredPreSearchVendors(_preSearchVendors);
     return RefreshIndicator(
       onRefresh: _loadMeta,
@@ -357,10 +375,10 @@ class _SearchScreenState extends State<SearchScreen> {
             _buildPreSearchIconFilters(),
             if (_preSearchActiveFilter == null && _preSearchCuisineFilter == null) ...[
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'اختر فلتر لعرض النتائج',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: cs.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -368,9 +386,9 @@ class _SearchScreenState extends State<SearchScreen> {
             ] else ...[
               const SizedBox(height: 8),
               if (filteredPreSearch.isEmpty)
-                const Text(
+                Text(
                   'لا توجد نتائج لهذا الفلتر حالياً',
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: cs.onSurfaceVariant),
                 )
               else
                 ...filteredPreSearch
@@ -380,19 +398,19 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 14),
           ],
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'الأكثر بحثاً من قبل المستخدمين',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
             ),
           ),
           const SizedBox(height: 10),
           if (_trending.isEmpty)
-            const Text(
+            Text(
               'لا توجد بيانات حالياً',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurfaceVariant),
             )
           else
             Wrap(
@@ -413,13 +431,13 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'بحثت مسبقاً عن',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: cs.onSurface,
                   ),
                 ),
               ),
@@ -435,14 +453,14 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 8),
           if (_isGuest)
-            const Text(
+            Text(
               'سجل البحث يظهر بعد تسجيل الدخول',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurfaceVariant),
             )
           else if (_history.isEmpty)
-            const Text(
+            Text(
               'لا يوجد سجل بحث',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurfaceVariant),
             )
           else
             Wrap(
@@ -524,14 +542,15 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildResults() {
     final results = _results!;
     final sortedVendors = _sortedVendors(results.vendors);
+    final cs = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
       children: [
         const SizedBox(height: 2),
         Text(
           'تم العثور على ${results.totalResults} نتيجة',
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: cs.onSurface,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -539,26 +558,26 @@ class _SearchScreenState extends State<SearchScreen> {
         _buildSortFilters(hasVendorResults: sortedVendors.isNotEmpty),
         const SizedBox(height: 12),
         if (results.products.isNotEmpty) ...[
-          const Text(
+          Text(
             'المنتجات',
-            style: TextStyle(fontWeight: FontWeight.w700),
+            style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
           ),
           const SizedBox(height: 8),
           ...results.products.map((p) => _ProductRow(item: p, token: _activeToken)),
           const SizedBox(height: 12),
         ],
         if (sortedVendors.isNotEmpty) ...[
-          const Text(
+          Text(
             'المطاعم والمتاجر',
-            style: TextStyle(fontWeight: FontWeight.w700),
+            style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
           ),
           const SizedBox(height: 8),
           ...sortedVendors.map((v) => _VendorRow(item: v, token: _activeToken)),
         ],
         if (results.products.isEmpty && results.vendors.isEmpty)
-          const Text(
+          Text(
             'لا توجد نتائج مطابقة',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: cs.onSurfaceVariant),
           ),
       ],
     );
@@ -694,6 +713,7 @@ class _TopTabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 14),
       child: InkWell(
@@ -712,7 +732,7 @@ class _TopTabItem extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? AppColors.primary : AppColors.textPrimary,
+              color: selected ? AppColors.primary : cs.onSurface,
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),
@@ -731,20 +751,21 @@ class _KeywordChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F4F8),
+          color: cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: AppColors.textPrimary,
+            color: cs.onSurface,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -766,6 +787,7 @@ class _SortPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 8),
       child: InkWell(
@@ -774,10 +796,12 @@ class _SortPill extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFF3E8) : Colors.white,
+            color: selected
+                ? AppColors.primary.withValues(alpha: 0.14)
+                : cs.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE3E8F0),
+              color: selected ? AppColors.primary : cs.outlineVariant,
             ),
           ),
           child: Text(
@@ -785,7 +809,7 @@ class _SortPill extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected ? AppColors.primary : cs.onSurfaceVariant,
             ),
           ),
         ),
@@ -809,6 +833,7 @@ class _IconToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: 8),
       child: InkWell(
@@ -817,10 +842,10 @@ class _IconToggleChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : const Color(0xFFF1F4F8),
+            color: selected ? AppColors.primary : cs.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE3E8F0),
+              color: selected ? AppColors.primary : cs.outlineVariant,
             ),
           ),
           child: Row(
@@ -829,7 +854,7 @@ class _IconToggleChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 14,
-                color: selected ? Colors.white : const Color(0xFF90A0B5),
+                color: selected ? Colors.white : cs.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
               Text(
@@ -837,7 +862,7 @@ class _IconToggleChip extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : const Color(0xFF7A8BA3),
+                  color: selected ? Colors.white : cs.onSurfaceVariant,
                 ),
               ),
             ],
@@ -856,21 +881,29 @@ class _ProductRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final accent = Color.alphaBlend(
+      const Color(0x26FF8A00),
+      cs.surfaceContainerHigh,
+    );
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6EDE7),
+        color: accent,
         borderRadius: BorderRadius.circular(14),
       ),
       child: ListTile(
         dense: true,
         minVerticalPadding: 8,
-        leading: const Icon(Icons.fastfood_rounded, color: Color(0xFF624B3F)),
-        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+        leading: Icon(Icons.fastfood_rounded, color: cs.onSurfaceVariant),
+        title: Text(
+          item.name,
+          style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
+        ),
         subtitle: Text(
           '${item.price.toStringAsFixed(0)} ل.س',
-          style: const TextStyle(
-            color: Color(0xFF7A6052),
+          style: TextStyle(
+            color: cs.onSurfaceVariant,
             fontWeight: FontWeight.w600,
             fontSize: 12,
           ),
@@ -882,7 +915,7 @@ class _ProductRow extends StatelessWidget {
               width: 80,
               child: Text(
                 item.vendorName ?? '',
-                style: const TextStyle(color: Color(0xFF7A6052), fontSize: 11),
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.end,
               ),
@@ -920,6 +953,7 @@ class _VendorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () {
         Get.to(
@@ -935,9 +969,9 @@ class _VendorRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE6EBF2)),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Row(
           children: [
@@ -961,16 +995,16 @@ class _VendorRow extends StatelessWidget {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     item.type == 'restaurant' ? 'مطعم' : 'متجر',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 11,
                     ),
                   ),
@@ -980,7 +1014,7 @@ class _VendorRow extends StatelessWidget {
             Text(
               item.isOpened ? 'مفتوح' : 'مغلق',
               style: TextStyle(
-                color: item.isOpened ? const Color(0xFF0A8F48) : AppColors.textSecondary,
+                color: item.isOpened ? const Color(0xFF0A8F48) : cs.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
                 fontSize: 11,
               ),
@@ -1008,6 +1042,7 @@ class _PreSearchVendorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () {
         Get.to(
@@ -1023,9 +1058,9 @@ class _PreSearchVendorRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE6EBF2)),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Row(
           children: [
@@ -1049,20 +1084,28 @@ class _PreSearchVendorRow extends StatelessWidget {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    item.isOpened ? 'متصل' : 'غير متصل',
-                    style: TextStyle(
-                      color: item.isOpened ? const Color(0xFF0A8F48) : AppColors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                  if (VendorOrderStatus.normalized(item.vendorStatus) != null)
+                    VendorOrderStatusPill(
+                      vendorStatus: item.vendorStatus,
+                      isActive: item.isActive,
+                    )
+                  else
+                    Text(
+                      item.isOpened ? 'متصل' : 'غير متصل',
+                      style: TextStyle(
+                        color: item.isOpened
+                            ? const Color(0xFF0A8F48)
+                            : cs.onSurfaceVariant,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -1072,9 +1115,10 @@ class _PreSearchVendorRow extends StatelessWidget {
                   const Icon(Icons.star_rounded, size: 14, color: AppColors.primary),
                   Text(
                     item.rating!.toStringAsFixed(1),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
                     ),
                   ),
                 ],

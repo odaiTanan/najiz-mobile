@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:najiz_go_express/core/services/order_websocket_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
@@ -317,15 +320,29 @@ class TransportOrderTrackingController extends GetxController {
     _lastTimeoutPopupAt = now;
     if (Get.isDialogOpen == true) return;
 
-    Get.defaultDialog(
-      title: 'انقطاع الاتصال',
-      middleText: 'انقطعت مهلة الاتصال بالخادم، أعد المحاولة',
-      textCancel: 'إغلاق',
-      textConfirm: 'إعادة المحاولة',
-      onConfirm: () {
-        Get.back();
-        _pollOrderState(force: true);
-      },
+    final ctx = Get.context;
+    if (ctx == null) return;
+    AppPopupDialog.show<void>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        backgroundColor: Theme.of(c).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('انقطاع الاتصال'),
+        content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: const Text('إغلاق'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(c).pop();
+              _pollOrderState(force: true);
+            },
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -362,7 +379,7 @@ class TransportOrderTrackingController extends GetxController {
     // 1) Notify when ride starts.
     if (!didNotifyTripStarted.value && isTripInProgress) {
       didNotifyTripStarted.value = true;
-      Get.snackbar(
+      AppSnackbar.show(
         'بدأت الرحلة',
         'تم الانطلاق، يمكنك متابعة المسار حتى الوجهة',
         snackPosition: SnackPosition.BOTTOM,
@@ -381,7 +398,7 @@ class TransportOrderTrackingController extends GetxController {
         );
         if (meters <= 80) {
           didNotifyDriverArrived.value = true;
-          Get.snackbar(
+          AppSnackbar.show(
             'وصل السائق',
             'السائق وصل إلى نقطة الالتقاط',
             snackPosition: SnackPosition.BOTTOM,

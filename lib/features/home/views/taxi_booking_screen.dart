@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
@@ -21,13 +23,14 @@ class TaxiBookingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final controller = Get.put(
       TaxiBookingController(token: token),
       tag: 'taxi-booking',
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F7),
+      backgroundColor: cs.surfaceContainerLowest,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 0,
         serviceText: 'تكسي',
@@ -110,9 +113,9 @@ class TaxiBookingScreen extends StatelessWidget {
                 ),
               ),
               Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
                 ),
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                 child: Column(
@@ -122,19 +125,19 @@ class TaxiBookingScreen extends StatelessWidget {
                       width: 54,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE3E6EB),
+                        color: cs.outlineVariant,
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'اختر الرحلة',
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 24,
-                          color: AppColors.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                     ),
@@ -147,26 +150,33 @@ class TaxiBookingScreen extends StatelessWidget {
                     else if (controller.errorMessage.value != null)
                       Text(
                         controller.errorMessage.value!,
-                        style: const TextStyle(color: AppColors.error),
+                        style: TextStyle(color: cs.error),
                       )
                     else if (pricing == null || pricing.categories.isEmpty)
-                      const Text(
+                      Text(
                         'لا توجد فئات تاكسي متاحة',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: cs.onSurfaceVariant),
                       )
                     else
-                      ...pricing.categories.map(
-                        (category) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _TaxiCategoryCard(
-                            category: category,
-                            selected:
-                                controller.selectedCategoryId.value ==
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: pricing.categories.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 12),
+                          itemBuilder: (_, index) {
+                            final category = pricing.categories[index];
+                            return _TaxiCategoryCard(
+                              category: category,
+                              selected:
+                                  controller.selectedCategoryId.value ==
+                                  category.vehicleCategory.id,
+                              onTap: () => controller.selectCategory(
                                 category.vehicleCategory.id,
-                            onTap: () => controller.selectCategory(
-                              category.vehicleCategory.id,
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     const SizedBox(height: 4),
@@ -174,9 +184,9 @@ class TaxiBookingScreen extends StatelessWidget {
                       () => Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: cs.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: cs.outlineVariant),
                         ),
                         child: Row(
                           children: [
@@ -184,7 +194,7 @@ class TaxiBookingScreen extends StatelessWidget {
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFF3E8),
+                                color: cs.primaryContainer,
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -199,8 +209,8 @@ class TaxiBookingScreen extends StatelessWidget {
                                 controller.appliedCouponCode.value == null
                                     ? 'أضف كوبون لرحلتك'
                                     : 'الكوبون: ${controller.appliedCouponCode.value}',
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                                style: TextStyle(
+                                  color: cs.onSurface,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -219,7 +229,7 @@ class TaxiBookingScreen extends StatelessWidget {
                                 try {
                                   await controller.applyCoupon(selected);
                                 } on HomeApiException catch (e) {
-                                  Get.snackbar('خطأ', e.message);
+                                  AppSnackbar.show('خطأ', e.message);
                                 }
                               },
                               child: const Text('أضف كوبون'),
@@ -234,17 +244,17 @@ class TaxiBookingScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Row(
+                    Row(
                       children: [
                         Icon(
                           Icons.payments_outlined,
-                          color: AppColors.textSecondary,
+                          color: cs.onSurfaceVariant,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           'الدفع: نقداً',
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: cs.onSurface,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -273,8 +283,8 @@ class TaxiBookingScreen extends StatelessWidget {
                             const Spacer(),
                             Text(
                               'الإجمالي بعد الخصم: \$${discountedPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
+                              style: TextStyle(
+                                color: cs.onSurface,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -332,9 +342,9 @@ class TaxiBookingScreen extends StatelessWidget {
                                       },
                                     );
                                   } on HomeApiException catch (e) {
-                                    Get.snackbar('خطأ', e.message);
+                                    AppSnackbar.show('خطأ', e.message);
                                   } catch (e) {
-                                    Get.snackbar(
+                                    AppSnackbar.show(
                                       'خطأ',
                                       'فشل تأكيد طلب التاكسي: $e',
                                     );
@@ -391,13 +401,14 @@ Future<void> _showLocationActionSheet({
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (sheetContext) {
+      final sheetCs = Theme.of(sheetContext).colorScheme;
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: sheetCs.surface,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               boxShadow: const [
                 BoxShadow(
@@ -416,7 +427,7 @@ Future<void> _showLocationActionSheet({
                     width: 52,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: AppColors.inputBorder,
+                      color: sheetCs.outlineVariant,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -424,10 +435,10 @@ Future<void> _showLocationActionSheet({
                 const SizedBox(height: 14),
                 Text(
                   targetName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
-                    color: AppColors.textPrimary,
+                    color: sheetCs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -478,15 +489,16 @@ class _SheetActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.inputBorder),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Row(
           children: [
@@ -494,7 +506,7 @@ class _SheetActionTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E8),
+                color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: AppColors.primary),
@@ -506,27 +518,27 @@ class _SheetActionTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios_rounded,
               size: 16,
-              color: AppColors.textSecondary,
+              color: cs.onSurfaceVariant,
             ),
           ],
         ),
@@ -540,7 +552,7 @@ Future<void> _showSearchLocationDialog({
   required TaxiBookingController controller,
   required bool asPickup,
 }) async {
-  await showDialog<void>(
+  await AppPopupDialog.show<void>(
     context: context,
     builder: (_) =>
         _TaxiSearchLocationDialog(controller: controller, asPickup: asPickup),
@@ -585,7 +597,7 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
     if (_isSubmitting) return;
     final query = _textController.text.trim();
     if (query.isEmpty) {
-      Get.snackbar(
+      AppSnackbar.show(
         'تنبيه',
         'اكتب اسم المنطقة أو الشارع أولًا',
         snackPosition: SnackPosition.BOTTOM,
@@ -600,14 +612,14 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
         Navigator.of(context, rootNavigator: true).pop();
       }
       final targetName = widget.asPickup ? 'موقع الانطلاق' : 'الوجهة';
-      Get.snackbar(
+      AppSnackbar.show(
         'تم تحديد $targetName',
         'تم العثور على الموقع وتثبيته بنجاح',
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
       );
     } else {
-      Get.snackbar(
+      AppSnackbar.show(
         'خطأ',
         widget.controller.errorMessage.value ?? 'تعذر العثور على الموقع',
         snackPosition: SnackPosition.BOTTOM,
@@ -673,14 +685,14 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
     if (success) {
       Navigator.of(context, rootNavigator: true).pop();
       final targetName = widget.asPickup ? 'موقع الانطلاق' : 'الوجهة';
-      Get.snackbar(
+      AppSnackbar.show(
         'تم تحديد $targetName',
         'تم العثور على الموقع وتثبيته بنجاح',
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
       );
     } else {
-      Get.snackbar(
+      AppSnackbar.show(
         'خطأ',
         widget.controller.errorMessage.value ?? 'تعذر العثور على الموقع',
         snackPosition: SnackPosition.BOTTOM,
@@ -694,8 +706,10 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: cs.surface,
+      surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
@@ -712,7 +726,7 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E8),
+                    color: cs.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.search, color: AppColors.primary),
@@ -721,10 +735,10 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                 Expanded(
                   child: Text(
                     widget.asPickup ? 'ابحث عن موقع الانطلاق' : 'ابحث عن الوجهة',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
@@ -740,14 +754,14 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                 hintText: 'اكتب اسم المنطقة أو الشارع',
                 prefixIcon: const Icon(Icons.location_on_outlined),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cs.surfaceContainerHigh,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 14,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.inputBorder),
+                  borderSide: BorderSide(color: cs.outlineVariant),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -772,8 +786,8 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                   shrinkWrap: true,
                   itemCount: _suggestions.length,
                   separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: AppColors.inputBorder),
-                  itemBuilder: (context, index) {
+                      Divider(height: 1, color: cs.outlineVariant),
+                  itemBuilder: (listContext, index) {
                     final suggestion = _suggestions[index];
                     final detailText = suggestion.secondaryText.isNotEmpty
                         ? suggestion.secondaryText
@@ -786,25 +800,25 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                         horizontal: 4,
                         vertical: 2,
                       ),
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.location_on_outlined,
-                        color: AppColors.textSecondary,
+                        color: cs.onSurfaceVariant,
                       ),
                       title: Text(
                         suggestion.primaryText,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                       subtitle: Text(
                         detailText,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
                           fontSize: 12,
                         ),
                       ),
@@ -812,8 +826,8 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                           ? null
                           : Text(
                               '${distanceKm.toStringAsFixed(distanceKm >= 10 ? 0 : 1)} كم',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: cs.onSurfaceVariant,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -834,7 +848,7 @@ class _TaxiSearchLocationDialogState extends State<_TaxiSearchLocationDialog> {
                       onPressed: _isSubmitting ? null : () => Get.back(),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(46),
-                        side: const BorderSide(color: AppColors.inputBorder),
+                        side: BorderSide(color: cs.outlineVariant),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -952,6 +966,7 @@ class _OpenStreetMapState extends State<_OpenStreetMap> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final mapCenter = LatLng(widget.pickupLat, widget.pickupLng);
     final markers = <Marker>{
       Marker(
@@ -980,7 +995,7 @@ class _OpenStreetMapState extends State<_OpenStreetMap> {
             LatLng(widget.dropoffLat!, widget.dropoffLng!),
           ],
           width: 4,
-          color: const Color(0xFF64748B),
+          color: cs.outline,
         ),
     };
 
@@ -1023,17 +1038,18 @@ class _OpenStreetMapState extends State<_OpenStreetMap> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.95),
+              color: cs.surface.withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: Text(
               widget.selectingPickup
                   ? 'اختر نقطة الانطلاق بالضغط على الخريطة'
                   : 'اختر الوجهة بالضغط على الخريطة',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
           ),
@@ -1058,16 +1074,17 @@ class _LocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? AppColors.primary : const Color(0xFFE3E6EB),
+            color: selected ? AppColors.primary : cs.outlineVariant,
             width: selected ? 1.4 : 1,
           ),
         ),
@@ -1077,7 +1094,7 @@ class _LocationCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E8),
+                color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.location_on, color: AppColors.primary),
@@ -1089,26 +1106,26 @@ class _LocationCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: AppColors.textSecondary,
+              color: cs.onSurfaceVariant,
             ),
           ],
         ),
@@ -1149,27 +1166,30 @@ class _MapSearchCardState extends State<_MapSearchCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E8EE)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _textController,
+              style: TextStyle(color: cs.onSurface),
               onSubmitted: (value) => widget.controller.searchAndSelectLocation(
                 query: value,
                 asPickup: widget.asPickup,
               ),
               decoration: InputDecoration(
                 hintText: widget.hint,
+                hintStyle: TextStyle(color: cs.onSurfaceVariant),
                 border: InputBorder.none,
                 isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 20),
+                prefixIcon: Icon(Icons.search, size: 20, color: cs.onSurfaceVariant),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
             ),
@@ -1206,6 +1226,7 @@ class _TaxiCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final mins = (category.pricing.distanceKm * 1.5 + 2).round();
 
     return InkWell(
@@ -1214,10 +1235,10 @@ class _TaxiCategoryCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppColors.primary : const Color(0xFFE6EAF0),
+            color: selected ? AppColors.primary : cs.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -1227,12 +1248,12 @@ class _TaxiCategoryCard extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: cs.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_taxi_outlined,
-                color: Color(0xFF64748B),
+                color: cs.onSurfaceVariant,
                 size: 20,
               ),
             ),
@@ -1243,17 +1264,17 @@ class _TaxiCategoryCard extends StatelessWidget {
                 children: [
                   Text(
                     category.vehicleCategory.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '$mins دقيقة • ${category.pricing.distanceKm.toStringAsFixed(2)} كم',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 10,
                     ),
                   ),
@@ -1262,10 +1283,10 @@ class _TaxiCategoryCard extends StatelessWidget {
             ),
             Text(
               '\$${category.pricing.estimatedPrice.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
           ],
@@ -1283,6 +1304,7 @@ class _CircleAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -1290,10 +1312,11 @@ class _CircleAction extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.outlineVariant),
         ),
-        child: Icon(icon, color: AppColors.textPrimary),
+        child: Icon(icon, color: cs.onSurface),
       ),
     );
   }
@@ -1307,7 +1330,7 @@ void _showFindingDriverPopup({
   required String initialDispatchStatus,
   required VoidCallback onTrackNow,
 }) {
-  showDialog<void>(
+  AppPopupDialog.show<void>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _FindingDriverDialog(
@@ -1481,7 +1504,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
         _isAssigned = true;
         if (mounted) {
           setState(() {});
-          Get.snackbar(
+          AppSnackbar.show(
             'تم تعيين السائق',
             'تم قبول طلبك من قبل السائق',
             snackPosition: SnackPosition.BOTTOM,
@@ -1518,19 +1541,21 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     }
     _lastTimeoutPopupAt = now;
 
-    await showDialog<void>(
+    await AppPopupDialog.show<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
         title: const Text('انقطاع الاتصال'),
         content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+          OutlinedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('إغلاق'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               _pollOnce(force: true);
             },
             child: const Text('إعادة المحاولة'),
@@ -1588,7 +1613,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
       );
       if (!mounted) return;
       Get.back();
-      Get.snackbar(
+      AppSnackbar.show(
         'تم الإلغاء',
         'تم إلغاء طلب التاكسي بنجاح',
         snackPosition: SnackPosition.BOTTOM,
@@ -1596,10 +1621,10 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
       );
     } on HomeApiException catch (e) {
       if (!mounted) return;
-      Get.snackbar('خطأ', e.message, snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show('خطأ', e.message, snackPosition: SnackPosition.BOTTOM);
     } catch (_) {
       if (!mounted) return;
-      Get.snackbar(
+      AppSnackbar.show(
         'خطأ',
         'تعذر إلغاء الطلب حالياً',
         snackPosition: SnackPosition.BOTTOM,
@@ -1611,9 +1636,10 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: cs.surface,
+      surfaceTintColor: Colors.transparent,
       contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       content: SizedBox(
@@ -1626,13 +1652,19 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
               height: 82,
               decoration: BoxDecoration(
                 color: _isAssigned
-                    ? const Color(0xFFE9F9EE)
-                    : const Color(0xFFFFF7ED),
+                    ? Color.alphaBlend(
+                        const Color(0xFF16A34A).withValues(alpha: 0.18),
+                        cs.surface,
+                      )
+                    : Color.alphaBlend(
+                        AppColors.primary.withValues(alpha: 0.14),
+                        cs.surface,
+                      ),
                 borderRadius: BorderRadius.circular(26),
                 border: Border.all(
                   color: _isAssigned
                       ? const Color(0xFFBBF7D0)
-                      : const Color(0xFFFCD9B6),
+                      : AppColors.primary.withValues(alpha: 0.45),
                 ),
               ),
               child: _isAssigned
@@ -1663,10 +1695,10 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
             const SizedBox(height: 14),
             Text(
               _isAssigned ? 'تم تعيين السائق' : 'جاري البحث عن سائق',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 20,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1676,8 +1708,8 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
                   ? 'تم قبول طلبك، يمكنك متابعة الرحلة الآن'
                   : 'تم إنشاء طلب التاكسي بنجاح',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
                 fontSize: 16,
               ),
             ),
@@ -1687,19 +1719,20 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE8ECF2)),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
                 child: Column(
                   children: [
-                    _driverInfoRow('اسم السائق', _driverName ?? 'غير متاح'),
+                    _driverInfoRow(cs, 'اسم السائق', _driverName ?? 'غير متاح'),
                     _driverInfoRow(
+                      cs,
                       'نوع المركبة',
                       _driverVehicleType ?? 'غير متاح',
                     ),
-                    _driverInfoRow('اللوحة', _driverPlate ?? 'غير متاح'),
-                    _driverInfoRow('التقييم', _driverRating ?? 'غير متاح'),
+                    _driverInfoRow(cs, 'اللوحة', _driverPlate ?? 'غير متاح'),
+                    _driverInfoRow(cs, 'التقييم', _driverRating ?? 'غير متاح'),
                   ],
                 ),
               ),
@@ -1711,8 +1744,9 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
                   child: OutlinedButton(
                     onPressed: _isAssigned || _isCancelling ? null : _cancelOrder,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: Color(0xFFD6DCE5)),
+                      foregroundColor: AppColors.primary,
+                      backgroundColor: cs.surface,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -1725,14 +1759,14 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: _isAssigned
                         ? () {
                             Get.back();
                             widget.onTrackNow();
                           }
                         : null,
-                    style: ElevatedButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
@@ -1750,7 +1784,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     );
   }
 
-  Widget _driverInfoRow(String label, String value) {
+  Widget _driverInfoRow(ColorScheme cs, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -1759,8 +1793,8 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
             width: 90,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),
@@ -1769,8 +1803,8 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: cs.onSurface,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1823,13 +1857,13 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
 
   void _submit() {
     if (_selectedReason == null) {
-      Get.snackbar('تنبيه', 'يرجى تحديد سبب الإلغاء');
+      AppSnackbar.show('تنبيه', 'يرجى تحديد سبب الإلغاء');
       return;
     }
     final customReason = _customReasonController.text.trim();
     final reason = _isCustomReason ? customReason : _selectedReason!;
     if (reason.isEmpty) {
-      Get.snackbar('تنبيه', 'يرجى كتابة سبب الإلغاء');
+      AppSnackbar.show('تنبيه', 'يرجى كتابة سبب الإلغاء');
       return;
     }
     Navigator.of(context).pop(reason);
@@ -1837,6 +1871,7 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
       child: Padding(
@@ -1847,9 +1882,10 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
         ),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+            border: Border.all(color: cs.outlineVariant),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1860,18 +1896,18 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
                   width: 54,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE3E7EF),
+                    color: cs.outlineVariant,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'حدد سببك للإلغاء',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 12),
@@ -1890,18 +1926,21 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
                       border: Border.all(
                         color: _selectedReason == reason
                             ? AppColors.primary
-                            : const Color(0xFFE2E8F0),
+                            : cs.outlineVariant,
                       ),
                       color: _selectedReason == reason
-                          ? const Color(0xFFFFF3E8)
-                          : Colors.white,
+                          ? cs.primaryContainer
+                          : cs.surface,
                     ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
                             reason,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurface,
+                            ),
                           ),
                         ),
                         Icon(
@@ -1911,7 +1950,7 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
                           size: 20,
                           color: _selectedReason == reason
                               ? AppColors.primary
-                              : const Color(0xFF94A3B8),
+                              : cs.onSurfaceVariant,
                         ),
                       ],
                     ),
@@ -1922,11 +1961,13 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
                 TextField(
                   controller: _customReasonController,
                   maxLines: 2,
+                  style: TextStyle(color: cs.onSurface),
                   decoration: InputDecoration(
                     hintText: 'السبب',
+                    hintStyle: TextStyle(color: cs.onSurfaceVariant),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.inputBorder),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -1946,7 +1987,9 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(46),
-                        side: const BorderSide(color: Color(0xFFD8DFEA)),
+                        foregroundColor: AppColors.primary,
+                        backgroundColor: cs.surface,
+                        side: const BorderSide(color: AppColors.primary, width: 1.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -1956,9 +1999,9 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: ElevatedButton(
+                    child: FilledButton(
                       onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
+                      style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(46),

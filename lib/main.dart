@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/errors/global_error_hooks.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/constants/app_strings.dart';
 import 'package:najiz_go_express/core/localization/app_translations.dart';
+import 'package:najiz_go_express/core/services/theme_controller.dart';
+import 'package:najiz_go_express/core/theme/app_theme.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/core/services/no_internet_gate_controller.dart';
+import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
 import 'package:najiz_go_express/core/services/favorites_controller.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
@@ -23,6 +26,9 @@ Future<void> main() async {
   await authStateManager.initialize(initialToken: token);
   Get.put(FavoritesController(), permanent: true);
   Get.put(AppCartService(), permanent: true);
+  Get.put(ThemeController(), permanent: true);
+  await Get.find<ThemeController>().hydrate();
+  Get.put(NoInternetGateController(), permanent: true);
   final pushService = Get.put(PushNotificationService(), permanent: true);
   await pushService.initialize(token: token);
   Get.put(LoginController());
@@ -36,61 +42,75 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: AppStrings.appName,
-      debugShowCheckedModeBanner: false,
-      translations: AppTranslations.instance,
-      locale: initialLocaleCode == 'en'
-          ? const Locale('en', 'US')
-          : const Locale('ar', 'SA'),
-      fallbackLocale: const Locale('ar', 'SA'),
-      supportedLocales: const [
-        Locale('ar', 'SA'),
-        Locale('ar'),
-        Locale('en', 'US'),
-        Locale('en'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      builder: (context, child) {
-        final localeCode = Localizations.localeOf(context).languageCode;
-        final media = MediaQuery.of(context);
-        return MediaQuery(
-          data: media.copyWith(textScaler: const TextScaler.linear(0.88)),
-          child: Directionality(
-            textDirection: localeCode == 'ar'
-                ? TextDirection.rtl
-                : TextDirection.ltr,
-            child: child ?? const SizedBox.shrink(),
-          ),
-        );
-      },
-      theme: ThemeData(
-        fontFamily: 'Cairo',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          secondary: AppColors.primaryLight,
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: AppColors.background,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.textPrimary,
-          elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryDark,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        useMaterial3: true,
+    final themeController = Get.find<ThemeController>();
+    return Obx(
+      () => GetMaterialApp(
+        title: AppStrings.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: themeController.materialThemeMode,
+        translations: AppTranslations.instance,
+        locale: initialLocaleCode == 'en'
+            ? const Locale('en', 'US')
+            : const Locale('ar', 'SA'),
+        fallbackLocale: const Locale('ar', 'SA'),
+        supportedLocales: const [
+          Locale('ar', 'SA'),
+          Locale('ar'),
+          Locale('en', 'US'),
+          Locale('en'),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        builder: (context, child) {
+          final localeCode = Localizations.localeOf(context).languageCode;
+          final media = MediaQuery.of(context);
+          final gate = Get.find<NoInternetGateController>();
+          final wrapped = MediaQuery(
+            data: media.copyWith(textScaler: const TextScaler.linear(0.88)),
+            child: SafeArea(
+              child: Directionality(
+                textDirection: localeCode == 'ar'
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
+          );
+          return Obx(() {
+            if (!gate.active.value) return wrapped;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFFFFFFF),
+                        Color(0xFFFFF8F0),
+                        Color(0xFFFFF0E0),
+                      ],
+                      stops: [0.0, 0.45, 1.0],
+                    ),
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+                NoInternetScreen(
+                  onRetry: () => gate.invokeUserRetry(),
+                  onRetrySucceeded: gate.dismiss,
+                ),
+              ],
+            );
+          });
+        },
+        home: const SplashScreen(),
       ),
-      home: const SplashScreen(),
     );
   }
 }

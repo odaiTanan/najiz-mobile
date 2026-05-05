@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
@@ -744,7 +745,7 @@ class PushNotificationService extends GetxService {
     );
 
     if (showSnack) {
-      Get.snackbar(
+      AppSnackbar.show(
         title,
         body,
         snackPosition: SnackPosition.TOP,

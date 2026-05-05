@@ -8,6 +8,12 @@
     "error": "خطأ",
     "delete": "حذف"
   },
+  "offline": {
+    "title": "لا يوجد اتصال بالإنترنت",
+    "subtitle": "تحقق من الاتصال ثم اضغط إعادة المحاولة",
+    "retry": "إعادة المحاولة",
+    "stillOffline": "لا يتوفر إنترنت حالياً، حاول مرة أخرى"
+  },
   "favorites": {
     "title": "المفضلة",
     "tabRestaurants": "المطاعم",
@@ -53,6 +59,8 @@
     "copyCode": "نسخ الرمز",
     "copiedReferralCode": "تم نسخ كود الإحالة @code",
     "accountSettings": "إعدادات الحساب",
+    "darkMode": "الوضع الداكن",
+    "darkModeSubtitle": "تقليل الإضاءة في الواجهات",
     "addresses": "عناويني",
     "addAddress": "أضف عنوان التوصيل",
     "paymentMethods": "طرق الدفع",
@@ -68,7 +76,18 @@
     "loggingOut": "جار تسجيل الخروج...",
     "logoutTitle": "تسجيل الخروج",
     "logoutConfirmMessage": "هل أنت متأكد من تسجيل الخروج من الحساب؟",
-    "logoutSuccess": "تم تسجيل الخروج بنجاح"
+    "logoutSuccess": "تم تسجيل الخروج بنجاح",
+    "settingsMenuSection": "المعلومات والقانونية",
+    "faqTitle": "الأسئلة الشائعة",
+    "faqSubtitle": "إجابات جاهزة عن الخدمة والطلبات",
+    "aboutUsTitle": "من نحن",
+    "aboutUsSubtitle": "تعرّف على ناجز غو",
+    "privacyTitle": "سياسة الخصوصية",
+    "privacySubtitle": "كيف نستخدم ونحمي بياناتك",
+    "pageLoadError": "تعذر تحميل الصفحة",
+    "pageEmptyContent": "لا يوجد محتوى حالياً.",
+    "pageLastUpdated": "آخر تحديث: @date",
+    "faqEmpty": "لا توجد أسئلة شائعة حالياً."
   },
   "home": {
     "guestBrowsing": "أنت تتصفح كضيف",
@@ -98,7 +117,8 @@
     "foodStepPreparing": "بدء التحضير",
     "foodStepDriverAssigned": "تم تعيين سائق",
     "foodStepOnWay": "في الطريق",
-    "foodStepDelivered": "تم التوصيل"
+    "foodStepDelivered": "تم التوصيل",
+    "waitingForNetworkHint": "لا يوجد اتصال بالإنترنت. جارٍ المحاولة… سيُحمّل المحتوى تلقائياً عند عودة الاتصال."
   },
   "services": {
     "stores": "متاجر",
@@ -126,11 +146,16 @@
     "dishes": "الأطباق",
     "noProducts": "لا توجد منتجات",
     "viewCart": "عرض السلة",
+    "continueToCheckout": "متابعة الطلب",
     "vendorUnitRestaurant": "المطعم",
     "vendorUnitStore": "المتجر",
     "vendorStatusAvailable": "@unit متاح لاستقبال الطلبات الآن",
     "vendorStatusBusy": "@unit مزدحم حالياً، حاول بعد قليل",
-    "vendorStatusNotAccepting": "@unit لا يستقبل طلبات حالياً"
+    "vendorStatusNotAccepting": "@unit لا يستقبل طلبات حالياً",
+    "vendorOrderStatusShortAvailable": "متاح",
+    "vendorOrderStatusShortBusy": "مشغول",
+    "vendorOrderStatusShortNotAccepting": "لا يقبل الطلبات",
+    "vendorCannotAddOrders": "المطعم مشغول أو لا يقبل طلبات حالياً ولا يمكن الإضافة للسلة"
   },
   "notifications": {
     "title": "الإشعارات",

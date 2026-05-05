@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 
@@ -59,11 +58,12 @@ class _HomeOfferBannerState extends State<HomeOfferBanner> {
   @override
   Widget build(BuildContext context) {
     if (widget.offers.isEmpty) {
+      final cs = Theme.of(context).colorScheme;
       return Container(
         height: 144,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          color: const Color(0xFF2F6D72),
+          color: cs.primary,
         ),
         padding: const EdgeInsets.all(16),
         child: const Column(
@@ -184,13 +184,13 @@ class _OfferSlide extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Text(
+                    child: Text(
                       'اطلب الآن',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),

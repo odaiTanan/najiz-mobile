@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
 import 'package:najiz_go_express/core/errors/error_sanitizer.dart';
@@ -32,7 +33,7 @@ class UserFeedback {
       Get.closeAllSnackbars();
     }
     if (Get.key.currentContext != null || Get.overlayContext != null) {
-      Get.snackbar(title, msg, snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(title, msg, snackPosition: SnackPosition.BOTTOM);
     }
   }
 

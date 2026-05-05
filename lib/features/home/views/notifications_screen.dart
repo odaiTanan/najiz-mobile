@@ -10,12 +10,11 @@ class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(NotificationsController(), tag: 'notifications');
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('notifications.title'.tr),
         centerTitle: true,
-        backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
           TextButton(
@@ -35,7 +34,7 @@ class NotificationsScreen extends StatelessWidget {
           return Center(
             child: Text(
               'notifications.empty'.tr,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurfaceVariant),
             ),
           );
         }
@@ -64,6 +63,15 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final unreadBg = Color.alphaBlend(
+      AppColors.primary.withValues(alpha: 0.12),
+      cs.surface,
+    );
+    final iconUnreadBg = Color.alphaBlend(
+      AppColors.primary.withValues(alpha: 0.18),
+      cs.surface,
+    );
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -72,12 +80,12 @@ class _NotificationTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: item.isRead ? Colors.white : const Color(0xFFFFF8EF),
+            color: item.isRead ? cs.surface : unreadBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: item.isRead
-                  ? const Color(0xFFE7ECF3)
-                  : const Color(0xFFFFDEB8),
+                  ? cs.outlineVariant
+                  : AppColors.primary.withValues(alpha: 0.35),
             ),
           ),
           child: Row(
@@ -88,15 +96,13 @@ class _NotificationTile extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: item.isRead
-                      ? const Color(0xFFF2F4F7)
-                      : const Color(0xFFFFEBD6),
+                      ? cs.surfaceContainerHighest
+                      : iconUnreadBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.notifications_active_outlined,
-                  color: item.isRead
-                      ? AppColors.textSecondary
-                      : AppColors.primary,
+                  color: item.isRead ? cs.onSurfaceVariant : AppColors.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -106,8 +112,8 @@ class _NotificationTile extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: cs.onSurface,
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                       ),
@@ -115,16 +121,16 @@ class _NotificationTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       item.body,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
                         fontSize: 12,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       _formatDate(item.createdAt),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
                         fontSize: 10,
                       ),
                     ),

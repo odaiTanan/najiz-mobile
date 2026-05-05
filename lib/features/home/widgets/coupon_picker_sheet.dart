@@ -12,14 +12,15 @@ Future<String?> showCouponPickerSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) {
-      final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    builder: (sheetContext) {
+      final cs = Theme.of(sheetContext).colorScheme;
+      final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
       return Padding(
         padding: EdgeInsets.only(bottom: bottomInset),
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: SafeArea(
@@ -33,18 +34,18 @@ Future<String?> showCouponPickerSheet({
                     width: 52,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE2E8F0),
+                      color: cs.outlineVariant,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'اختر كوبون',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -55,24 +56,24 @@ Future<String?> showCouponPickerSheet({
                     hintText: 'اكتب كود الكوبون',
                     prefixIcon: const Icon(Icons.local_offer_outlined),
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    fillColor: cs.surfaceContainerHigh,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                   ),
                 ),
                 if (coupons.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'كوبوناتك المتاحة',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -95,10 +96,10 @@ Future<String?> showCouponPickerSheet({
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
+                              color: cs.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFFE2E8F0),
+                                color: cs.outlineVariant,
                               ),
                             ),
                             child: Row(
@@ -111,9 +112,9 @@ Future<String?> showCouponPickerSheet({
                                 Expanded(
                                   child: Text(
                                     coupon.code,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
+                                      color: cs.onSurface,
                                     ),
                                   ),
                                 ),
@@ -138,7 +139,7 @@ Future<String?> showCouponPickerSheet({
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(
-                        context,
+                        sheetContext,
                       ).pop(inputController.text.trim().toUpperCase());
                     },
                     style: ElevatedButton.styleFrom(

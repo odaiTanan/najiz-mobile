@@ -25,9 +25,10 @@ class ResetPasswordScreen extends StatelessWidget {
         resetToken: resetToken,
       ),
     );
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surfaceContainerLowest,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -60,7 +61,7 @@ class ResetPasswordScreen extends StatelessWidget {
                         controller.isPasswordHidden.value
                             ? Icons.visibility
                             : Icons.visibility_off,
-                        color: Colors.grey,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -108,11 +109,14 @@ class ResetPasswordScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 120),
-                const Center(
+                Center(
                   child: Text.rich(
                     TextSpan(
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
-                      children: [
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 16,
+                      ),
+                      children: const [
                         TextSpan(text: 'هل تواجه مشكلة؟ '),
                         TextSpan(
                           text: 'تواصل مع دعم نجز جو',
@@ -129,7 +133,7 @@ class ResetPasswordScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 14),
                     child: Text(
                       err,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   );
                 }),

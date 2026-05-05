@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/core/services/theme_controller.dart';
 import 'package:najiz_go_express/features/auth/views/login_screen.dart';
 import 'package:najiz_go_express/features/auth/views/signup_screen.dart';
 import 'package:najiz_go_express/features/home/controllers/profile_controller.dart';
@@ -11,6 +14,7 @@ import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
 import 'package:najiz_go_express/features/home/views/profile_address_editor_screen.dart';
 import 'package:najiz_go_express/features/home/views/favorites_screen.dart';
 import 'package:najiz_go_express/features/home/views/referral_coupon_screen.dart';
+import 'package:najiz_go_express/features/home/views/profile_settings_screen.dart';
 import 'package:najiz_go_express/features/home/views/search_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
@@ -23,10 +27,11 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final auth = Get.find<AuthStateManager>();
     final controller = Get.put(ProfileController(), tag: 'profile-controller');
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 4,
         onTap: (index) =>
@@ -54,14 +59,23 @@ class ProfileScreen extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 18,
-                            color: AppColors.textPrimary,
+                            color: cs.onSurface,
                           ),
                         ),
                       ),
                     ),
                     IconButton(
-                      onPressed: () =>
-                          Get.snackbar('profile.settings'.tr, 'common.soon'.tr),
+                      onPressed: () {
+                        final currentToken = auth.token.value;
+                        Get.to(
+                          () => ProfileSettingsScreen(
+                            token: (currentToken != null &&
+                                    currentToken.trim().isNotEmpty)
+                                ? currentToken
+                                : null,
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.settings_outlined),
                     ),
                   ],
@@ -70,9 +84,9 @@ class ProfileScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cs.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE8ECF2)),
+                    border: Border.all(color: cs.outlineVariant),
                   ),
                   child: Column(
                     children: [
@@ -80,9 +94,9 @@ class ProfileScreen extends StatelessWidget {
                         width: 92,
                         height: 92,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F4F9),
+                          color: cs.surfaceContainerHigh,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFE3EAF3)),
+                          border: Border.all(color: cs.outlineVariant),
                         ),
                         padding: const EdgeInsets.all(10),
                         child: ClipOval(
@@ -97,10 +111,10 @@ class ProfileScreen extends StatelessWidget {
                         isGuest
                             ? 'profile.guest'.tr
                             : (profile?.name ?? 'profile.user'.tr),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 32,
-                          color: Color(0xFF1F2A37),
+                          color: cs.onSurface,
                         ),
                       ),
                       if (!isGuest) ...[
@@ -117,16 +131,16 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         profile?.email ?? 'profile.noEmail'.tr,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
                           fontSize: 15,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         profile?.phone ?? 'profile.noPhone'.tr,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
                           fontSize: 15,
                         ),
                       ),
@@ -162,26 +176,29 @@ class ProfileScreen extends StatelessWidget {
                 Container(
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cs.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE8ECF2)),
+                    border: Border.all(color: cs.outlineVariant),
                   ),
                   child: Column(
                     children: [
                       Container(
                         height: 140,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Color(0xFFEEF2F7), Color(0xFFDCE4EF)],
+                            colors: [
+                              cs.surfaceContainerHigh,
+                              cs.surfaceContainerLow,
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Icon(
                             Icons.group,
                             size: 72,
-                            color: Color(0xFF8FA3BF),
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -195,14 +212,14 @@ class ProfileScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 26,
-                                color: Color(0xFF1F2A37),
+                                color: cs.onSurface,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'profile.inviteSubtitle'.tr,
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: cs.onSurfaceVariant,
                                 fontSize: 16,
                               ),
                             ),
@@ -221,12 +238,14 @@ class ProfileScreen extends StatelessWidget {
                 Text(
                   'profile.accountSettings'.tr,
                   style: TextStyle(
-                    color: Color(0xFFA1ACC0),
+                    color: cs.onSurfaceVariant,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1,
                     fontSize: 12,
                   ),
                 ),
+                const SizedBox(height: 10),
+                _DarkModeProfileCard(),
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.location_on_outlined,
@@ -292,15 +311,6 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _ActionCard(
-                  icon: Icons.language,
-                  title: 'profile.language'.tr,
-                  subtitle: Get.locale?.languageCode == 'en'
-                      ? 'profile.english'.tr
-                      : 'profile.arabic'.tr,
-                  onTap: () => _openLanguageSheet(context),
-                ),
-                const SizedBox(height: 10),
-                _ActionCard(
                   icon: Icons.help_outline,
                   title: 'profile.support'.tr,
                   subtitle: 'profile.supportSubtitle'.tr,
@@ -323,19 +333,22 @@ class ProfileScreen extends StatelessWidget {
                       onPressed: controller.isLoggingOut.value
                           ? null
                           : () async {
-                              final confirmed = await showDialog<bool>(
+                              final confirmed = await AppPopupDialog.show<bool>(
                                 context: context,
                                 builder: (dialogContext) => AlertDialog(
+                                  backgroundColor:
+                                      Theme.of(dialogContext).colorScheme.surface,
+                                  surfaceTintColor: Colors.transparent,
                                   title: Text('profile.logoutTitle'.tr),
                                   content: Text('profile.logoutConfirmMessage'.tr),
                                   actions: [
-                                    TextButton(
+                                    OutlinedButton(
                                       onPressed: () => Navigator.of(
                                         dialogContext,
                                       ).pop(false),
                                       child: Text('common.cancel'.tr),
                                     ),
-                                    ElevatedButton(
+                                    FilledButton(
                                       onPressed: () =>
                                           Navigator.of(dialogContext).pop(true),
                                       child: Text('common.confirm'.tr),
@@ -346,7 +359,7 @@ class ProfileScreen extends StatelessWidget {
                               if (confirmed != true) return;
                               await controller.logout();
                               Get.offAll(() => const HomeScreen());
-                              Get.snackbar(
+                              AppSnackbar.show(
                                 'common.done'.tr,
                                 'profile.logoutSuccess'.tr,
                               );
@@ -393,12 +406,13 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Obx(() {
       if (isGuest) {
         return Text(
           'profile.referralGuestHint'.tr,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: cs.onSurfaceVariant,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -425,8 +439,8 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
       if (code.isEmpty) {
         return Text(
           'profile.referralLoadError'.tr,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: cs.onSurfaceVariant,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -445,16 +459,16 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: '${'profile.referralCodeLabel'.tr} ',
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
                         ),
                       ),
                       TextSpan(
                         text: code,
-                        style: const TextStyle(
-                          color: Color(0xFF1F2A37),
+                        style: TextStyle(
+                          color: cs.onSurface,
                           fontWeight: FontWeight.w900,
                           fontSize: 16,
                           letterSpacing: 0.6,
@@ -466,8 +480,8 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'profile.referralsCount'.trParams({'count': '$count'}),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: cs.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -479,7 +493,7 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: code));
-              Get.snackbar(
+              AppSnackbar.show(
                 'profile.inviteFriend'.tr,
                 'profile.copiedReferralCode'.trParams({'code': code}),
               );
@@ -493,6 +507,79 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
         ],
       );
     });
+  }
+}
+
+class _DarkModeProfileCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tc = Get.find<ThemeController>();
+    return Obx(
+      () {
+        final dark = tc.isDark.value;
+        return Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  dark ? Icons.dark_mode_rounded : Icons.light_mode_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'profile.darkMode'.tr,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'profile.darkModeSubtitle'.tr,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.62),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: dark,
+                activeTrackColor: AppColors.primary.withValues(alpha: 0.45),
+                thumbColor: WidgetStateProperty.resolveWith(
+                  (s) => s.contains(WidgetState.selected)
+                      ? AppColors.primary
+                      : null,
+                ),
+                onChanged: (v) => tc.setDark(v),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -511,15 +598,17 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color:
+              Theme.of(context).cardTheme.color ?? cs.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8ECF2)),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Row(
           children: [
@@ -527,7 +616,7 @@ class _ActionCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E8),
+                color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: AppColors.primary),
@@ -539,143 +628,27 @@ class _ActionCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.62),
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _openLanguageSheet(BuildContext context) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.white,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDCE3EE),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'profile.language'.tr,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'اختر اللغة المناسبة للتطبيق',
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _LanguageOptionTile(
-              label: 'profile.english'.tr,
-              selected: Get.locale?.languageCode == 'en',
-              onTap: () async {
-                await Get.updateLocale(const Locale('en', 'US'));
-                await ProfileController.persistLocale('en');
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            ),
-            const SizedBox(height: 10),
-            _LanguageOptionTile(
-              label: 'profile.arabic'.tr,
-              selected: Get.locale?.languageCode == 'ar',
-              onTap: () async {
-                await Get.updateLocale(const Locale('ar', 'SA'));
-                await ProfileController.persistLocale('ar');
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _LanguageOptionTile extends StatelessWidget {
-  const _LanguageOptionTile({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? AppColors.primary : const Color(0xFFE2E8F0),
-            width: selected ? 1.4 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ),
+            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
           ],
         ),
       ),

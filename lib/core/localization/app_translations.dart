@@ -22,9 +22,13 @@ class AppTranslations extends Translations {
     final arRaw = await rootBundle.loadString('assets/i18n/ar.json');
     final enRaw = await rootBundle.loadString('assets/i18n/en.json');
 
+    final arFlat = _flattenMap(jsonDecode(arRaw));
+    final enFlat = _flattenMap(jsonDecode(enRaw));
     _instance = AppTranslations._({
-      'ar_SA': _flattenMap(jsonDecode(arRaw)),
-      'en_US': _flattenMap(jsonDecode(enRaw)),
+      'ar_SA': arFlat,
+      'ar': arFlat,
+      'en_US': enFlat,
+      'en': enFlat,
     });
   }
 

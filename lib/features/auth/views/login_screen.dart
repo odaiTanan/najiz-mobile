@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/constants/app_strings.dart';
 import 'package:najiz_go_express/core/theme/text_styles.dart';
 import 'package:najiz_go_express/core/utils/validators.dart';
@@ -17,10 +16,11 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LoginController>();
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surfaceContainerLowest,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -57,7 +57,7 @@ class LoginScreen extends StatelessWidget {
                         controller.isPasswordHidden.value
                             ? Icons.visibility
                             : Icons.visibility_off,
-                        color: Colors.grey,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -85,7 +85,7 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       Text(
                         '${AppStrings.dontHaveAccount} ',
-                        style: const TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                       InkWell(
                         onTap: () => Get.to(() => const SignupScreen()),
@@ -101,7 +101,7 @@ class LoginScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 14),
                     child: Text(
                       err,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   );
                 }),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/core/utils/validators.dart';
@@ -89,7 +90,7 @@ class SignupController extends GetxController {
                 if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                   final mapped = ErrorMappers.mapSignupErrorMessage(raw);
                   errorMessage.value = mapped;
-                  Get.snackbar('خطأ', mapped);
+                  AppSnackbar.show('خطأ', mapped);
                   Get.back();
                 }
               }
@@ -102,7 +103,7 @@ class SignupController extends GetxController {
 
       final mapped = ErrorMappers.mapSignupErrorMessage(e.message);
       errorMessage.value = mapped;
-      Get.snackbar('خطأ', mapped);
+      AppSnackbar.show('خطأ', mapped);
     } on TimeoutException catch (_) {
       isLoading.value = false;
       await Get.dialog(
@@ -114,7 +115,7 @@ class SignupController extends GetxController {
               if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                 final mapped = ErrorMappers.mapSignupErrorMessage(raw);
                 errorMessage.value = mapped;
-                Get.snackbar('خطأ', mapped);
+                AppSnackbar.show('خطأ', mapped);
                 Get.back();
               }
             }
@@ -134,7 +135,7 @@ class SignupController extends GetxController {
               if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                 final mapped = ErrorMappers.mapSignupErrorMessage(raw);
                 errorMessage.value = mapped;
-                Get.snackbar('خطأ', mapped);
+                AppSnackbar.show('خطأ', mapped);
                 Get.back();
               }
             }
@@ -145,7 +146,7 @@ class SignupController extends GetxController {
       return;
     } catch (_) {
       errorMessage.value = 'خطأ في الشبكة';
-      Get.snackbar('خطأ', 'خطأ في الشبكة');
+      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
     } finally {
       isLoading.value = false;
     }

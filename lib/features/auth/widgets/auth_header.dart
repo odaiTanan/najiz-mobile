@@ -26,7 +26,7 @@ class AuthHeader extends StatelessWidget {
               height: 110,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.high,
-              errorBuilder: (_, __, ___) => const Center(
+              errorBuilder: (context, error, stackTrace) => const Center(
                 child: Icon(Icons.local_shipping, size: 40),
               ),
             ),

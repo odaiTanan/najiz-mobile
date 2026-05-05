@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
 import 'package:najiz_go_express/data/models/vendor_products_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 
@@ -25,7 +26,7 @@ class RestaurantVendorProductsController extends GetxController {
     load();
   }
 
-  Future<void> load() async {
+  Future<void> load({bool gateRetry = false}) async {
     errorMessage.value = null;
     isLoading.value = true;
     try {
@@ -35,9 +36,24 @@ class RestaurantVendorProductsController extends GetxController {
       );
       selectedCategoryId.value = null; // Default "All"
     } on HomeApiException catch (e) {
-      errorMessage.value = e.message;
-      vendorProducts.value = null;
+      if (gateRetry) {
+        rethrow;
+      }
+      if (e.isConnectivityIssue) {
+        showNoInternetGateIfNeeded(
+          e,
+          retry: () => load(gateRetry: true),
+        );
+        errorMessage.value = null;
+        vendorProducts.value = null;
+      } else {
+        errorMessage.value = e.message;
+        vendorProducts.value = null;
+      }
     } catch (_) {
+      if (gateRetry) {
+        rethrow;
+      }
       errorMessage.value = 'فشل تحميل المنيو';
       vendorProducts.value = null;
     } finally {

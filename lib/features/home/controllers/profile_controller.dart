@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
@@ -109,9 +110,9 @@ class ProfileController extends GetxController {
       );
       if (picked == null) return;
       await _saveAvatarPath(picked.path);
-      Get.snackbar('تم', 'تم تحديث الصورة الشخصية');
+      AppSnackbar.show('تم', 'تم تحديث الصورة الشخصية');
     } catch (_) {
-      Get.snackbar('تعذر تغيير الصورة', 'تأكد من السماح بالوصول للصور');
+      AppSnackbar.show('تعذر تغيير الصورة', 'تأكد من السماح بالوصول للصور');
     } finally {
       isUpdatingAvatar.value = false;
     }
@@ -122,9 +123,9 @@ class ProfileController extends GetxController {
     try {
       isUpdatingAvatar.value = true;
       await _saveAvatarPath(null);
-      Get.snackbar('تم', 'تم حذف الصورة الشخصية');
+      AppSnackbar.show('تم', 'تم حذف الصورة الشخصية');
     } catch (_) {
-      Get.snackbar('تعذر حذف الصورة', 'حاول مرة أخرى');
+      AppSnackbar.show('تعذر حذف الصورة', 'حاول مرة أخرى');
     } finally {
       isUpdatingAvatar.value = false;
     }

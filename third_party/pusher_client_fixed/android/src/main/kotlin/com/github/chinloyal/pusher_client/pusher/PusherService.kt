@@ -74,6 +74,9 @@ class PusherService : MChannel {
         })
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun mapArguments(call: MethodCall): Map<String, Any> = call.arguments as Map<String, Any>
+
     private fun init(call: MethodCall, result: Result) {
         // toString works because this is json encoded in dart
         val args = JSONObject(call.arguments.toString())
@@ -141,7 +144,7 @@ class PusherService : MChannel {
 
     private fun subscribe(call: MethodCall, result: Result) {
         try {
-            val src = call.arguments as Map<String, Any>
+            val src = mapArguments(call)
             val args = JSONObject(src)
             val channelName: String = args.getString("channelName")
 
@@ -178,7 +181,7 @@ class PusherService : MChannel {
 
     private fun unsubscribe(call: MethodCall, result: Result) {
         try {
-            val src = call.arguments as Map<String, Any>
+            val src = mapArguments(call)
             val args = JSONObject(src);
             val channelName = args.getString("channelName")
 
@@ -198,7 +201,7 @@ class PusherService : MChannel {
      */
     private fun bind(call: MethodCall, result: Result) {
         try {
-            val src = call.arguments as Map<String, Any>
+            val src = mapArguments(call)
             val args = JSONObject(src)
             val channelName: String = args.getString("channelName")
             val eventName: String = args.getString("eventName")
@@ -233,7 +236,7 @@ class PusherService : MChannel {
 
     private fun unbind(call: MethodCall, result: Result) {
         try {
-            val src = call.arguments as Map<String, Any>
+            val src = mapArguments(call)
             val args = JSONObject(src)
             val channelName: String = args.getString("channelName")
             val eventName: String = args.getString("eventName")

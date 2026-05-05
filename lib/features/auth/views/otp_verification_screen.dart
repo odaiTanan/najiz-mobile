@@ -47,6 +47,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final isForgot = widget.purpose == OtpPurpose.forgotPassword;
+    final cs = Theme.of(context).colorScheme;
 
     String formatUnit(int value) => value.toString().padLeft(2, '0');
 
@@ -57,7 +58,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         if (!didPop && mounted) Get.back();
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: cs.surfaceContainerLowest,
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
@@ -78,22 +79,22 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cs.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.inputBorder),
+                      border: Border.all(color: cs.outlineVariant),
                     ),
                     child: Column(
                       children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.arrow_back, size: 18),
-                          SizedBox(width: 10),
+                          Icon(Icons.arrow_back, size: 18, color: cs.onSurface),
+                          const SizedBox(width: 10),
                           Text(
                             'التحقق',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 24,
-                              color: AppColors.textPrimary,
+                              color: cs.onSurface,
                             ),
                           ),
                         ],
@@ -103,7 +104,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E8),
+                          color: cs.primaryContainer,
                           borderRadius: BorderRadius.circular(28),
                         ),
                         child: const Icon(
@@ -114,18 +115,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       const SizedBox(height: 16),
                       Text(
                         AppStrings.enterCode,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 22,
-                          color: AppColors.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى رقم الجوال أو البريد الإلكتروني للمتابعة',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: cs.onSurfaceVariant,
                           fontSize: 15,
                         ),
                       ),
@@ -180,21 +181,22 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                         horizontal: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: cs.surface,
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
                                           color: isCurrent
                                               ? AppColors.primary
-                                              : AppColors.inputBorder,
+                                              : cs.outlineVariant,
                                           width: isCurrent ? 1.4 : 1,
                                         ),
                                       ),
                                       alignment: Alignment.center,
                                       child: Text(
                                         char,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 22,
                                           fontWeight: FontWeight.w700,
+                                          color: cs.onSurface,
                                         ),
                                       ),
                                     );
@@ -212,9 +214,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         return Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _TimeBox(value: formatUnit(minutes), label: 'د'),
+                            _TimeBox(
+                              value: formatUnit(minutes),
+                              label: 'د',
+                              colorScheme: cs,
+                            ),
                             const SizedBox(width: 12),
-                            _TimeBox(value: formatUnit(seconds), label: 'ث'),
+                            _TimeBox(
+                              value: formatUnit(seconds),
+                              label: 'ث',
+                              colorScheme: cs,
+                            ),
                           ],
                         );
                       }),
@@ -223,9 +233,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         () => Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
+                            Text(
                               'لم يصلك الرمز؟ ',
-                              style: TextStyle(color: AppColors.textSecondary),
+                              style: TextStyle(color: cs.onSurfaceVariant),
                             ),
                             GestureDetector(
                               onTap: controller.remainingSeconds.value == 0
@@ -236,7 +246,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                 style: TextStyle(
                                   color: controller.remainingSeconds.value == 0
                                       ? AppColors.primary
-                                      : AppColors.textSecondary,
+                                      : cs.onSurfaceVariant,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -258,14 +268,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Center(
+                Center(
                   child: Text.rich(
                     TextSpan(
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: cs.onSurfaceVariant,
                         fontSize: 16,
                       ),
-                      children: [
+                      children: const [
                         TextSpan(text: 'هل تواجه مشكلة؟ '),
                         TextSpan(
                           text: 'تواصل مع الدعم',
@@ -282,7 +292,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     padding: const EdgeInsets.only(top: 14),
                     child: Text(
                       err,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   );
                 }),
@@ -299,8 +309,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 class _TimeBox extends StatelessWidget {
   final String value;
   final String label;
+  final ColorScheme colorScheme;
 
-  const _TimeBox({required this.value, required this.label});
+  const _TimeBox({
+    required this.value,
+    required this.label,
+    required this.colorScheme,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -310,24 +325,24 @@ class _TimeBox extends StatelessWidget {
           width: 58,
           height: 48,
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F5F8),
+            color: colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(14),
           ),
           alignment: Alignment.center,
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colorScheme.onSurface,
             ),
           ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: colorScheme.onSurfaceVariant,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),

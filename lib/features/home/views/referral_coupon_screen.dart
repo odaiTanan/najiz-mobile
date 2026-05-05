@@ -59,21 +59,27 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
     if (_referralCode.trim().isEmpty) return;
     await Clipboard.setData(ClipboardData(text: _referralCode));
     if (!mounted) return;
+    final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ رمز الإحالة')),
+      SnackBar(
+        backgroundColor: cs.surface,
+        content: Text(
+          'تم نسخ رمز الإحالة',
+          style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FB),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F8FB),
         elevation: 0,
-        title: const Text(
+        title: Text(
           'الإحالة والكوبونات',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800),
+          style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w800),
         ),
       ),
       body: _isLoading
@@ -93,9 +99,9 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cs.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE6EBF2)),
+                          border: Border.all(color: cs.outlineVariant),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +118,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFF3E8),
+                                color: AppColors.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
@@ -139,9 +145,13 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'الأشخاص الذين استخدموا كودك',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       if (_referrals.isEmpty)
@@ -155,14 +165,14 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: cs.surface,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFE6EBF2)),
+                              border: Border.all(color: cs.outlineVariant),
                             ),
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundColor: const Color(0xFFFFF3E8),
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.14),
                                   child: Text(
                                     item.referredName.isEmpty
                                         ? '?'
@@ -194,9 +204,13 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                           ),
                         ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         'كوبوناتي',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       if (_coupons.isEmpty)
@@ -210,9 +224,9 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: cs.surface,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFE6EBF2)),
+                              border: Border.all(color: cs.outlineVariant),
                             ),
                             child: Row(
                               children: [

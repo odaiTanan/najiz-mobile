@@ -19,6 +19,8 @@ import 'package:najiz_go_express/features/home/models/user_address.dart';
 import 'package:najiz_go_express/features/home/models/search_models.dart';
 import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
 import 'package:najiz_go_express/features/home/models/unavailability_option.dart';
+import 'package:najiz_go_express/features/home/models/cms_page_model.dart';
+import 'package:najiz_go_express/features/home/models/faq_item_model.dart';
 
 export 'package:najiz_go_express/core/errors/home_api_exception.dart';
 
@@ -66,6 +68,38 @@ class HomeRepository {
   Future<List<ServiceModel>> getServices({String? token}) async {
     final data = await _get(endpoint: '/our-services', token: token);
     return _asList(data['data']).map(ServiceModel.fromJson).toList();
+  }
+
+  /// GET /pages/{slug} — يعيد صفحة واحدة (مثل about-us، privacy-policy).
+  Future<CmsPage> getCmsPage({String? token, required String slug}) async {
+    final normalized = slug.trim().replaceAll(RegExp(r'^/+|/+$'), '');
+    if (normalized.isEmpty) {
+      throw HomeApiException('مسار الصفحة غير صالح');
+    }
+    final data = await _get(endpoint: '/pages/$normalized', token: token);
+    final inner = data['data'];
+    if (inner is Map<String, dynamic>) {
+      return CmsPage.fromJson(inner);
+    }
+    if (inner is Map) {
+      return CmsPage.fromJson(
+        inner.map((k, v) => MapEntry(k.toString(), v)),
+      );
+    }
+    throw HomeApiException('استجابة غير متوقعة من الخادم');
+  }
+
+  /// GET /pages/faq — قائمة الأسئلة الشائعة.
+  Future<List<FaqItem>> getFaqList({String? token}) async {
+    final data = await _get(endpoint: '/pages/faq', token: token);
+    final raw = data['data'];
+    if (raw is! List) return const [];
+    final list = raw
+        .whereType<Map>()
+        .map((e) => FaqItem.fromJson(e.map((k, v) => MapEntry(k.toString(), v))))
+        .toList();
+    list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return list;
   }
 
   Future<List<ClassificationModel>> getClassificationsByService({

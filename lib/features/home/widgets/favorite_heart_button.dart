@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
@@ -47,7 +48,7 @@ class FavoriteHeartButton extends StatelessWidget {
             await c.toggleProductWithToken(token, entityId);
           }
         } catch (_) {
-          Get.snackbar('common.error'.tr, 'favorites.toggleFailed'.tr);
+          AppSnackbar.show('common.error'.tr, 'favorites.toggleFailed'.tr);
         }
       },
     );

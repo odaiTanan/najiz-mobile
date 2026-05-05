@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/theme/theme_context.dart';
 
 class HomeHeaderSection extends StatelessWidget {
   final String? displayName;
@@ -19,6 +20,7 @@ class HomeHeaderSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final normalizedName = displayName?.trim() ?? '';
     final fallbackName = 'عميلنا';
     final shownName = normalizedName.isEmpty ? fallbackName : normalizedName;
@@ -35,9 +37,9 @@ class HomeHeaderSection extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF3E8),
+              color: cs.primaryContainer,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFF5E5D6)),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: const Icon(Icons.person, color: AppColors.primary, size: 18),
           ),
@@ -50,7 +52,7 @@ class HomeHeaderSection extends StatelessWidget {
               Text(
                 isGuest ? 'مرحباً بك' : 'أهلاً بعودتك',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: context.uiSubtext,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: .8,
@@ -60,7 +62,7 @@ class HomeHeaderSection extends StatelessWidget {
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.uiText,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -78,13 +80,13 @@ class HomeHeaderSection extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cs.surface,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFEDEDED)),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.notifications_none,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                   size: 19,
                 ),
               ),
@@ -104,7 +106,7 @@ class HomeHeaderSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white, width: 1.2),
+                      border: Border.all(color: cs.surface, width: 1.2),
                     ),
                     child: Text(
                       unreadNotifications > 99 ? '99+' : '$unreadNotifications',

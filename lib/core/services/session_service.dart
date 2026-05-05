@@ -11,6 +11,7 @@ class SessionService {
   static const _userAddressKey = 'user_address';
   static const _userAvatarPathKey = 'user_avatar_path';
   static const _localeCodeKey = 'locale_code';
+  static const _themeDarkKey = 'app_theme_dark';
 
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -93,5 +94,15 @@ class SessionService {
     final value = prefs.getString(_localeCodeKey)?.trim().toLowerCase();
     if (value == null || value.isEmpty) return null;
     return value;
+  }
+
+  static Future<void> saveThemeModeDark(bool dark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_themeDarkKey, dark);
+  }
+
+  static Future<bool> isDarkThemePreferred() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_themeDarkKey) ?? false;
   }
 }

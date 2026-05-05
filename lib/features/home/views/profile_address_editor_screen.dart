@@ -469,18 +469,19 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
 
   void _showSnack(String title, String message) {
     final isSuccess = title == 'تم';
+    final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
+        elevation: 2,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        backgroundColor: isSuccess ? Colors.white : const Color(0xFF2F2F2F),
+        backgroundColor: cs.surface,
         content: Text(
           message,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isSuccess ? AppColors.primary : Colors.white,
+            color: isSuccess ? AppColors.primary : cs.error,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -501,16 +502,17 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: cs.surfaceContainerLowest,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: cs.surfaceContainerLowest,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'تفاصيل العنوان الجديد',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: cs.onSurface,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -520,12 +522,12 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
           children: [
-            const Text(
+            Text(
               'اختر عنوان التوصيل',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
             const SizedBox(height: 10),
@@ -551,10 +553,10 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                         icon: const Icon(Icons.arrow_forward_rounded),
                       ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cs.surface,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFFE3E8F0)),
+                  borderSide: BorderSide(color: cs.outlineVariant),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -566,16 +568,16 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cs.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE3E8F0)),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _suggestions.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: Color(0xFFEFF3F8)),
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: cs.outlineVariant),
                   itemBuilder: (_, index) {
                     final suggestion = _suggestions[index];
                     return ListTile(
@@ -589,7 +591,10 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                         suggestion.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13.5),
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: cs.onSurface,
+                        ),
                       ),
                       onTap: () => _selectSuggestion(suggestion),
                     );
@@ -604,9 +609,9 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cs.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE3E8F0)),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
                 child: Row(
                   children: [
@@ -619,8 +624,8 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                             : 'اضغط لاختيار الموقع من الخريطة',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: cs.onSurface,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -724,15 +729,16 @@ class _LabeledField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: cs.onSurface,
           ),
         ),
         const SizedBox(height: 8),
@@ -743,11 +749,11 @@ class _LabeledField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: cs.surface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE3E8F0)),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
@@ -884,16 +890,17 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: cs.surfaceContainerLowest,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: cs.surfaceContainerLowest,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'اختر عنوان التوصيل',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: cs.onSurface,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -932,9 +939,9 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               children: [
@@ -943,8 +950,8 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: cs.onSurface,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

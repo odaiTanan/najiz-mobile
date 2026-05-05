@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/constants/app_error_messages.dart';
+import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
@@ -13,7 +17,7 @@ import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/user_order.dart';
 import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
 import 'package:najiz_go_express/features/home/views/order_tracking_screen.dart';
-import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
+import 'package:najiz_go_express/features/home/views/cart_screen.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_products_screen.dart';
 import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/home/views/shipping_screen.dart';
@@ -33,6 +37,8 @@ class HomeController extends GetxController {
   late final PushNotificationService _pushNotificationService;
 
   final isLoading = false.obs;
+  /// أثناء إعادة المحاولة بسبب الشبكة على الصفحة الرئيسية (شيمر + شريط تنبيه).
+  final homeWaitingNetwork = false.obs;
   final offers = <OfferModel>[].obs;
   final services = <ServiceModel>[].obs;
   final vendors = <VendorModel>[].obs;
@@ -43,6 +49,8 @@ class HomeController extends GetxController {
   final activeOrders = <UserOrder>[].obs;
   final displayName = ''.obs;
   final errorMessage = RxnString();
+
+  bool _homeOfflineSnackShown = false;
 
   bool get isGuest => _authStateManager.isGuest;
   String? get activeToken => _authStateManager.token.value ?? token;
@@ -97,34 +105,71 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<void> _fetchHomePayload({required bool propagateConnectivity}) async {
+    final loadedOffers = await _repository.getOffers(token: activeToken);
+    final loadedServices = await _repository.getServices(token: activeToken);
+
+    offers.assignAll(loadedOffers);
+    services.assignAll(loadedServices);
+
+    if (loadedServices.isNotEmpty) {
+      final initialServiceId = _pickDefaultRestaurantServiceId(
+        loadedServices,
+      );
+      restaurantServiceId.value = initialServiceId;
+      selectedServiceId.value = initialServiceId;
+      await loadVendorsByService(
+        initialServiceId,
+        propagateConnectivity: propagateConnectivity,
+      );
+    } else {
+      restaurantServiceId.value = null;
+      vendors.clear();
+    }
+    await _loadActiveOrders();
+  }
+
   Future<void> loadHomeData() async {
     errorMessage.value = null;
     isLoading.value = true;
+    homeWaitingNetwork.value = false;
+
     try {
-      final loadedOffers = await _repository.getOffers(token: activeToken);
-      final loadedServices = await _repository.getServices(token: activeToken);
-
-      offers.assignAll(loadedOffers);
-      services.assignAll(loadedServices);
-
-      if (loadedServices.isNotEmpty) {
-        final initialServiceId = _pickDefaultRestaurantServiceId(
-          loadedServices,
-        );
-        restaurantServiceId.value = initialServiceId;
-        selectedServiceId.value = initialServiceId;
-        await loadVendorsByService(initialServiceId);
-      } else {
-        restaurantServiceId.value = null;
-        vendors.clear();
+      while (!isClosed) {
+        try {
+          await _fetchHomePayload(propagateConnectivity: true);
+          errorMessage.value = null;
+          _homeOfflineSnackShown = false;
+          homeWaitingNetwork.value = false;
+          break;
+        } on HomeApiException catch (e) {
+          if (e.isConnectivityIssue) {
+            homeWaitingNetwork.value = true;
+            if (!_homeOfflineSnackShown) {
+              _homeOfflineSnackShown = true;
+              AppSnackbar.show(
+                'offline.title'.tr,
+                'home.waitingForNetworkHint'.tr,
+                duration: const Duration(seconds: 4),
+                icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
+              );
+            }
+            await Future<void>.delayed(const Duration(seconds: 2));
+            if (isClosed) return;
+            continue;
+          }
+          homeWaitingNetwork.value = false;
+          errorMessage.value = e.message;
+          break;
+        } catch (_) {
+          homeWaitingNetwork.value = false;
+          errorMessage.value =
+              'حدث خطأ غير متوقع أثناء تحميل بيانات الصفحة الرئيسية';
+          break;
+        }
       }
-      await _loadActiveOrders();
-    } on HomeApiException catch (e) {
-      errorMessage.value = e.message;
-    } catch (_) {
-      errorMessage.value =
-          'حدث خطأ غير متوقع أثناء تحميل بيانات الصفحة الرئيسية';
     } finally {
+      homeWaitingNetwork.value = false;
       isLoading.value = false;
     }
   }
@@ -144,17 +189,20 @@ class HomeController extends GetxController {
       // Show a snackbar once after app opens.
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
-          content: const Text('لديك سلة محفوظة'),
-          duration: const Duration(seconds: 6),
+          backgroundColor: Colors.white,
+          content: const Text(
+            'لديك سلة محفوظة',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+          ),
+          duration: const Duration(seconds: 0.5),
           action: SnackBarAction(
             label: '→',
+            textColor: AppColors.primary,
             onPressed: () {
               cart.consumeSavedCart();
               Get.to(
-                () => OrderCheckoutScreen(
+                () => CartScreen(
                   token: activeToken,
-                  vendorId: vendorId,
-                  items: items,
                   serviceId: selectedServiceId.value,
                 ),
               );
@@ -193,7 +241,10 @@ class HomeController extends GetxController {
     return status != 'delivered' && status != 'cancelled';
   }
 
-  Future<void> loadVendorsByService(int serviceId) async {
+  Future<void> loadVendorsByService(
+    int serviceId, {
+    bool propagateConnectivity = false,
+  }) async {
     selectedServiceId.value = serviceId;
     try {
       final loadedVendors = await _repository.getVendorsByService(
@@ -204,8 +255,21 @@ class HomeController extends GetxController {
       vendorActiveFilter.value = null;
       vendorCuisineFilter.value = null;
     } on HomeApiException catch (e) {
-      errorMessage.value = e.message;
       vendors.clear();
+      if (propagateConnectivity && e.isConnectivityIssue) {
+        rethrow;
+      }
+      if (e.isConnectivityIssue) {
+        errorMessage.value = AppErrorMessages.noInternet;
+        AppSnackbar.show(
+          'offline.title'.tr,
+          'home.waitingForNetworkHint'.tr,
+          duration: const Duration(seconds: 3),
+          icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
+        );
+      } else {
+        errorMessage.value = e.message;
+      }
     } catch (_) {
       errorMessage.value = 'فشل تحميل المطاعم';
       vendors.clear();
@@ -243,6 +307,44 @@ class HomeController extends GetxController {
         serviceId: selectedServiceId.value ?? vendor.serviceId,
       ),
     );
+  }
+
+  void onOfferTap(OfferModel offer) {
+    final serviceId = _resolveOfferServiceId(offer);
+    final vendorId = offer.vendor?.id ?? offer.vendorId;
+
+    if (serviceId == 5) {
+      Get.to(() => TaxiBookingScreen(token: activeToken));
+      return;
+    }
+
+    if (vendorId != null && vendorId > 0 && serviceId != 5) {
+      Get.to(
+        () => RestaurantVendorProductsScreen(
+          token: activeToken,
+          vendorId: vendorId,
+          serviceId: serviceId,
+        ),
+      );
+      return;
+    }
+
+    if (serviceId == 3) {
+      Get.to(() => RestaurantProductsScreen(token: activeToken, serviceId: 3));
+      return;
+    }
+
+    if (serviceId != null) {
+      Get.to(
+        () => RestaurantProductsScreen(token: activeToken, serviceId: serviceId),
+      );
+      return;
+    }
+
+    final orderedServices = services.toList(growable: false);
+    if (orderedServices.isNotEmpty) {
+      onServiceTap(orderedServices.first);
+    }
   }
 
   void openNotifications() {
@@ -324,6 +426,34 @@ class HomeController extends GetxController {
         name.contains('food') ||
         name.contains('مطاعم') ||
         service.id == 1;
+  }
+
+  int? _resolveOfferServiceId(OfferModel offer) {
+    final explicit = offer.serviceId ?? offer.vendor?.serviceId;
+    if (explicit != null) return explicit;
+
+    final hint = [
+      offer.serviceType,
+      offer.vendor?.type,
+      offer.name,
+      offer.vendor?.name,
+    ].whereType<String>().join(' ').toLowerCase();
+
+    if (hint.contains('taxi') || hint.contains('تكسي')) return 5;
+    if (hint.contains('store') ||
+        hint.contains('shop') ||
+        hint.contains('market') ||
+        hint.contains('متجر')) {
+      return 3;
+    }
+    if (hint.contains('restaurant') ||
+        hint.contains('food') ||
+        hint.contains('مطعم') ||
+        hint.contains('مطاعم')) {
+      return 1;
+    }
+
+    return null;
   }
 
   void toggleVendorActiveFilter(bool active) {

@@ -70,16 +70,20 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: cs.surfaceContainerLowest,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: cs.surface,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: cs.onSurface),
         title: Text(
           'support.title'.tr,
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: cs.onSurface,
+          ),
         ),
       ),
       body: Obx(() {
@@ -96,7 +100,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                   Text(
                     _controller.errorMessage.value!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.error),
+                    style: TextStyle(color: cs.error),
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
@@ -118,9 +122,14 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E8),
+                      color: cs.primaryContainer,
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFFFFD9B3)),
+                      border: Border.all(
+                        color: Color.alphaBlend(
+                          AppColors.primary.withValues(alpha: 0.35),
+                          cs.surface,
+                        ),
+                      ),
                     ),
                     child: const Icon(
                       Icons.support_agent_rounded,
@@ -137,9 +146,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                           _controller.supportAgentName.value,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: cs.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -162,8 +171,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE3EAF3)),
-                  color: Colors.white,
+                  border: Border.all(color: cs.outlineVariant),
+                  color: cs.surface,
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
@@ -197,7 +206,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.18),
+                              color: Colors.white.withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
@@ -215,10 +224,10 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFAFCFF),
+                          color: cs.surfaceContainerLowest,
                           border: Border(
                             top: BorderSide(
-                              color: const Color(0xFF16A34A).withOpacity(0.08),
+                              color: cs.outlineVariant,
                             ),
                           ),
                         ),
@@ -236,7 +245,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                     Text(
                                       'support.startConversation'.tr,
                                       style: TextStyle(
-                                        color: AppColors.textPrimary,
+                                        color: cs.onSurface,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -264,8 +273,15 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                       constraints: const BoxConstraints(maxWidth: 320),
                                       decoration: BoxDecoration(
                                         color: isMe
-                                            ? const Color(0xFFFFF3E8)
-                                            : const Color(0xFFECFDF3),
+                                            ? Color.alphaBlend(
+                                                AppColors.primary.withValues(alpha: 0.2),
+                                                cs.surface,
+                                              )
+                                            : Color.alphaBlend(
+                                                const Color(0xFF16A34A)
+                                                    .withValues(alpha: 0.16),
+                                                cs.surface,
+                                              ),
                                         borderRadius: BorderRadius.only(
                                           topLeft: const Radius.circular(12),
                                           topRight: const Radius.circular(12),
@@ -274,8 +290,15 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                         ),
                                         border: Border.all(
                                           color: isMe
-                                              ? const Color(0xFFFFD9B3)
-                                              : const Color(0xFFBFE9CE),
+                                              ? Color.alphaBlend(
+                                                  AppColors.primary.withValues(alpha: 0.45),
+                                                  cs.outlineVariant,
+                                                )
+                                              : Color.alphaBlend(
+                                                  const Color(0xFF16A34A)
+                                                      .withValues(alpha: 0.35),
+                                                  cs.outlineVariant,
+                                                ),
                                         ),
                                         boxShadow: const [
                                           BoxShadow(
@@ -302,8 +325,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                             ),
                                           Text(
                                             msg.message,
-                                            style: const TextStyle(
-                                              color: AppColors.textPrimary,
+                                            style: TextStyle(
+                                              color: cs.onSurface,
                                               height: 1.35,
                                               fontSize: 14,
                                             ),
@@ -314,9 +337,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                             children: [
                                               Text(
                                                 _formatTime(msg.createdAt),
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 10,
-                                                  color: Color(0xFF6B7280),
+                                                  color: cs.onSurfaceVariant,
                                                   fontWeight: FontWeight.w500,
                                                 ),
                                               ),
@@ -328,8 +351,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                                       : Icons.done_rounded,
                                                   size: 14,
                                                   color: msg.isReadByOthers
-                                                      ? const Color(0xFF3BA6F7)
-                                                      : const Color(0xFF9AA7BA),
+                                                      ? cs.primary
+                                                      : cs.onSurfaceVariant,
                                                 ),
                                               ],
                                             ],
@@ -346,10 +369,10 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                       top: false,
                       child: Container(
                         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        decoration: BoxDecoration(
+                          color: cs.surface,
                           border: Border(
-                            top: BorderSide(color: Color(0xFFE3EAF3)),
+                            top: BorderSide(color: cs.outlineVariant),
                           ),
                         ),
                         child: Row(
@@ -364,21 +387,21 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'support.messageHint'.tr,
                                   filled: true,
-                                  fillColor: const Color(0xFFF8FAFC),
+                                  fillColor: cs.surfaceContainerHigh,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: 10,
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(999),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE3EAF3),
+                                    borderSide: BorderSide(
+                                      color: cs.outlineVariant,
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(999),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE3EAF3),
+                                    borderSide: BorderSide(
+                                      color: cs.outlineVariant,
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(

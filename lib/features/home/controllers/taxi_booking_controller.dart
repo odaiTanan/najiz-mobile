@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -605,7 +606,7 @@ class TaxiBookingController extends GetxController {
     couponDiscount.value = _asDouble(data['discount']) ?? 0;
     appliedCouponCode.value = normalized;
     if (couponDiscount.value <= 0) {
-      Get.snackbar(
+      AppSnackbar.show(
         'تنبيه',
         'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
       );

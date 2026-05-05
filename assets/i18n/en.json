@@ -8,6 +8,12 @@
     "error": "Error",
     "delete": "Delete"
   },
+  "offline": {
+    "title": "No internet connection",
+    "subtitle": "Check your connection, then tap retry",
+    "retry": "Retry",
+    "stillOffline": "Still offline. Please try again."
+  },
   "favorites": {
     "title": "Favorites",
     "tabRestaurants": "Restaurants",
@@ -53,6 +59,8 @@
     "copyCode": "Copy code",
     "copiedReferralCode": "Referral code @code copied",
     "accountSettings": "Account settings",
+    "darkMode": "Dark mode",
+    "darkModeSubtitle": "Dim the interface for low light",
     "addresses": "My addresses",
     "addAddress": "Add delivery address",
     "paymentMethods": "Payment methods",
@@ -68,7 +76,18 @@
     "loggingOut": "Logging out...",
     "logoutTitle": "Log out",
     "logoutConfirmMessage": "Are you sure you want to log out?",
-    "logoutSuccess": "Logged out successfully"
+    "logoutSuccess": "Logged out successfully",
+    "settingsMenuSection": "Information & legal",
+    "faqTitle": "FAQ",
+    "faqSubtitle": "Answers about the service and orders",
+    "aboutUsTitle": "About us",
+    "aboutUsSubtitle": "Learn about Najiz Go",
+    "privacyTitle": "Privacy policy",
+    "privacySubtitle": "How we use and protect your data",
+    "pageLoadError": "Could not load this page",
+    "pageEmptyContent": "No content yet.",
+    "pageLastUpdated": "Last updated: @date",
+    "faqEmpty": "There are no FAQ items yet."
   },
   "home": {
     "guestBrowsing": "You are browsing as a guest",
@@ -98,7 +117,8 @@
     "foodStepPreparing": "Preparation started",
     "foodStepDriverAssigned": "Driver assigned",
     "foodStepOnWay": "On the way",
-    "foodStepDelivered": "Delivered"
+    "foodStepDelivered": "Delivered",
+    "waitingForNetworkHint": "No internet. Retrying… Content will load automatically when you're back online."
   },
   "services": {
     "stores": "Stores",
@@ -126,11 +146,16 @@
     "dishes": "Dishes",
     "noProducts": "No products",
     "viewCart": "View cart",
+    "continueToCheckout": "Continue to checkout",
     "vendorUnitRestaurant": "This restaurant",
     "vendorUnitStore": "This store",
     "vendorStatusAvailable": "@unit is accepting orders now",
     "vendorStatusBusy": "@unit is busy right now — try again shortly",
-    "vendorStatusNotAccepting": "@unit is not accepting orders right now"
+    "vendorStatusNotAccepting": "@unit is not accepting orders right now",
+    "vendorOrderStatusShortAvailable": "Available",
+    "vendorOrderStatusShortBusy": "Busy",
+    "vendorOrderStatusShortNotAccepting": "Not accepting",
+    "vendorCannotAddOrders": "This vendor is busy or not accepting orders; you cannot add items to the cart"
   },
   "notifications": {
     "title": "Notifications",

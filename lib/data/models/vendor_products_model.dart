@@ -36,6 +36,8 @@ class VendorProductsVendor {
   final String? description;
   final double? rating;
   final String? classificationName;
+  /// `available` | `busy` | `not_accepting` (same as list vendors API).
+  final String? vendorStatus;
 
   const VendorProductsVendor({
     required this.id,
@@ -45,9 +47,12 @@ class VendorProductsVendor {
     this.description,
     this.rating,
     this.classificationName,
+    this.vendorStatus,
   });
 
   factory VendorProductsVendor.fromJson(Map<String, dynamic> json) {
+    final statusRaw = json['vendor_status'] ?? json['vendorStatus'];
+    final statusStr = statusRaw?.toString().trim();
     return VendorProductsVendor(
       id: _asInt(json['id']),
       name: (json['name'] ?? '').toString(),
@@ -58,6 +63,8 @@ class VendorProductsVendor {
       classificationName: (json['classification'] is Map)
           ? (json['classification']['name']?.toString())
           : null,
+      vendorStatus:
+          (statusStr != null && statusStr.isNotEmpty) ? statusStr : null,
     );
   }
 }

@@ -23,6 +23,28 @@ class CheckoutCartItem {
       extras.fold<double>(0, (sum, item) => sum + item.lineTotal);
 
   double get lineTotal => ((unitPrice ?? 0) * quantity) + extrasTotal;
+
+  CheckoutCartItem copyWith({
+    int? productId,
+    String? name,
+    String? image,
+    String? description,
+    double? unitPrice,
+    int? quantity,
+    List<CheckoutCartExtraItem>? extras,
+    String? note,
+  }) {
+    return CheckoutCartItem(
+      productId: productId ?? this.productId,
+      name: name ?? this.name,
+      image: image ?? this.image,
+      description: description ?? this.description,
+      unitPrice: unitPrice ?? this.unitPrice,
+      quantity: quantity ?? this.quantity,
+      extras: extras ?? this.extras,
+      note: note ?? this.note,
+    );
+  }
 }
 
 class CheckoutCartExtraItem {

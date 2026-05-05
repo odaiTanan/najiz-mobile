@@ -13,9 +13,10 @@ class ForgotPasswordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ForgotPasswordController());
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surfaceContainerLowest,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -63,9 +64,12 @@ class ForgotPasswordScreen extends StatelessWidget {
                 const SizedBox(height: 120),
                 Center(
                   child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
-                      children: [
+                    text: TextSpan(
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 16,
+                      ),
+                      children: const [
                         TextSpan(text: 'هل تواجه مشكلة؟ '),
                         TextSpan(
                           text: 'تواصل مع الدعم',
@@ -82,7 +86,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 14),
                     child: Text(
                       err,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   );
                 }),

@@ -1,6 +1,8 @@
 class OfferModel {
   final int id;
   final int? vendorId;
+  final int? serviceId;
+  final String? serviceType;
   final String name;
   final String? image;
   final bool isActive;
@@ -10,6 +12,8 @@ class OfferModel {
     required this.id,
     required this.name,
     this.vendorId,
+    this.serviceId,
+    this.serviceType,
     this.image,
     this.isActive = false,
     this.vendor,
@@ -19,6 +23,8 @@ class OfferModel {
     return OfferModel(
       id: _asInt(json['id']),
       vendorId: _asNullableInt(json['vendor_id']),
+      serviceId: _asNullableInt(json['service_id']),
+      serviceType: json['service_type']?.toString() ?? json['type']?.toString(),
       name: (json['name'] ?? '').toString(),
       image: json['image']?.toString(),
       isActive: _asBool(json['is_active']),
@@ -31,6 +37,8 @@ class OfferModel {
 
 class OfferVendorModel {
   final int id;
+  final int? serviceId;
+  final String? type;
   final String name;
   final String? image;
   final String? logo;
@@ -39,6 +47,8 @@ class OfferVendorModel {
 
   const OfferVendorModel({
     required this.id,
+    this.serviceId,
+    this.type,
     required this.name,
     this.image,
     this.logo,
@@ -49,6 +59,8 @@ class OfferVendorModel {
   factory OfferVendorModel.fromJson(Map<String, dynamic> json) {
     return OfferVendorModel(
       id: _asInt(json['id']),
+      serviceId: _asNullableInt(json['service_id']),
+      type: json['type']?.toString(),
       name: (json['name'] ?? '').toString(),
       image: json['image']?.toString(),
       logo: json['logo']?.toString(),

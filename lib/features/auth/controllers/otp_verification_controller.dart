@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
@@ -75,14 +76,14 @@ class OtpVerificationController extends GetxController {
       final result = purpose == OtpPurpose.forgotPassword
           ? await _authRepository.forgotPassword(phone: phone)
           : await _authRepository.resendOtp(phone: phone);
-      Get.snackbar('رمز التحقق', result.message);
+      AppSnackbar.show('رمز التحقق', result.message);
       _startCountdown();
     } on AuthApiException catch (e) {
       errorMessage.value = e.message;
-      Get.snackbar('خطأ', e.message);
+      AppSnackbar.show('خطأ', e.message);
     } catch (_) {
       errorMessage.value = 'خطأ في الشبكة';
-      Get.snackbar('خطأ', 'خطأ في الشبكة');
+      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
     }
   }
 
@@ -128,10 +129,10 @@ class OtpVerificationController extends GetxController {
     } on AuthApiException catch (e) {
       final mapped = ErrorMappers.mapOtpErrorMessage(e.message);
       errorMessage.value = mapped;
-      Get.snackbar('خطأ', mapped);
+      AppSnackbar.show('خطأ', mapped);
     } catch (_) {
       errorMessage.value = 'خطأ في الشبكة';
-      Get.snackbar('خطأ', 'خطأ في الشبكة');
+      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
     } finally {
       isLoading.value = false;
     }

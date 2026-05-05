@@ -15,9 +15,10 @@ class SignupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(SignupController());
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surfaceContainerLowest,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -54,12 +55,12 @@ class SignupScreen extends StatelessWidget {
                   prefixIcon: const Icon(Icons.email_outlined),
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'رقم الجوال',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -72,14 +73,14 @@ class SignupScreen extends StatelessWidget {
                         readOnly: true,
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: cs.surface,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 14,
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.inputBorder),
+                            borderSide: BorderSide(color: cs.outlineVariant),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -101,14 +102,14 @@ class SignupScreen extends StatelessWidget {
                           hintText: '',
                           prefixIcon: const Icon(Icons.phone_iphone_outlined),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: cs.surface,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(color: AppColors.inputBorder),
+                            borderSide: BorderSide(color: cs.outlineVariant),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -135,7 +136,7 @@ class SignupScreen extends StatelessWidget {
                         controller.isPasswordHidden.value
                             ? Icons.visibility
                             : Icons.visibility_off,
-                        color: Colors.grey,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -180,7 +181,7 @@ class SignupScreen extends StatelessWidget {
                         controller.isConfirmPasswordHidden.value
                             ? Icons.visibility
                             : Icons.visibility_off,
-                        color: Colors.grey,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -206,9 +207,9 @@ class SignupScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'لديك حساب بالفعل؟ ',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                       InkWell(
                         onTap: () => Get.back(),
@@ -230,7 +231,7 @@ class SignupScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 14),
                     child: Text(
                       err,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   );
                 }),

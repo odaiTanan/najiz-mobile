@@ -16,21 +16,19 @@ class AllServicesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: AppColors.textPrimary,
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: cs.onSurface),
           onPressed: () => Get.back(),
         ),
         title: Text(
           'home.ourServices'.tr,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: cs.onSurface,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -40,7 +38,7 @@ class AllServicesScreen extends StatelessWidget {
             ? Center(
                 child: Text(
                   'home.noServices'.tr,
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: cs.onSurfaceVariant),
                 ),
               )
             : GridView.builder(
@@ -51,7 +49,6 @@ class AllServicesScreen extends StatelessWidget {
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 16,
-                  // Slightly smaller, balanced card size.
                   childAspectRatio: 0.82,
                 ),
                 itemBuilder: (_, index) {
@@ -61,7 +58,7 @@ class AllServicesScreen extends StatelessWidget {
                       final side = constraints.maxWidth;
                       return InkWell(
                         onTap: () => onServiceTap(service),
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -70,21 +67,21 @@ class AllServicesScreen extends StatelessWidget {
                               height: side,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: const Color(0xFFE5E7EB),
-                                    width: 1.2,
+                                    color: cs.outlineVariant,
+                                    width: 1,
                                   ),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Color(0x14000000),
-                                      blurRadius: 10,
-                                      offset: Offset(0, 4),
+                                      blurRadius: 7,
+                                      offset: Offset(0, 3),
                                     ),
                                   ],
                                 ),
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(10),
                                   child: NetworkImageWithFallback(
                                     url: service.icon,
                                     fit: BoxFit.cover,
@@ -92,15 +89,15 @@ class AllServicesScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 5),
                             Text(
                               service.name,
                               textAlign: TextAlign.center,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 15,
+                              style: TextStyle(
+                                color: cs.onSurface,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/utils/error_mappers.dart';
@@ -76,7 +77,7 @@ class LoginController extends GetxController {
                 if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                   final mapped = ErrorMappers.mapLoginErrorMessage(raw);
                   errorMessage.value = mapped;
-                  Get.snackbar('خطأ', mapped);
+                  AppSnackbar.show('خطأ', mapped);
                   Get.back();
                 }
               }
@@ -92,7 +93,7 @@ class LoginController extends GetxController {
       debugPrint(
         'Login API error: status=${e.statusCode}, message=${e.message}',
       );
-      Get.snackbar('خطأ', mapped);
+      AppSnackbar.show('خطأ', mapped);
     } on TimeoutException catch (e) {
       debugPrint('Login timeout: $e');
       isLoading.value = false;
@@ -105,7 +106,7 @@ class LoginController extends GetxController {
               if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                 final mapped = ErrorMappers.mapLoginErrorMessage(raw);
                 errorMessage.value = mapped;
-                Get.snackbar('خطأ', mapped);
+                AppSnackbar.show('خطأ', mapped);
                 Get.back();
               }
             }
@@ -126,7 +127,7 @@ class LoginController extends GetxController {
               if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                 final mapped = ErrorMappers.mapLoginErrorMessage(raw);
                 errorMessage.value = mapped;
-                Get.snackbar('خطأ', mapped);
+                AppSnackbar.show('خطأ', mapped);
                 Get.back();
               }
             }
@@ -138,7 +139,7 @@ class LoginController extends GetxController {
     } catch (e) {
       errorMessage.value = 'خطأ في الشبكة';
       debugPrint('Login unexpected error: $e');
-      Get.snackbar('خطأ', 'خطأ في الشبكة');
+      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
     } finally {
       isLoading.value = false;
     }
@@ -152,7 +153,7 @@ class LoginController extends GetxController {
 
     if (result.needsVerification) {
       errorMessage.value = result.message;
-      Get.snackbar('رمز التحقق', result.message);
+      AppSnackbar.show('رمز التحقق', result.message);
       Get.to(
         () => OtpVerificationScreen(
           purpose: OtpPurpose.login,
@@ -173,7 +174,7 @@ class LoginController extends GetxController {
     } else {
       await SessionService.saveUserIdentity(phone: fallbackPhone);
     }
-    Get.snackbar('تم بنجاح', result.message);
+    AppSnackbar.show('تم بنجاح', result.message);
     Get.offAll(() => HomeScreen(token: token));
   }
 

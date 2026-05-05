@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/data/models/vendor_products_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_vendor_products_controller.dart';
 import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
-import 'package:najiz_go_express/features/home/views/order_checkout_screen.dart';
+import 'package:najiz_go_express/features/home/views/cart_screen.dart';
 import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
+import 'package:najiz_go_express/features/home/widgets/vendor_order_status.dart';
 
 class RestaurantVendorProductsScreen extends StatefulWidget {
   final String? token;
@@ -33,6 +36,7 @@ class _RestaurantVendorProductsScreenState
   List<VendorProductItem> _latestProducts = const [];
   late final AppCartService _cartService;
   bool _hydratedFromSharedCart = false;
+  bool _vendorCartBootstrapDone = false;
 
   bool _hasCartForThisVendor() {
     return _cartService.vendorId.value == widget.vendorId &&
@@ -42,20 +46,22 @@ class _RestaurantVendorProductsScreenState
   Future<bool> _confirmLeaveCartIfNeeded() async {
     if (!_hasCartForThisVendor()) return true;
 
-    final shouldSave = await showDialog<bool>(
+    final shouldSave = await AppPopupDialog.show<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
         title: const Text('حفظ السلة؟'),
         content: const Text('هل تريد حفظ السلة'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('نعم'),
-          ),
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('لا'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('نعم'),
           ),
         ],
       ),
@@ -65,8 +71,8 @@ class _RestaurantVendorProductsScreenState
 
     if (shouldSave) {
       await _cartService.persistCurrentCart();
-      // Leave the cart view without showing items anymore.
-      _cartService.clear();
+      // Keep in-memory cart synced so both vendor and service-level cart
+      // badges update immediately after leaving this screen.
     } else {
       await _cartService.clearSavedCart();
     }
@@ -82,6 +88,31 @@ class _RestaurantVendorProductsScreenState
   void initState() {
     super.initState();
     _cartService = Get.find<AppCartService>();
+    if (_cartService.vendorId.value == widget.vendorId &&
+        _cartService.items.isNotEmpty) {
+      _vendorCartBootstrapDone = true;
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restoreSavedCartOnEnter();
+      });
+    }
+  }
+
+  Future<void> _restoreSavedCartOnEnter() async {
+    try {
+      final hasInMemoryForThisVendor =
+          _cartService.vendorId.value == widget.vendorId &&
+              _cartService.items.isNotEmpty;
+      if (!hasInMemoryForThisVendor) {
+        await _cartService.restoreSavedCartIfAny(
+          forVendorId: widget.vendorId,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _vendorCartBootstrapDone = true);
+      }
+    }
   }
 
   double _cartTotal(List<VendorProductItem> allProducts) {
@@ -104,10 +135,12 @@ class _RestaurantVendorProductsScreenState
   }
 
   void _hydrateFromSharedCartIfNeeded(List<VendorProductItem> allProducts) {
+    if (!_vendorCartBootstrapDone) return;
     if (_hydratedFromSharedCart) return;
-    _hydratedFromSharedCart = true;
+
     if (_cartService.vendorId.value != widget.vendorId ||
         _cartService.items.isEmpty) {
+      _hydratedFromSharedCart = true;
       return;
     }
 
@@ -116,6 +149,7 @@ class _RestaurantVendorProductsScreenState
       if (!validProducts.containsKey(item.productId)) continue;
       _cartItemsByProductId[item.productId] = item;
     }
+    _hydratedFromSharedCart = true;
   }
 
   void _syncSharedCart() {
@@ -125,6 +159,24 @@ class _RestaurantVendorProductsScreenState
       return;
     }
     _cartService.setCart(vendorId: widget.vendorId, items: items);
+  }
+
+  void _tryOpenProductCustomization(
+    VendorProductItem product,
+    bool canAcceptOrders,
+    String? vendorOrderStatus,
+  ) {
+    if (!canAcceptOrders) {
+      AppSnackbar.show(
+        'تنبيه',
+        VendorOrderStatus.cannotAddToCartMessage(
+          vendorOrderStatus,
+          isStore: widget.serviceId == 3,
+        ),
+      );
+      return;
+    }
+    _openProductCustomizationSheet(product);
   }
 
   Future<void> _openProductCustomizationSheet(VendorProductItem product) async {
@@ -158,31 +210,41 @@ class _RestaurantVendorProductsScreenState
       );
     });
     _syncSharedCart();
-    Get.snackbar('تمت الإضافة', '${product.name} أضيف إلى السلة');
+    AppSnackbar.show('تمت الإضافة', '${product.name} أضيف إلى السلة');
   }
 
-  void _openCheckout(List<VendorProductItem> allProducts) {
-    final checkoutItems = _buildCheckoutItems(allProducts);
-    if (checkoutItems.isEmpty) {
-      Get.snackbar(
+  void _applyServiceItemsToLocalMap() {
+    _cartItemsByProductId.clear();
+    if (_cartService.vendorId.value == widget.vendorId) {
+      for (final item in _cartService.items) {
+        _cartItemsByProductId[item.productId] = item;
+      }
+    }
+  }
+
+  Future<void> _openCartScreen() async {
+    _syncSharedCart();
+    if (!_cartService.hasItems ||
+        _cartService.vendorId.value != widget.vendorId) {
+      AppSnackbar.show(
         'services.cart'.tr,
         'services.emptyCart'.tr,
       );
       return;
     }
-    _cartService.setCart(vendorId: widget.vendorId, items: checkoutItems);
-    Get.to(
-      () => OrderCheckoutScreen(
+    await Get.to(
+      () => CartScreen(
         token: widget.token,
-        vendorId: widget.vendorId,
-        items: checkoutItems,
         serviceId: widget.serviceId,
       ),
     );
+    if (!mounted) return;
+    setState(_applyServiceItemsToLocalMap);
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final authHeaders = widget.token == null || widget.token!.trim().isEmpty
         ? <String, String>{}
         : <String, String>{'Authorization': 'Bearer ${widget.token}'};
@@ -198,7 +260,7 @@ class _RestaurantVendorProductsScreenState
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F6F6),
+        backgroundColor: cs.surfaceContainerLowest,
         body: SafeArea(
           child: Obx(() {
           if (controller.isLoading.value &&
@@ -213,7 +275,7 @@ class _RestaurantVendorProductsScreenState
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   controller.errorMessage.value!,
-                  style: const TextStyle(color: AppColors.error),
+                  style: TextStyle(color: cs.error),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -231,6 +293,15 @@ class _RestaurantVendorProductsScreenState
           final total = _cartTotal(data.products);
           _hydrateFromSharedCartIfNeeded(data.products);
 
+          final isStore = widget.serviceId == 3;
+          final vendorOrderStatus = data.vendor.vendorStatus;
+          final canAcceptOrders =
+              VendorOrderStatus.acceptsOrders(vendorOrderStatus);
+          final heroBlockingBanner = VendorOrderStatus.blockingBannerMessage(
+            vendorOrderStatus,
+            isStore: isStore,
+          );
+
           return Stack(
             children: [
               RefreshIndicator(
@@ -241,7 +312,7 @@ class _RestaurantVendorProductsScreenState
                     _TopBarTitle(
                       title: data.vendor.name,
                       onBack: () => Get.back(),
-                      onCartTap: () => _openCheckout(data.products),
+                      onCartTap: _openCartScreen,
                     ),
                     const SizedBox(height: 12),
                     _HeroImageCard(
@@ -250,7 +321,19 @@ class _RestaurantVendorProductsScreenState
                       title: data.vendor.name,
                       subtitle: data.vendor.description ?? '',
                       vendorId: widget.vendorId,
+                      blockingOverlayMessage: heroBlockingBanner,
                     ),
+                    if (VendorOrderStatus.normalized(vendorOrderStatus) !=
+                        null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: VendorOrderStatusPill(
+                          vendorStatus: vendorOrderStatus,
+                          isActive: true,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -286,10 +369,10 @@ class _RestaurantVendorProductsScreenState
                         child: Text(
                           'العروض',
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF1A2B48),
+                            color: cs.onSurface,
                             height: 1.1,
                           ),
                         ),
@@ -298,7 +381,12 @@ class _RestaurantVendorProductsScreenState
                       ...offerProducts.map(
                         (p) => _OfferProductCard(
                           product: p,
-                          onTap: () => _openProductCustomizationSheet(p),
+                          orderingEnabled: canAcceptOrders,
+                          onTap: () => _tryOpenProductCustomization(
+                            p,
+                            canAcceptOrders,
+                            vendorOrderStatus,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -312,10 +400,10 @@ class _RestaurantVendorProductsScreenState
                               controller.selectedCategoryId.value,
                         ),
                         textAlign: TextAlign.right,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1A2B48),
+                          color: cs.onSurface,
                           height: 1.1,
                         ),
                       ),
@@ -324,13 +412,18 @@ class _RestaurantVendorProductsScreenState
                     if (regularProducts.isEmpty)
                       Text(
                         'services.noProducts'.tr,
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: cs.onSurfaceVariant),
                       )
                     else
                       ...regularProducts.map(
                         (p) => _MenuProductTile(
                           product: p,
-                          onTap: () => _openProductCustomizationSheet(p),
+                          orderingEnabled: canAcceptOrders,
+                          onTap: () => _tryOpenProductCustomization(
+                            p,
+                            canAcceptOrders,
+                            vendorOrderStatus,
+                          ),
                         ),
                       ),
                   ],
@@ -343,7 +436,7 @@ class _RestaurantVendorProductsScreenState
                   bottom: 16,
                   child: _CartBar(
                     total: total,
-                    onTap: () => _openCheckout(data.products),
+                    onTap: _openCartScreen,
                   ),
                 ),
             ],
@@ -368,6 +461,7 @@ class _TopBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
         InkWell(
@@ -377,11 +471,11 @@ class _TopBarTitle extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFEDEDED)),
+              border: Border.all(color: cs.outlineVariant),
             ),
-            child: const Icon(Icons.arrow_back_ios_new, size: 18),
+            child: Icon(Icons.arrow_back_ios_new, size: 18, color: cs.onSurface),
           ),
         ),
         const SizedBox(width: 10),
@@ -391,10 +485,10 @@ class _TopBarTitle extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
             ),
           ),
         ),
@@ -408,11 +502,11 @@ class _TopBarTitle extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cs.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEDEDED)),
+                border: Border.all(color: cs.outlineVariant),
               ),
-              child: const Icon(Icons.shopping_cart_outlined, size: 20),
+              child: Icon(Icons.shopping_cart_outlined, size: 20, color: cs.onSurface),
             ),
           ),
         ),
@@ -427,6 +521,7 @@ class _HeroImageCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final int vendorId;
+  final String? blockingOverlayMessage;
 
   const _HeroImageCard({
     required this.imageUrl,
@@ -434,6 +529,7 @@ class _HeroImageCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.vendorId,
+    this.blockingOverlayMessage,
   });
 
   @override
@@ -461,6 +557,32 @@ class _HeroImageCard extends StatelessWidget {
               ),
             ),
           ),
+          if (blockingOverlayMessage != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                color: Colors.black.withValues(alpha: 0.62),
+                child: Text(
+                  blockingOverlayMessage!,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             left: 10,
             top: 10,
@@ -525,12 +647,13 @@ class _InfoStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEDEDED)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         children: [
@@ -541,10 +664,10 @@ class _InfoStatCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                 ),
               ),
             ],
@@ -552,9 +675,9 @@ class _InfoStatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppColors.textSecondary,
+              color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -578,13 +701,14 @@ class _CategoryUnderlineTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 2),
         itemCount: categories.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: 4),
+        separatorBuilder: (_, _) => const SizedBox(width: 4),
         itemBuilder: (_, index) {
           final isAll = index == 0;
           final label = isAll ? 'الكل' : categories[index - 1].name;
@@ -608,7 +732,7 @@ class _CategoryUnderlineTabs extends StatelessWidget {
                           selected ? FontWeight.w800 : FontWeight.w600,
                       color: selected
                           ? AppColors.primary
-                          : const Color(0xFF6B7280),
+                          : cs.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -635,15 +759,18 @@ class _CategoryUnderlineTabs extends StatelessWidget {
 class _MenuProductTile extends StatelessWidget {
   final VendorProductItem product;
   final VoidCallback onTap;
+  final bool orderingEnabled;
 
   const _MenuProductTile({
     required this.product,
     required this.onTap,
+    this.orderingEnabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final cs = Theme.of(context).colorScheme;
+    final content = Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: Colors.transparent,
@@ -654,9 +781,9 @@ class _MenuProductTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8ECF0)),
+              border: Border.all(color: cs.outlineVariant),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x120D253C),
@@ -693,10 +820,10 @@ class _MenuProductTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
                           textDirection: TextDirection.rtl,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
-                            color: Color(0xFF1A2B48),
+                            color: cs.onSurface,
                             height: 1.15,
                           ),
                         ),
@@ -709,8 +836,8 @@ class _MenuProductTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.right,
                             textDirection: TextDirection.rtl,
-                            style: const TextStyle(
-                              color: Color(0xFF7D7D7D),
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant,
                               fontSize: 11.5,
                               height: 1.3,
                               fontWeight: FontWeight.w500,
@@ -724,8 +851,8 @@ class _MenuProductTile extends StatelessWidget {
                           Text(
                             '\$${product.originalPrice!.toStringAsFixed(2)}',
                             textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              color: Color(0xFF9CA3AF),
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                               fontSize: 11,
                               decoration: TextDecoration.lineThrough,
@@ -765,10 +892,10 @@ class _MenuProductTile extends StatelessWidget {
                         height: 34,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cs.surface,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: const Color(0xFFFFD2A0),
+                            color: AppColors.primary.withValues(alpha: 0.45),
                             width: 1.2,
                           ),
                         ),
@@ -787,6 +914,8 @@ class _MenuProductTile extends StatelessWidget {
         ),
       ),
     );
+    if (orderingEnabled) return content;
+    return Opacity(opacity: 0.48, child: content);
   }
 }
 
@@ -794,14 +923,17 @@ class _OfferProductCard extends StatelessWidget {
   const _OfferProductCard({
     required this.product,
     required this.onTap,
+    this.orderingEnabled = true,
   });
 
   final VendorProductItem product;
   final VoidCallback onTap;
+  final bool orderingEnabled;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final cs = Theme.of(context).colorScheme;
+    final content = Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: Colors.transparent,
@@ -816,9 +948,9 @@ class _OfferProductCard extends StatelessWidget {
             height: 118,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8ECF0)),
+              border: Border.all(color: cs.outlineVariant),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x120D253C),
@@ -853,10 +985,10 @@ class _OfferProductCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 27 / 2,
-                            color: Color(0xFF1A2B48),
+                            color: cs.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -865,8 +997,8 @@ class _OfferProductCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: Color(0xFF7D7D7D),
+                          style: TextStyle(
+                            color: cs.onSurfaceVariant,
                             fontSize: 11.5,
                             fontWeight: FontWeight.w500,
                           ),
@@ -904,7 +1036,7 @@ class _OfferProductCard extends StatelessWidget {
                 top: 6,
                 left: 6,
                 child: Material(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: cs.surface.withValues(alpha: 0.92),
                   shape: const CircleBorder(),
                   child: FavoriteHeartButton(
                     favoriteType: 'product',
@@ -920,6 +1052,8 @@ class _OfferProductCard extends StatelessWidget {
         ),
       ),
     );
+    if (orderingEnabled) return content;
+    return Opacity(opacity: 0.48, child: content);
   }
 }
 
@@ -1027,11 +1161,12 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLowest,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
@@ -1044,7 +1179,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                     width: 46,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD0D5DD),
+                      color: cs.outlineVariant,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -1063,10 +1198,10 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                 const SizedBox(height: 12),
                 Text(
                   widget.product.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: cs.onSurface,
                     height: 1.1,
                   ),
                 ),
@@ -1074,8 +1209,8 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                   const SizedBox(height: 6),
                   Text(
                     widget.product.description!,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1097,9 +1232,9 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                       height: 42,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.surface,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFEDEDED)),
+                        border: Border.all(color: cs.outlineVariant),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1119,9 +1254,10 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                           const SizedBox(width: 6),
                           Text(
                             '$_quantity',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w900,
+                              color: cs.onSurface,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -1142,12 +1278,12 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                 ),
                 const SizedBox(height: 16),
                 if (_extras.isNotEmpty) ...[
-                  const Text(
+                  Text(
                     'إضافات الصنف',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1157,10 +1293,12 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cs.surface,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: selected ? const Color(0xFFFFC38A) : const Color(0xFFEDEDED),
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.55)
+                              : cs.outlineVariant,
                         ),
                       ),
                       child: Row(
@@ -1182,17 +1320,17 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                           Expanded(
                             child: Text(
                               extra.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: cs.onSurface,
                               ),
                             ),
                           ),
                           Text(
                             '\$${extra.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              color: cs.onSurface,
                             ),
                           ),
                         ],
@@ -1201,12 +1339,12 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                   }),
                   const SizedBox(height: 10),
                 ],
-                const Text(
+                Text(
                   'ملاحظات إضافية',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1219,14 +1357,14 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                     hintText: 'اكتب ملاحظتك هنا (اختياري)',
                     counterText: '',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: cs.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFEDEDED)),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFFEDEDED)),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),

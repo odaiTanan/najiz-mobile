@@ -11,6 +11,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:najiz_go_express/features/home/controllers/transport_order_tracking_controller.dart';
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 import 'package:najiz_go_express/features/support/views/support_chat_screen.dart';
@@ -50,6 +52,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final controller = Get.put(
       TransportOrderTrackingController(
         token: token,
@@ -71,7 +74,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
         return false;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F5F8),
+        backgroundColor: cs.surfaceContainerLowest,
         appBar: AppBar(
           leading: IconButton(
             onPressed: () async {
@@ -79,12 +82,16 @@ class TransportOrderTrackingScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
           ),
-          backgroundColor: const Color(0xFFF3F5F8),
+          backgroundColor: cs.surfaceContainerLowest,
+          foregroundColor: cs.onSurface,
           elevation: 0,
           centerTitle: true,
-          title: const Text(
+          title: Text(
             'تتبع الطلب',
-            style: TextStyle(fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+            ),
           ),
         ),
         body: SafeArea(
@@ -111,7 +118,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       controller.errorMessage.value!,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -184,7 +191,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
   Future<void> _callDriver() async {
     final phone = controller.driverPhone.value;
     if (phone == null || phone.trim().isEmpty) {
-      Get.snackbar(
+      AppSnackbar.show(
         'رقم السائق غير متوفر',
         'سيظهر الرقم فور توفره من النظام',
         snackPosition: SnackPosition.BOTTOM,
@@ -197,7 +204,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
     final uri = Uri(scheme: 'tel', path: normalized);
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
-      Get.snackbar(
+      AppSnackbar.show(
         'تعذر فتح تطبيق الاتصال',
         'حاول مرة أخرى بعد قليل',
         snackPosition: SnackPosition.BOTTOM,
@@ -221,7 +228,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
     final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(message)}');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
-      Get.snackbar(
+      AppSnackbar.show(
         'تعذر فتح واتساب',
         'تأكد من تثبيت واتساب أو حاول لاحقًا',
         snackPosition: SnackPosition.BOTTOM,
@@ -254,6 +261,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final estimate = _estimateTripInfo();
     final driverName = controller.driverName.value ?? 'السائق';
     final vehicle = controller.driverVehicleType.value ?? 'مركبة غير محددة';
@@ -270,9 +278,10 @@ class _AcceptedTrackingLayout extends StatelessWidget {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+              border: Border(top: BorderSide(color: cs.outlineVariant)),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -283,7 +292,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                       width: 44,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD3D8E1),
+                        color: cs.outlineVariant,
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -298,7 +307,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       controller.errorMessage.value!,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -318,20 +327,20 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                             children: [
                               Text(
                                 _titleForStatus(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  color: cs.onSurface,
                                   height: 1.1,
                                 ),
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 _subtitleForStatus(),
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: cs.onSurfaceVariant,
                                   fontWeight: FontWeight.w500,
-                                fontSize: 10,
+                                  fontSize: 10,
                                 ),
                               ),
                             ],
@@ -344,7 +353,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF2E8),
+                            color: cs.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -353,10 +362,10 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                                 estimate.etaMinutes != null
                                     ? '${estimate.etaMinutes} دقيقة'
                                     : '--',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFFEA580C),
+                                  color: AppColors.primary,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -364,8 +373,8 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                                 estimate.distanceKm != null
                                     ? '${estimate.distanceKm!.toStringAsFixed(1)} كم'
                                     : 'بانتظار الموقع',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: cs.onSurfaceVariant,
                                   fontSize: 10,
                                 ),
                               ),
@@ -378,16 +387,16 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: cs.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE5EAF2)),
+                        border: Border.all(color: cs.outlineVariant),
                       ),
                       child: Row(
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 22,
-                            backgroundColor: Color(0xFFE6EBF3),
-                            child: Icon(Icons.person, color: AppColors.textSecondary),
+                            backgroundColor: cs.surfaceContainerHighest,
+                            child: Icon(Icons.person, color: cs.onSurfaceVariant),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -396,28 +405,28 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                               children: [
                                 Text(
                                   driverName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
-                                  fontSize: 12,
+                                    color: cs.onSurface,
+                                    fontSize: 12,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   '$vehicle - $plate',
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant,
                                     fontWeight: FontWeight.w600,
-                                  fontSize: 10,
+                                    fontSize: 10,
                                   ),
                                 ),
                                 if ((controller.driverPhone.value ?? '').isNotEmpty)
                                   Text(
                                     controller.driverPhone.value!,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: cs.onSurfaceVariant,
                                       fontWeight: FontWeight.w600,
-                                    fontSize: 10,
+                                      fontSize: 10,
                                     ),
                                   ),
                               ],
@@ -429,9 +438,9 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: cs.surface,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFDDE3EC)),
+                              border: Border.all(color: cs.outlineVariant),
                             ),
                             child: Row(
                               children: [
@@ -439,10 +448,11 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   rating,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 11,
-                                ),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11,
+                                    color: cs.onSurface,
+                                  ),
                                 ),
                               ],
                             ),
@@ -553,6 +563,7 @@ class _TaxiTripLivePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final title = orderType == 'shipping' ? 'السائق في الطريق للتوصيل' : 'في الطريق إلى الوجهة';
     final etaText = estimate.etaMinutes != null ? '${estimate.etaMinutes}' : '--';
     final distanceText = estimate.distanceKm != null
@@ -561,9 +572,9 @@ class _TaxiTripLivePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5EAF2)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -581,14 +592,14 @@ class _TaxiTripLivePanel extends StatelessWidget {
                         fontSize: 18,
                         height: 1.05,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        color: cs.onSurface,
                       ),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'متابعة الرحلة لحظيًا',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: cs.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -603,8 +614,8 @@ class _TaxiTripLivePanel extends StatelessWidget {
                   RichText(
                     text: TextSpan(
                       text: etaText,
-                      style: const TextStyle(
-                        color: Color(0xFFEA580C),
+                      style: TextStyle(
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
                       ),
@@ -618,8 +629,8 @@ class _TaxiTripLivePanel extends StatelessWidget {
                   ),
                   Text(
                     distanceText,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                       fontSize: 11,
                     ),
@@ -632,9 +643,9 @@ class _TaxiTripLivePanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE5EAF2)),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: Row(
               children: [
@@ -642,10 +653,10 @@ class _TaxiTripLivePanel extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Icon(Icons.person, color: Color(0xFF64748B)),
+                  child: Icon(Icons.person, color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -654,17 +665,17 @@ class _TaxiTripLivePanel extends StatelessWidget {
                     children: [
                       Text(
                         driverName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        fontSize: 14,
+                          color: cs.onSurface,
+                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '$vehicle - $plate',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -676,7 +687,7 @@ class _TaxiTripLivePanel extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: const Color(0xFFFFFBEB),
+                    color: cs.tertiaryContainer.withValues(alpha: 0.5),
                   ),
                   child: Row(
                     children: [
@@ -684,7 +695,10 @@ class _TaxiTripLivePanel extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         rating,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface,
+                        ),
                       ),
                     ],
                   ),
@@ -754,6 +768,7 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final completedTitle = orderType == 'shipping'
         ? 'تم التوصيل والتسليم'
         : 'انتهت الرحلة';
@@ -763,14 +778,14 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6ECF3)),
-        boxShadow: const [
+        border: Border.all(color: cs.outlineVariant),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F000000),
+            color: cs.shadow.withValues(alpha: 0.12),
             blurRadius: 16,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -786,16 +801,16 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'ملخص الرحلة',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -804,6 +819,7 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: _summaryMetric(
+                  context,
                   icon: Icons.route_rounded,
                   label: 'المسافة المقطوعة',
                   value: distanceKm != null ? '${distanceKm.toStringAsFixed(1)} كم' : '--',
@@ -812,6 +828,7 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _summaryMetric(
+                  context,
                   icon: Icons.payments_outlined,
                   label: 'السعر النهائي',
                   value: fare != null ? '${fare.toStringAsFixed(0)} ل.س' : '--',
@@ -845,15 +862,17 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
     );
   }
 
-  Widget _summaryMetric({
+  Widget _summaryMetric(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -861,13 +880,13 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: const Color(0xFF64748B)),
+              Icon(icon, size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -876,10 +895,10 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
             ),
           ),
         ],
@@ -896,6 +915,7 @@ class _DriverInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final hasDriverData =
         (controller.driverName.value ?? '').isNotEmpty ||
         (controller.driverVehicleType.value ?? '').isNotEmpty ||
@@ -904,44 +924,32 @@ class _DriverInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'معلومات السائق',
             style: TextStyle(
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
               fontSize: 16,
             ),
           ),
           const SizedBox(height: 10),
           if (!hasDriverData)
-            const Text(
+            Text(
               'جاري تعيين/تحديث بيانات السائق...',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurfaceVariant),
             )
           else ...[
-            _driverRow(
-              'الاسم',
-              controller.driverName.value ?? 'غير متاح',
-            ),
-            _driverRow(
-              'نوع المركبة',
-              controller.driverVehicleType.value ?? 'غير متاح',
-            ),
-            _driverRow(
-              'رقم اللوحة',
-              controller.driverPlate.value ?? 'غير متاح',
-            ),
-            _driverRow(
-              'التقييم',
-              controller.driverRating.value ?? 'غير متاح',
-            ),
+            _driverRow(cs, 'الاسم', controller.driverName.value ?? 'غير متاح'),
+            _driverRow(cs, 'نوع المركبة', controller.driverVehicleType.value ?? 'غير متاح'),
+            _driverRow(cs, 'رقم اللوحة', controller.driverPlate.value ?? 'غير متاح'),
+            _driverRow(cs, 'التقييم', controller.driverRating.value ?? 'غير متاح'),
           ],
           const SizedBox(height: 12),
           SizedBox(
@@ -957,7 +965,7 @@ class _DriverInfoCard extends StatelessWidget {
     );
   }
 
-  Widget _driverRow(String label, String value) {
+  Widget _driverRow(ColorScheme cs, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -966,8 +974,8 @@ class _DriverInfoCard extends StatelessWidget {
             width: 96,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -975,8 +983,8 @@ class _DriverInfoCard extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: cs.onSurface,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -994,30 +1002,36 @@ class _DeliveryCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
+        color: Color.alphaBlend(
+          AppColors.primary.withValues(alpha: 0.1),
+          cs.surface,
+        ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFED7AA)),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.35),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'كود التسليم',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
               fontWeight: FontWeight.w800,
               fontSize: 14,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'شارك هذا الكود مع المستلم لتأكيد تسليم طلب الشحن',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
               fontSize: 11,
             ),
@@ -1026,9 +1040,9 @@ class _DeliveryCodeCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFED7AA)),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: Text(
               code,
@@ -1059,12 +1073,13 @@ class _TopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
@@ -1078,9 +1093,9 @@ class _TopCard extends StatelessWidget {
           Expanded(
             child: Text(
               orderNumber,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
           ),
@@ -1088,16 +1103,20 @@ class _TopCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
               color: connected
-                  ? const Color(0xFFE9F9EE)
-                  : const Color(0xFFFFF1F2),
+                  ? Color.alphaBlend(
+                      const Color(0xFF0F9D58).withValues(alpha: 0.16),
+                      cs.surface,
+                    )
+                  : Color.alphaBlend(
+                      cs.error.withValues(alpha: 0.14),
+                      cs.surface,
+                    ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               connected ? 'متصل لحظيا' : 'غير متصل',
               style: TextStyle(
-                color: connected
-                    ? const Color(0xFF0F9D58)
-                    : const Color(0xFFE11D48),
+                color: connected ? const Color(0xFF0F9D58) : cs.error,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -1120,7 +1139,7 @@ Future<void> _showTaxiRatingDialog({
   required BuildContext context,
   required TransportOrderTrackingController controller,
 }) async {
-  await showDialog<void>(
+  await AppPopupDialog.show<void>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _TaxiTripRatingDialog(controller: controller),
@@ -1160,21 +1179,23 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      Get.snackbar(
+      AppSnackbar.show(
         'شكراً لك',
         'تم إرسال تقييم الرحلة بنجاح',
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
       if (!mounted) return;
-      Get.snackbar('فشل الإرسال', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show('فشل الإرسال', e.toString(), snackPosition: SnackPosition.BOTTOM);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: cs.surface,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
@@ -1182,18 +1203,18 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'قيّم رحلتك',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'شاركنا تجربتك لتحسين جودة الخدمة',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
             _TaxiRatingStars(
@@ -1209,17 +1230,19 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
             TextField(
               controller: _commentController,
               maxLines: 3,
+              style: TextStyle(color: cs.onSurface),
               onChanged: (_) {
                 if (_error != null) setState(() => _error = null);
               },
               decoration: InputDecoration(
                 hintText: 'ملاحظاتك (اختياري)',
+                hintStyle: TextStyle(color: cs.onSurfaceVariant),
                 errorText: _error,
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: cs.surfaceContainerHigh,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8ECF2)),
+                  borderSide: BorderSide(color: cs.outlineVariant),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1233,17 +1256,28 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      backgroundColor: cs.surface,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text('لاحقًا'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Obx(
-                    () => ElevatedButton(
+                    () => FilledButton(
                       onPressed: widget.controller.isSubmittingRating.value ? null : _submit,
-                      style: ElevatedButton.styleFrom(
+                      style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: widget.controller.isSubmittingRating.value
                           ? const SizedBox(
@@ -1688,6 +1722,7 @@ class _MapCardState extends State<_MapCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final controller = widget.controller;
     final isTaxiOrder = widget.orderType.toLowerCase() == 'taxi';
     final ll.LatLng? driver = _animatedDriverPoint ?? controller.driverPoint.value;
@@ -1789,7 +1824,7 @@ class _MapCardState extends State<_MapCard> {
       height: widget.height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -1833,19 +1868,22 @@ class _MapCardState extends State<_MapCard> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
+                  color: Color.alphaBlend(
+                    const Color(0xFFF59E0B).withValues(alpha: 0.22),
+                    cs.surface,
+                  ),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF59E0B)),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.55)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309)),
-                    SizedBox(width: 8),
+                    Icon(Icons.warning_amber_rounded, color: cs.onSurface),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'تنبيه: مسار السائق مختلف عن المسار المتوقع',
                         style: TextStyle(
-                          color: Color(0xFF92400E),
+                          color: cs.onSurface,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1872,17 +1910,17 @@ class _MapCardState extends State<_MapCard> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _followDriver
                           ? AppColors.primary
-                          : Colors.white,
+                          : cs.surface,
                       foregroundColor: _followDriver
                           ? Colors.white
-                          : AppColors.textPrimary,
+                          : cs.onSurface,
                       elevation: 1.5,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
                           color: _followDriver
                               ? AppColors.primary
-                              : const Color(0xFFD8DEE8),
+                              : cs.outlineVariant,
                         ),
                       ),
                     ),
@@ -1895,8 +1933,8 @@ class _MapCardState extends State<_MapCard> {
                 const SizedBox(width: 8),
                 FloatingActionButton.small(
                   heroTag: 'fit_route_button',
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.textPrimary,
+                  backgroundColor: cs.surface,
+                  foregroundColor: cs.onSurface,
                   onPressed: _fitVisibleRoute,
                   child: const Icon(Icons.fit_screen_outlined, size: 20),
                 ),
@@ -1920,6 +1958,7 @@ class _TransportTimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final steps = orderType == 'shipping'
         ? const [
             'تم قبول الطلب من السائق',
@@ -1943,16 +1982,20 @@ class _TransportTimelineCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'مراحل الطلب',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: cs.onSurface,
+            ),
           ),
           const SizedBox(height: 12),
           ...steps.asMap().entries.map((entry) {
@@ -1987,6 +2030,8 @@ class _TimelineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final muted = cs.outline;
     return SizedBox(
       height: 56,
       child: Row(
@@ -2001,13 +2046,13 @@ class _TimelineRow extends StatelessWidget {
                           ? Icons.check_circle
                           : Icons.radio_button_unchecked),
                   size: 18,
-                  color: done ? AppColors.primary : const Color(0xFFCBD5E1),
+                  color: done ? AppColors.primary : muted,
                 ),
                 if (!isLast)
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: done ? AppColors.primary : const Color(0xFFCBD5E1),
+                      color: done ? AppColors.primary : muted,
                     ),
                   ),
               ],
@@ -2018,7 +2063,7 @@ class _TimelineRow extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                color: done ? AppColors.textPrimary : AppColors.textSecondary,
+                color: done ? cs.onSurface : cs.onSurfaceVariant,
                 fontWeight: done ? FontWeight.w700 : FontWeight.w500,
               ),
             ),

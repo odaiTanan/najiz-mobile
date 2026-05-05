@@ -98,6 +98,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/logo.png
+    - assets/lottie/delivery_splash.json
     - assets/najiz_go_express_logo.png
     - assets/google_logo.png
     - assets/apple_logo.png

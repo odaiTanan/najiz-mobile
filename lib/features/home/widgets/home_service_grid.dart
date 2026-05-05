@@ -38,6 +38,7 @@ class HomeServiceGrid extends StatelessWidget {
       ),
       itemBuilder: (_, index) {
         final service = services[index];
+        final cs = Theme.of(context).colorScheme;
         final iconUrl = service.icon?.trim() ?? '';
         final isSelected = selectedServiceId == service.id;
         return InkWell(
@@ -46,10 +47,10 @@ class HomeServiceGrid extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isSelected ? AppColors.primary : const Color(0xFFEFF1F4),
+                color: isSelected ? AppColors.primary : cs.outlineVariant,
                 width: isSelected ? 1.6 : 1.1,
               ),
               boxShadow: const [
@@ -72,15 +73,15 @@ class HomeServiceGrid extends StatelessWidget {
                           child: Image.network(
                             iconUrl,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => const Icon(
+                            errorBuilder: (_, _, _) => Icon(
                               Icons.widgets_outlined,
-                              color: Color(0xFF9CA3AF),
+                              color: cs.onSurfaceVariant,
                             ),
                           ),
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.widgets_outlined,
-                          color: Color(0xFF9CA3AF),
+                          color: cs.onSurfaceVariant,
                         ),
                 ),
                 const SizedBox(height: 6),
@@ -91,10 +92,10 @@ class HomeServiceGrid extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                      color: Color(0xFF111827),
+                      color: cs.onSurface,
                     ),
                   ),
                 ),

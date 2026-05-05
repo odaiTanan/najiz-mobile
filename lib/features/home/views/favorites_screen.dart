@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/favorites_controller.dart';
 import 'package:najiz_go_express/data/models/favorite_models.dart';
@@ -21,6 +23,7 @@ class FavoritesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Get.find<AuthStateManager>();
     final token = auth.token.value;
+    final cs = Theme.of(context).colorScheme;
 
     if (auth.isGuest) {
       return Scaffold(
@@ -34,10 +37,10 @@ class FavoritesScreen extends StatelessWidget {
                 Text(
                   'favorites.loginRequired'.tr,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -55,12 +58,12 @@ class FavoritesScreen extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: cs.surfaceContainerLowest,
         appBar: AppBar(
           title: Text('favorites.title'.tr),
           bottom: TabBar(
             labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
+            unselectedLabelColor: cs.onSurfaceVariant,
             indicatorColor: AppColors.primary,
             tabs: [
               Tab(text: 'favorites.tabRestaurants'.tr),
@@ -273,14 +276,15 @@ class _FavoritesListTabState extends State<_FavoritesListTab> {
       }
       if (!mounted) return;
       setState(() => _items.removeWhere((e) => e.favoriteId == item.favoriteId));
-      Get.snackbar('common.done'.tr, 'favorites.removed'.tr);
+      AppSnackbar.show('common.done'.tr, 'favorites.removed'.tr);
     } catch (_) {
-      Get.snackbar('common.error'.tr, 'favorites.toggleFailed'.tr);
+      AppSnackbar.show('common.error'.tr, 'favorites.toggleFailed'.tr);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     if (_loading && _items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -294,7 +298,7 @@ class _FavoritesListTabState extends State<_FavoritesListTab> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
               OutlinedButton(
@@ -311,8 +315,8 @@ class _FavoritesListTabState extends State<_FavoritesListTab> {
       return Center(
         child: Text(
           'favorites.empty'.tr,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: cs.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -404,6 +408,7 @@ class _FavoriteListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final e = item.entity;
     final name = (e['name'] ?? '').toString();
     final image = e['image']?.toString();
@@ -434,7 +439,7 @@ class _FavoriteListTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onOpen,
@@ -464,10 +469,10 @@ class _FavoriteListTile extends StatelessWidget {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
-                          color: AppColors.textPrimary,
+                          color: cs.onSurface,
                         ),
                       ),
                       if (subtitle.isNotEmpty) ...[
@@ -476,9 +481,9 @@ class _FavoriteListTile extends StatelessWidget {
                           subtitle,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -487,17 +492,19 @@ class _FavoriteListTile extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () async {
-                    final ok = await showDialog<bool>(
+                    final ok = await AppPopupDialog.show<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
+                        backgroundColor: Theme.of(ctx).colorScheme.surface,
+                        surfaceTintColor: Colors.transparent,
                         title: Text('favorites.title'.tr),
                         content: Text('favorites.removeConfirm'.tr),
                         actions: [
-                          TextButton(
+                          OutlinedButton(
                             onPressed: () => Navigator.pop(ctx, false),
                             child: Text('common.cancel'.tr),
                           ),
-                          TextButton(
+                          FilledButton(
                             onPressed: () => Navigator.pop(ctx, true),
                             child: Text('common.delete'.tr),
                           ),
@@ -507,7 +514,7 @@ class _FavoriteListTile extends StatelessWidget {
                     if (ok == true) await onDelete();
                   },
                   icon: const Icon(Icons.delete_outline_rounded),
-                  color: const Color(0xFF94A3B8),
+                  color: cs.onSurfaceVariant,
                 ),
                 FavoriteHeartButton(
                   favoriteType: item.type,
@@ -516,7 +523,7 @@ class _FavoriteListTile extends StatelessWidget {
                   size: 26,
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_left, color: AppColors.textSecondary),
+                Icon(Icons.chevron_left, color: cs.onSurfaceVariant),
               ],
             ),
           ),

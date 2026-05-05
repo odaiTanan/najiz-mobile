@@ -10,7 +10,7 @@ class AppColors {
   static const Color background = Color(0xFFFFFFFF);
   static const Color textPrimary = Color(0xFF0D253C);
   static const Color textSecondary = Color(0xFF707070);
-  static const Color inputBorder = Color(0xFFE0E0E0);
+  static const Color inputBorder = Color(0xFFFFFFFF);
   static const Color error = Color(0xFFFF3B30);
 
   static const LinearGradient primaryGradient = LinearGradient(

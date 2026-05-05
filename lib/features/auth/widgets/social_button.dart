@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/constants/app_images.dart';
 
 class SocialButton extends StatelessWidget {
@@ -16,6 +15,7 @@ class SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final socialIcon = switch (assetPath) {
       AppImages.logoGoogle => Icons.g_mobiledata_rounded,
       AppImages.logoApple => Icons.apple,
@@ -28,8 +28,8 @@ class SocialButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: AppColors.inputBorder),
+          backgroundColor: cs.surface,
+          side: BorderSide(color: cs.outlineVariant),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
           ),
@@ -41,10 +41,10 @@ class SocialButton extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
           ],

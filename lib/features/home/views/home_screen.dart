@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/theme/theme_context.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/data/models/service_model.dart';
@@ -38,9 +39,10 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(HomeController(token: token));
     final authState = Get.find<AuthStateManager>();
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: cs.surfaceContainerLowest,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 0,
         onTap: (index) => MainBottomNav.onTap(
@@ -51,8 +53,53 @@ class HomeScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: Obx(() {
-          if (controller.isLoading.value) {
-            return const _HomeShimmerSkeleton();
+          final loading = controller.isLoading.value;
+          final waitingNet = controller.homeWaitingNetwork.value;
+          if (loading) {
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const _HomeShimmerSkeleton(),
+                if (waitingNet)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 8,
+                    child: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(16),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.wifi_off_rounded,
+                              color: AppColors.primary,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'home.waitingForNetworkHint'.tr,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  height: 1.35,
+                                  color: context.uiText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
           }
 
           return RefreshIndicator(
@@ -79,12 +126,13 @@ class HomeScreen extends StatelessWidget {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF3E8),
+                            color: cs.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: cs.outlineVariant),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.person_outline,
                                 size: 18,
                                 color: AppColors.primary,
@@ -92,7 +140,7 @@ class HomeScreen extends StatelessWidget {
                               const SizedBox(width: 8),
                               Text(
                                 'home.guestBrowsing'.tr,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -108,21 +156,14 @@ class HomeScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
                       controller.errorMessage.value!,
-                      style: const TextStyle(color: AppColors.error),
+                      style: TextStyle(color: cs.error),
                     ),
                   ),
                 Obx(() {
                   final offers = controller.offers.toList(growable: false);
                   return _HeroPromoSlider(
                     offers: offers,
-                    onTap: () {
-                      final orderedServices = _orderedHomeServices(
-                        controller.services,
-                      );
-                      if (orderedServices.isNotEmpty) {
-                        controller.onServiceTap(orderedServices.first);
-                      }
-                    },
+                    onTap: controller.onOfferTap,
                   );
                 }),
                 if (controller.primaryActiveOrder != null) ...[
@@ -148,7 +189,7 @@ class HomeScreen extends StatelessWidget {
                 if (controller.services.isEmpty)
                   Text(
                     'home.noServices'.tr,
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: cs.onSurfaceVariant),
                   )
                 else
                   Builder(
@@ -183,7 +224,7 @@ class HomeScreen extends StatelessWidget {
                 if (controller.filteredVendors.isEmpty)
                   Text(
                     'home.noRestaurants'.tr,
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: context.uiSubtext),
                   )
                 else
                   SizedBox(
@@ -201,6 +242,7 @@ class HomeScreen extends StatelessWidget {
                           rating: vendor.rating,
                           subtitle: vendor.description,
                           vendorId: vendor.id,
+                          vendorStatus: vendor.vendorStatus,
                           onTap: () => controller.onRestaurantCardTap(vendor),
                         );
                       },
@@ -230,6 +272,7 @@ class _OrderTrackingStepsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final n = labels.length;
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -256,8 +299,8 @@ class _OrderTrackingStepsRow extends StatelessWidget {
                           child: Container(
                             height: 1.2,
                             color: currentStep > index
-                                ? const Color(0xFF9CA3AF)
-                                : const Color(0xFFE5E7EB),
+                                ? cs.outline
+                                : cs.outlineVariant,
                           ),
                         ),
                       if (index > 0)
@@ -268,8 +311,8 @@ class _OrderTrackingStepsRow extends StatelessWidget {
                           child: Container(
                             height: 1.2,
                             color: currentStep > index - 1
-                                ? const Color(0xFF9CA3AF)
-                                : const Color(0xFFE5E7EB),
+                                ? cs.outline
+                                : cs.outlineVariant,
                           ),
                         ),
                       Container(
@@ -277,13 +320,13 @@ class _OrderTrackingStepsRow extends StatelessWidget {
                         height: 28,
                         decoration: BoxDecoration(
                           color: isActive
-                              ? const Color(0xFF1F2937)
-                              : const Color(0xFFF1F3F5),
+                              ? AppColors.primary
+                              : cs.surfaceContainerHighest,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: isDone || isActive
-                                ? const Color(0xFFD1D5DB)
-                                : const Color(0xFFE5E7EB),
+                                ? cs.outline
+                                : cs.outlineVariant,
                           ),
                         ),
                         child: Icon(
@@ -291,7 +334,7 @@ class _OrderTrackingStepsRow extends StatelessWidget {
                           size: 15,
                           color: isActive
                               ? Colors.white
-                              : const Color(0xFF9CA3AF),
+                              : cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -312,8 +355,8 @@ class _OrderTrackingStepsRow extends StatelessWidget {
                           : FontWeight.w500,
                       height: 1.15,
                       color: index == currentStep
-                          ? const Color(0xFF111827)
-                          : const Color(0xFF9CA3AF),
+                          ? cs.onSurface
+                          : cs.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -326,15 +369,14 @@ class _OrderTrackingStepsRow extends StatelessWidget {
   }
 }
 
-/// Left-to-right mark before Latin/digits so RTL UI shows: «طلب تكسي رقم CEC7E1»
-/// instead of the bidirectional jump «CEC7E1 … رقم …».
-String _orderTitleRtlWithLatinToken({
-  required String prefix,
-  required String numberPrefix,
-  required String token,
-}) {
-  const lrm = '\u200e';
-  return '$prefix $numberPrefix $lrm$token';
+/// يزيل تسميات قد يرسلها الـ API مع [order_number] فتظهر كـ «رقم الطلب» قبل النص المطلوب.
+String _stripDecorativeOrderNumberPrefix(String raw) {
+  var s = raw.trim();
+  s = s.replaceAll(
+    RegExp(r'^(?:رقم\s*الطلب|Order\s*Number)\s*:?\s*', caseSensitive: false),
+    '',
+  );
+  return s.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 class _ActiveOrderHomeCard extends StatelessWidget {
@@ -352,6 +394,7 @@ class _ActiveOrderHomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final currentStep = _activeStepIndex(order);
     const labels = ['تم الطلب', 'في الطريق', 'قريباً', 'تم الوصول'];
     const icons = [
@@ -366,9 +409,9 @@ class _ActiveOrderHomeCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F7F8),
+          color: cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFEDEFF3)),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,12 +425,13 @@ class _ActiveOrderHomeCard extends StatelessWidget {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
+                      color: cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.directions_car_outlined,
                       size: 16,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -400,15 +444,18 @@ class _ActiveOrderHomeCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                _orderTitle(order),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: Color(0xFF1F2937),
+                              Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: Text(
+                                  _orderTitle(order),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: cs.onSurface,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -418,8 +465,8 @@ class _ActiveOrderHomeCard extends StatelessWidget {
                                   labels.length - 1,
                                 )],
                                 textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  color: Color(0xFF9CA3AF),
+                                style: TextStyle(
+                                  color: cs.onSurfaceVariant,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -432,12 +479,12 @@ class _ActiveOrderHomeCard extends StatelessWidget {
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEDEFF2),
+                            color: cs.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.chevron_left_rounded,
-                            color: Color(0xFF6B7280),
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -471,35 +518,6 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     );
   }
 
-  List<String> _stepsForType(String type) {
-    final t = type.toLowerCase();
-    if (t == 'shipping') {
-      return const [
-        'home.shippingStepAccepted',
-        'home.shippingStepDriverToPickup',
-        'home.shippingStepPickedUp',
-        'home.shippingStepOnWay',
-        'home.shippingStepDelivered',
-      ];
-    }
-    if (t == 'taxi') {
-      return const [
-        'home.taxiStepAccepted',
-        'home.taxiStepDriverToPickup',
-        'home.taxiStepStarted',
-        'home.taxiStepOnWay',
-        'home.taxiStepFinished',
-      ];
-    }
-    return const [
-      'home.foodStepConfirmed',
-      'home.foodStepPreparing',
-      'home.foodStepDriverAssigned',
-      'home.foodStepOnWay',
-      'home.foodStepDelivered',
-    ];
-  }
-
   int _activeStepIndex(UserOrder order) {
     final status = order.status.toLowerCase();
     final dispatch = order.dispatchStatus.toLowerCase();
@@ -517,16 +535,15 @@ class _ActiveOrderHomeCard extends StatelessWidget {
       'stores' || 'store' => 'home.orderStore'.tr,
       _ => 'home.orderFood'.tr,
     };
+    final numberWord = 'home.orderNumberPrefix'.tr;
     final token = _compactOrderToken(order.orderNumber, order.id);
-    return _orderTitleRtlWithLatinToken(
-      prefix: prefix,
-      numberPrefix: 'home.orderNumberPrefix'.tr,
-      token: token,
-    );
+    const lrm = '\u200e';
+    return '$prefix $numberWord $lrm$token';
   }
 
   String _compactOrderToken(String orderNumber, int fallbackId) {
-    final chunks = RegExp(r'[A-Za-z0-9]+').allMatches(orderNumber);
+    final cleaned = _stripDecorativeOrderNumberPrefix(orderNumber);
+    final chunks = RegExp(r'[A-Za-z0-9]+').allMatches(cleaned);
     if (chunks.isNotEmpty) {
       final raw = chunks.last.group(0) ?? '';
       if (raw.isNotEmpty) {
@@ -544,26 +561,154 @@ class _HomeShimmerSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Shimmer.fromColors(
-      baseColor: const Color(0xFFE9EDF3),
-      highlightColor: const Color(0xFFF7F9FC),
+      baseColor: cs.surfaceContainerHighest,
+      highlightColor: Color.alphaBlend(
+        cs.onSurface.withValues(alpha: 0.06),
+        cs.surfaceContainerHigh,
+      ),
+      period: const Duration(milliseconds: 1300),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        children: const [
-          _ShimmerBox(height: 40, radius: 14),
-          SizedBox(height: 14),
-          _ShimmerBox(height: 48, radius: 14),
-          SizedBox(height: 12),
-          _ShimmerBox(height: 138, radius: 16),
-          SizedBox(height: 18),
-          _ShimmerBox(height: 18, width: 120, radius: 8),
-          SizedBox(height: 10),
-          _ShimmerServiceGrid(),
-          SizedBox(height: 18),
-          _ShimmerBox(height: 18, width: 170, radius: 8),
-          SizedBox(height: 10),
-          _ShimmerRestaurantsRow(),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        children: [
+          const _ShimmerTopGreetingRow(),
+          const SizedBox(height: 14),
+          const _ShimmerHeroBlock(),
+          const SizedBox(height: 18),
+          const _ShimmerSectionHeaderRow(shortTitle: true),
+          const SizedBox(height: 10),
+          _ShimmerServiceGridFourCol(),
+          const SizedBox(height: 18),
+          const _ShimmerSectionHeaderRow(shortTitle: false),
+          const SizedBox(height: 10),
+          const _ShimmerRestaurantsRow(),
         ],
+      ),
+    );
+  }
+}
+
+/// يطابق [_TopGreetingRow]: أيقونة يسار + عمود نص يمين.
+class _ShimmerTopGreetingRow extends StatelessWidget {
+  const _ShimmerTopGreetingRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _ShimmerBox(height: 42, width: 42, radius: 12),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FractionallySizedBox(
+                    widthFactor: 0.58,
+                    alignment: Alignment.centerRight,
+                    child: const _ShimmerBox(height: 26, radius: 10),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: _ShimmerBox(height: 15, width: 200, radius: 8),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// يطابق [_HeroPromoSlider] (ارتفاع 186 + شريط نقاط تقريبي).
+class _ShimmerHeroBlock extends StatelessWidget {
+  const _ShimmerHeroBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ShimmerBox(height: 186, radius: 20),
+        SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 3),
+              child: _ShimmerBox(height: 7, width: 7, radius: 99),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 3),
+              child: _ShimmerBox(height: 7, width: 7, radius: 99),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 3),
+              child: _ShimmerBox(height: 7, width: 7, radius: 99),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 3),
+              child: _ShimmerBox(height: 7, width: 7, radius: 99),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// يطابق [_SectionHeader]: عنوان + "عرض الكل".
+class _ShimmerSectionHeaderRow extends StatelessWidget {
+  const _ShimmerSectionHeaderRow({required this.shortTitle});
+
+  final bool shortTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _ShimmerBox(
+          height: 22,
+          width: shortTitle ? 72 : 160,
+          radius: 8,
+        ),
+        const Spacer(),
+        const _ShimmerBox(height: 16, width: 56, radius: 6),
+      ],
+    );
+  }
+}
+
+/// يطابق [HomeServiceGrid] الافتراضي: 4 أعمدة، aspect 0.86، فراغات 10.
+class _ShimmerServiceGridFourCol extends StatelessWidget {
+  const _ShimmerServiceGridFourCol();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        childAspectRatio: 0.86,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemBuilder: (_, __) => LayoutBuilder(
+        builder: (_, c) => _ShimmerBox(
+          height: c.maxHeight,
+          width: c.maxWidth,
+          radius: 14,
+        ),
       ),
     );
   }
@@ -584,6 +729,7 @@ class _TopGreetingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final name = displayName.trim().isEmpty ? 'عميلنا' : displayName.trim();
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -598,10 +744,13 @@ class _TopGreetingRow extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F3F5),
+                    color: cs.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.notifications_none_rounded),
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: cs.onSurface,
+                  ),
                 ),
                 if (unreadNotifications > 0)
                   Positioned(
@@ -610,8 +759,8 @@ class _TopGreetingRow extends StatelessWidget {
                     child: Container(
                       width: 16,
                       height: 16,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F172A),
+                      decoration: BoxDecoration(
+                        color: cs.primary,
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
@@ -638,19 +787,19 @@ class _TopGreetingRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     height: 1.1,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'ماذا تريد طلبه اليوم؟',
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    color: Color(0xFF6B7280),
+                    color: cs.onSurfaceVariant,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -668,7 +817,7 @@ class _HeroPromoSlider extends StatefulWidget {
   const _HeroPromoSlider({required this.offers, required this.onTap});
 
   final List<OfferModel> offers;
-  final VoidCallback onTap;
+  final ValueChanged<OfferModel> onTap;
 
   @override
   State<_HeroPromoSlider> createState() => _HeroPromoSliderState();
@@ -744,6 +893,12 @@ class _HeroPromoSliderState extends State<_HeroPromoSlider> {
     return url;
   }
 
+  OfferModel? _offerAt(int index) {
+    if (widget.offers.isEmpty) return null;
+    final i = widget.offers.length == 1 ? 0 : index;
+    return widget.offers[i];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -762,7 +917,11 @@ class _HeroPromoSliderState extends State<_HeroPromoSlider> {
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   child: _HeroPromoSlide(
                     imageUrl: _imageAt(index),
-                    onTap: widget.onTap,
+                    onTap: () {
+                      final offer = _offerAt(index);
+                      if (offer == null) return;
+                      widget.onTap(offer);
+                    },
                   ),
                 );
               },
@@ -784,7 +943,10 @@ class _HeroPromoSliderState extends State<_HeroPromoSlider> {
                 decoration: BoxDecoration(
                   color: active
                       ? AppColors.primary
-                      : const Color(0xFFCBD5E1).withValues(alpha: 0.85),
+                      : Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(999),
                   boxShadow: active
                       ? [
@@ -816,6 +978,7 @@ class _HeroPromoSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final bgUrl = imageUrl;
     return Material(
       color: Colors.transparent,
@@ -838,8 +1001,8 @@ class _HeroPromoSlide extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF111319).withValues(alpha: 0.88),
-                        const Color(0xFF111319).withValues(alpha: 0.36),
+                        cs.scrim.withValues(alpha: 0.82),
+                        cs.scrim.withValues(alpha: 0.34),
                       ],
                       begin: Alignment.centerRight,
                       end: Alignment.centerLeft,
@@ -875,20 +1038,27 @@ class _HeroPromoSlide extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cs.surface,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Directionality(
                           textDirection: TextDirection.ltr,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
+                            children: [
                               Text(
                                 'احجز الآن',
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: cs.onSurface,
+                                ),
                               ),
-                              SizedBox(width: 4),
-                              Icon(Icons.chevron_right_rounded, size: 18),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: cs.onSurface,
+                              ),
                             ],
                           ),
                         ),
@@ -918,14 +1088,15 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF111827),
+            color: cs.onSurface,
           ),
         ),
         const Spacer(),
@@ -934,33 +1105,13 @@ class _SectionHeader extends StatelessWidget {
             onTap: onActionTap,
             child: Text(
               actionText!,
-              style: const TextStyle(
-                color: Color(0xFF6B7280),
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
       ],
-    );
-  }
-}
-
-class _ShimmerServiceGrid extends StatelessWidget {
-  const _ShimmerServiceGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 4,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.93,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemBuilder: (_, index) => const _ShimmerBox(radius: 16),
     );
   }
 }
@@ -992,10 +1143,12 @@ class _ShimmerRestaurantsRow extends StatelessWidget {
       height: 188,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: 3,
-        separatorBuilder: (_, index) => const SizedBox(width: 10),
-        itemBuilder: (_, index) =>
-            const SizedBox(width: 180, child: _ShimmerBox(radius: 14)),
+        itemCount: 4,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (_, _) => const SizedBox(
+          width: 132,
+          child: _ShimmerBox(radius: 12),
+        ),
       ),
     );
   }
@@ -1014,7 +1167,7 @@ class _ShimmerBox extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(radius),
       ),
     );

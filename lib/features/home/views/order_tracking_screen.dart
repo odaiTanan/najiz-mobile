@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:najiz_go_express/features/home/controllers/order_tracking_controller.dart';
 import 'package:najiz_go_express/features/home/views/home_screen.dart';
 
@@ -26,6 +28,7 @@ class OrderTrackingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final controller = Get.put(
       OrderTrackingController(
         token: token,
@@ -43,7 +46,7 @@ class OrderTrackingScreen extends StatelessWidget {
         return false;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F5F8),
+        backgroundColor: cs.surfaceContainerLowest,
         appBar: AppBar(
           leading: IconButton(
             onPressed: () async {
@@ -51,13 +54,16 @@ class OrderTrackingScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
           ),
-          backgroundColor: const Color(0xFFF3F5F8),
-          foregroundColor: AppColors.textPrimary,
+          backgroundColor: cs.surfaceContainerLowest,
+          foregroundColor: cs.onSurface,
           elevation: 0,
           centerTitle: true,
           title: Text(
             'tracking.title'.tr,
-            style: TextStyle(fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+            ),
           ),
         ),
         body: SafeArea(
@@ -77,7 +83,7 @@ class OrderTrackingScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Text(
                           controller.errorMessage.value!,
-                          style: const TextStyle(color: AppColors.error),
+                          style: TextStyle(color: cs.error),
                         ),
                       ),
                     _StatusCard(
@@ -195,65 +201,69 @@ Future<void> _showDeliveryCompletedChoiceDialog(
   OrderTrackingController controller,
   Animation<double> iconAnimation,
 ) async {
-  await showDialog<void>(
+  await AppPopupDialog.show<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ScaleTransition(
-              scale: iconAnimation,
-              child: Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3E8),
-                  borderRadius: BorderRadius.circular(20),
+    builder: (dialogContext) {
+      final dcs = Theme.of(dialogContext).colorScheme;
+      return Dialog(
+        backgroundColor: dcs.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ScaleTransition(
+                scale: iconAnimation,
+                child: Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: dcs.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.primary,
+                    size: 40,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.primary,
-                  size: 40,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'tracking.orderCompleted'.tr,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 30,
+                  color: dcs.onSurface,
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'tracking.orderCompleted'.tr,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 30,
-                color: AppColors.textPrimary,
+              const SizedBox(height: 8),
+              Text(
+                'tracking.rateNowQuestion'.tr,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: dcs.onSurfaceVariant,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'tracking.rateNowQuestion'.tr,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
             const SizedBox(height: 18),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      Navigator.of(dialogContext).pop();
                       controller.postponeRating();
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      foregroundColor: AppColors.primary,
+                      backgroundColor: dcs.surface,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -267,12 +277,12 @@ Future<void> _showDeliveryCompletedChoiceDialog(
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      Navigator.of(dialogContext).pop();
                       _showRatingDialog(context, controller, iconAnimation);
                     },
-                    style: ElevatedButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
@@ -291,7 +301,8 @@ Future<void> _showDeliveryCompletedChoiceDialog(
           ],
         ),
       ),
-    ),
+    );
+    },
   );
 }
 
@@ -300,7 +311,7 @@ Future<void> _showRatingDialog(
   OrderTrackingController controller,
   Animation<double> iconAnimation,
 ) async {
-  await showDialog<void>(
+  await AppPopupDialog.show<void>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _OrderDeliveredRatingDialog(
@@ -344,8 +355,10 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: cs.surface,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: AnimatedPadding(
         duration: const Duration(milliseconds: 180),
@@ -366,7 +379,10 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                       width: 62,
                       height: 62,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE9F9EE),
+                        color: Color.alphaBlend(
+                          const Color(0xFF16A34A).withValues(alpha: 0.18),
+                          cs.surface,
+                        ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Icon(
@@ -384,7 +400,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
@@ -393,7 +409,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                   child: Text(
                     'tracking.rateHelpText'.tr,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: cs.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                     textAlign: TextAlign.center,
@@ -402,7 +418,10 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                 const SizedBox(height: 14),
                 Text(
                   'tracking.rateVendor'.tr,
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 _RatingStars(
@@ -412,7 +431,10 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                 const SizedBox(height: 10),
                 Text(
                   'tracking.rateDelivery'.tr,
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 _RatingStars(
@@ -432,14 +454,14 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                     hintText: 'tracking.optionalNotes'.tr,
                     errorText: _commentError,
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    fillColor: cs.surfaceContainerHigh,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE8ECF2)),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE8ECF2)),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                   ),
                 ),
@@ -447,7 +469,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                 SizedBox(
                   width: double.infinity,
                   child: Obx(
-                    () => ElevatedButton(
+                    () => FilledButton(
                       onPressed: widget.controller.isSubmittingRating.value
                           ? null
                           : () async {
@@ -472,7 +494,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                                 Get.offAll(
                                   () => HomeScreen(token: widget.controller.token),
                                 );
-                                Get.snackbar(
+                                AppSnackbar.show(
                                   'tracking.thanks'.tr,
                                   'tracking.ratingSent'.tr,
                                   snackPosition: SnackPosition.BOTTOM,
@@ -480,7 +502,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                                   colorText: const Color(0xFF0F5132),
                                 );
                               } catch (e) {
-                                Get.snackbar(
+                                AppSnackbar.show(
                                   'tracking.sendFailed'.tr,
                                   e.toString(),
                                   snackPosition: SnackPosition.BOTTOM,
@@ -489,7 +511,7 @@ class _OrderDeliveredRatingDialogState extends State<_OrderDeliveredRatingDialog
                                 );
                               }
                             },
-                      style: ElevatedButton.styleFrom(
+                      style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -556,12 +578,13 @@ class _TopLiveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
         boxShadow: const [
           BoxShadow(
             color: Color(0x14000000),
@@ -576,7 +599,7 @@ class _TopLiveCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF3E8),
+              color: cs.primaryContainer,
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(Icons.receipt_long, color: AppColors.primary),
@@ -589,15 +612,15 @@ class _TopLiveCard extends StatelessWidget {
                 Text(
                   'tracking.orderNumber'.tr,
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: cs.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   orderNumber,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: cs.onSurface,
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
                   ),
@@ -640,33 +663,34 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
+              color: cs.onSurfaceVariant,
             ),
           ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: cs.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: cs.onSurface,
                 fontWeight: FontWeight.w800,
                 fontSize: 14,
               ),
@@ -686,6 +710,7 @@ class _TimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final stages = const [
       'food_accepted',
       'food_preparing',
@@ -701,9 +726,9 @@ class _TimelineCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8ECF2)),
+        border: Border.all(color: cs.outlineVariant),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
@@ -722,7 +747,7 @@ class _TimelineCard extends StatelessWidget {
               Text(
                 'tracking.orderStages'.tr,
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -766,8 +791,9 @@ class _TimelineStepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = isDone ? AppColors.primary : const Color(0xFFCBD5E1);
-    final textColor = isDone ? AppColors.textPrimary : AppColors.textSecondary;
+    final cs = Theme.of(context).colorScheme;
+    final activeColor = isDone ? AppColors.primary : cs.outlineVariant;
+    final textColor = isDone ? cs.onSurface : cs.onSurfaceVariant;
 
     return SizedBox(
       height: 64,
@@ -782,12 +808,15 @@ class _TimelineStepTile extends StatelessWidget {
                   width: isCurrent ? 28 : 26,
                   height: isCurrent ? 28 : 26,
                   decoration: BoxDecoration(
-                    color: isDone ? const Color(0xFFFFF3E8) : const Color(0xFFF1F5F9),
+                    color: isDone
+                        ? Color.alphaBlend(
+                            AppColors.primary.withValues(alpha: 0.2),
+                            cs.surface,
+                          )
+                        : cs.surfaceContainerHigh,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isDone
-                          ? AppColors.primary
-                          : const Color(0xFFCBD5E1),
+                      color: isDone ? AppColors.primary : cs.outlineVariant,
                       width: isCurrent ? 1.8 : 1.1,
                     ),
                   ),
@@ -795,7 +824,7 @@ class _TimelineStepTile extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: isCurrent ? 14 : 13,
-                    color: isDone ? AppColors.primary : const Color(0xFF94A3B8),
+                    color: isDone ? AppColors.primary : cs.onSurfaceVariant,
                   ),
                 ),
                 if (!isLast)
@@ -817,7 +846,12 @@ class _TimelineStepTile extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isCurrent ? const Color(0xFFFFF7EE) : const Color(0xFFF8FAFC),
+                  color: isCurrent
+                      ? Color.alphaBlend(
+                          AppColors.primary.withValues(alpha: 0.12),
+                          cs.surfaceContainerHigh,
+                        )
+                      : cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

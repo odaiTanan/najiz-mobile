@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -228,7 +230,7 @@ class OrderCheckoutController extends GetxController {
     return RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
   }
 
-  Future<void> calculate() async {
+  Future<void> calculate({bool gateRetry = false}) async {
     errorMessage.value = null;
     isLoading.value = true;
     hasCalculatedPricing.value = false;
@@ -267,8 +269,22 @@ class OrderCheckoutController extends GetxController {
       serviceFee.value = computedService < 0 ? 0 : computedService;
       hasCalculatedPricing.value = true;
     } on HomeApiException catch (e) {
-      errorMessage.value = e.message;
+      if (gateRetry) {
+        rethrow;
+      }
+      if (e.isConnectivityIssue) {
+        showNoInternetGateIfNeeded(
+          e,
+          retry: () => calculate(gateRetry: true),
+        );
+        errorMessage.value = null;
+      } else {
+        errorMessage.value = e.message;
+      }
     } catch (_) {
+      if (gateRetry) {
+        rethrow;
+      }
       errorMessage.value = 'فشل حساب الفاتورة';
     } finally {
       isLoading.value = false;
@@ -338,7 +354,7 @@ class OrderCheckoutController extends GetxController {
     if (hasCalculatedPricing.value &&
         appliedCouponCode.value != null &&
         couponDiscount.value <= 0) {
-      Get.snackbar(
+      AppSnackbar.show(
         'تنبيه',
         'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
       );

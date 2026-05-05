@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/models/classification_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
+import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/create_address_payload.dart';
 import 'package:najiz_go_express/features/home/models/user_address.dart';
@@ -112,7 +113,7 @@ class RestaurantProductsController extends GetxController {
     await loadDeliveryAddress();
   }
 
-  Future<void> load() async {
+  Future<void> load({bool gateRetry = false}) async {
     errorMessage.value = null;
     isLoading.value = true;
     try {
@@ -124,14 +125,31 @@ class RestaurantProductsController extends GetxController {
       // Default "All" tab.
       selectedClassificationId.value = null;
 
-      await loadVendorsByService();
+      await _loadVendorsFromRepository();
       _applyClassificationFilter();
     } on HomeApiException catch (e) {
-      errorMessage.value = e.message;
-      classifications.clear();
-      allVendors.clear();
-      vendors.clear();
+      if (gateRetry) {
+        rethrow;
+      }
+      if (e.isConnectivityIssue) {
+        showNoInternetGateIfNeeded(
+          e,
+          retry: () => load(gateRetry: true),
+        );
+        errorMessage.value = null;
+        classifications.clear();
+        allVendors.clear();
+        vendors.clear();
+      } else {
+        errorMessage.value = e.message;
+        classifications.clear();
+        allVendors.clear();
+        vendors.clear();
+      }
     } catch (_) {
+      if (gateRetry) {
+        rethrow;
+      }
       errorMessage.value = 'فشل تحميل المطاعم';
       classifications.clear();
       allVendors.clear();
@@ -141,7 +159,7 @@ class RestaurantProductsController extends GetxController {
     }
   }
 
-  Future<void> loadVendorsByService() async {
+  Future<void> _loadVendorsFromRepository() async {
     final loaded = await _repository.getVendorsByService(
       token: token,
       serviceId: serviceId,

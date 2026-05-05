@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/features/home/controllers/my_orders_controller.dart';
@@ -23,8 +24,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(MyOrdersController(token: widget.token), tag: 'my-orders');
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: cs.surfaceContainerLowest,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 1,
         onTap: (index) => MainBottomNav.onTap(
@@ -34,11 +36,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ),
       ),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: cs.surfaceContainerLowest,
         elevation: 0,
         title: Text(
           'orders.title'.tr,
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: cs.onSurface,
+          ),
         ),
       ),
       body: Obx(() {
@@ -50,7 +55,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(controller.errorMessage.value!, style: const TextStyle(color: AppColors.error), textAlign: TextAlign.center),
+                  child: Text(
+                    controller.errorMessage.value!,
+                    style: TextStyle(color: cs.error),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
@@ -106,7 +115,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             onTrack: () => _openTracking(o),
                             onCancel: () async {
                               if (o.status != 'pending') {
-                                Get.snackbar(
+                                AppSnackbar.show(
                                   'orders.warning'.tr,
                                   'orders.cancelOnlyPending'.tr,
                                 );
@@ -123,7 +132,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                   cancellationReason: reason,
                                 );
                                 if (!mounted) return;
-                                Get.snackbar(
+                                AppSnackbar.show(
                                   'orders.success'.tr,
                                   'orders.cancelSuccess'.tr,
                                 );
@@ -132,7 +141,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                   'Exception: ',
                                   '',
                                 );
-                                Get.snackbar('orders.error'.tr, msg);
+                                AppSnackbar.show('orders.error'.tr, msg);
                               }
                             },
                           ),
@@ -150,7 +159,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       onTrack: () => _openTracking(o),
                       onCancel: () async {
                         if (o.status != 'pending') {
-                          Get.snackbar(
+                          AppSnackbar.show(
                             'orders.warning'.tr,
                             'orders.cancelOnlyPending'.tr,
                           );
@@ -167,13 +176,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             cancellationReason: reason,
                           );
                           if (!mounted) return;
-                          Get.snackbar(
+                          AppSnackbar.show(
                             'orders.success'.tr,
                             'orders.cancelSuccess'.tr,
                           );
                         } catch (e) {
                           final msg = e.toString().replaceFirst('Exception: ', '');
-                          Get.snackbar('orders.error'.tr, msg);
+                          AppSnackbar.show('orders.error'.tr, msg);
                         }
                       },
                     ),
@@ -247,12 +256,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   void _showOrderDetails(UserOrder order) {
+    final sheetCs = Theme.of(context).colorScheme;
     Get.bottomSheet(
       Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        decoration: BoxDecoration(
+          color: sheetCs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -263,7 +273,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 width: 48,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE6EAF1),
+                  color: sheetCs.outlineVariant,
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
@@ -271,23 +281,33 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             const SizedBox(height: 14),
             Text(
               'orders.orderDetails'.tr,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: sheetCs.onSurface,
+              ),
             ),
             const SizedBox(height: 12),
-            _detailRow('orders.orderNumber'.tr, order.orderNumber),
-            _detailRow('orders.type'.tr, _selectedTypeLabel(order.type)),
-            _detailRow('orders.status'.tr, _statusLabel(order.status)),
-            _detailRow('orders.dispatchStatus'.tr, order.dispatchStatus),
+            _detailRow(sheetCs, 'orders.orderNumber'.tr, order.orderNumber),
+            _detailRow(sheetCs, 'orders.type'.tr, _selectedTypeLabel(order.type)),
+            _detailRow(sheetCs, 'orders.status'.tr, _statusLabel(order.status)),
+            _detailRow(sheetCs, 'orders.dispatchStatus'.tr, order.dispatchStatus),
             _detailRow(
+              sheetCs,
               'orders.subtotal'.tr,
               '\$${order.subtotal.toStringAsFixed(2)}',
             ),
             _detailRow(
+              sheetCs,
               'orders.deliveryFee'.tr,
               '\$${order.deliveryFee.toStringAsFixed(2)}',
             ),
-            _detailRow('orders.total'.tr, '\$${order.total.toStringAsFixed(2)}'),
-            _detailRow('orders.time'.tr, _dateHint(order.createdAt)),
+            _detailRow(
+              sheetCs,
+              'orders.total'.tr,
+              '\$${order.total.toStringAsFixed(2)}',
+            ),
+            _detailRow(sheetCs, 'orders.time'.tr, _dateHint(order.createdAt)),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -359,7 +379,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
     String? reason;
     if (_isTaxi) {
       if (_selectedReason == null) {
-        Get.snackbar(
+        AppSnackbar.show(
           'orders.warning'.tr,
           'orders.selectCancelReason'.tr,
         );
@@ -367,7 +387,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
       }
       reason = _isCustomReason ? customReason : _selectedReason;
       if (reason == null || reason.isEmpty) {
-        Get.snackbar(
+        AppSnackbar.show(
           'orders.warning'.tr,
           'orders.writeCancelReason'.tr,
         );
@@ -385,6 +405,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
       child: Padding(
@@ -395,9 +416,9 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
         ),
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -408,7 +429,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                   width: 54,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE3E7EF),
+                    color: cs.outlineVariant,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
@@ -419,7 +440,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -427,7 +448,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                 _isTaxi
                     ? 'orders.cancelReasonRequiredTaxi'.tr
                     : 'orders.cancelReasonOptional'.tr,
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: 12),
               ..._taxiReasons.map(
@@ -445,18 +466,24 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                       border: Border.all(
                         color: _selectedReason == reason
                             ? AppColors.primary
-                            : const Color(0xFFE2E8F0),
+                            : cs.outlineVariant,
                       ),
                       color: _selectedReason == reason
-                          ? const Color(0xFFFFF3E8)
-                          : Colors.white,
+                          ? Color.alphaBlend(
+                              AppColors.primary.withValues(alpha: 0.14),
+                              cs.surface,
+                            )
+                          : cs.surface,
                     ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
                             reason.tr,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurface,
+                            ),
                           ),
                         ),
                         Icon(
@@ -466,7 +493,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                           size: 20,
                           color: _selectedReason == reason
                               ? AppColors.primary
-                              : const Color(0xFF94A3B8),
+                              : cs.onSurfaceVariant,
                         ),
                       ],
                     ),
@@ -481,7 +508,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                     hintText: 'orders.cancelReasonPlaceholder'.tr,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.inputBorder),
+                      borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -501,7 +528,7 @@ class _CancelOrderSheetState extends State<_CancelOrderSheet> {
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(46),
-                        side: const BorderSide(color: Color(0xFFD8DFEA)),
+                        side: BorderSide(color: cs.outlineVariant),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -544,6 +571,7 @@ class _TypeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final items = [
       ('all', 'orders.all'.tr),
       ('taxi', 'orders.taxi'.tr),
@@ -564,7 +592,9 @@ class _TypeTabs extends StatelessWidget {
                   child: Text(
                     it.$2,
                     style: TextStyle(
-                      color: selected == it.$1 ? AppColors.primary : const Color(0xFF667085),
+                      color: selected == it.$1
+                          ? AppColors.primary
+                          : cs.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -619,15 +649,22 @@ class _FilterChip extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : const Color(0xFFE9EEF6),
+          color: active ? AppColors.primary : cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(text, style: TextStyle(color: active ? Colors.white : const Color(0xFF475467), fontWeight: FontWeight.w700)),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: active ? Colors.white : cs.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -638,7 +675,15 @@ class _Header extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: .5));
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      text,
+      style: TextStyle(
+        fontWeight: FontWeight.w800,
+        color: cs.onSurface,
+        letterSpacing: .5,
+      ),
+    );
   }
 }
 
@@ -653,13 +698,19 @@ class _ActiveOrderCard extends StatelessWidget {
   final VoidCallback onCancel;
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final canCancel = order.status == 'pending';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFDCC0)),
+        border: Border.all(
+          color: Color.alphaBlend(
+            AppColors.primary.withValues(alpha: 0.35),
+            cs.outlineVariant,
+          ),
+        ),
       ),
       child: Column(
         children: [
@@ -668,7 +719,10 @@ class _ActiveOrderCard extends StatelessWidget {
               Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(color: const Color(0xFFF8EEE2), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer,
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 child: Icon(_iconForType(order.type), color: AppColors.primary),
               ),
               const SizedBox(width: 10),
@@ -676,18 +730,43 @@ class _ActiveOrderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w800)),
-                    Text(_dateHint(order.createdAt), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    Text(
+                      _orderDisplayTitle(order),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    Text(
+                      _dateHint(order.createdAt),
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Text('\$${order.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+              Text(
+                '\$${order.total.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  color: cs.onSurface,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Align(
             alignment: AlignmentDirectional.centerStart,
-            child: Text('• ${_statusLabel(order.status)}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              '• ${_statusLabel(order.status)}',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -715,9 +794,12 @@ class _ActiveOrderCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: canCancel ? onCancel : null,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: canCancel ? Colors.red : const Color(0xFF9AA4B2),
+                    foregroundColor:
+                        canCancel ? cs.error : cs.onSurfaceVariant,
                     side: BorderSide(
-                      color: canCancel ? const Color(0xFFF0CACA) : const Color(0xFFE0E5EC),
+                      color: canCancel
+                          ? cs.error.withValues(alpha: 0.35)
+                          : cs.outlineVariant,
                     ),
                     minimumSize: const Size.fromHeight(42),
                     shape: RoundedRectangleBorder(
@@ -741,38 +823,62 @@ class _CompletedOrderCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE7ECF4))),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: cs.outlineVariant),
+        ),
         child: Row(
           children: [
             Container(
               width: 50,
               height: 50,
-              decoration: BoxDecoration(color: const Color(0xFFF0F3F8), borderRadius: BorderRadius.circular(14)),
-              child: Icon(_iconForType(order.type), color: const Color(0xFF77839A)),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                _iconForType(order.type),
+                color: cs.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    _orderDisplayTitle(order),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                    ),
+                  ),
                   Text(
                     '${_dateHint(order.createdAt)} • ${'orders.delivered'.tr}',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            Text('\$${order.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
-            const Icon(Icons.chevron_right, color: Color(0xFFAEB8C8)),
+            Text(
+              '\$${order.total.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: cs.onSurface,
+              ),
+            ),
+            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
           ],
         ),
       ),
@@ -785,15 +891,33 @@ class _CancelledOrderCard extends StatelessWidget {
   final UserOrder order;
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF2D4D4))),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: cs.error.withValues(alpha: 0.35),
+        ),
+      ),
       child: Row(
         children: [
-          Expanded(child: Text(_orderDisplayTitle(order), style: const TextStyle(fontWeight: FontWeight.w700))),
+          Expanded(
+            child: Text(
+              _orderDisplayTitle(order),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: cs.onSurface,
+              ),
+            ),
+          ),
           Text(
             'orders.cancelled'.tr,
-            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: cs.error,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -806,10 +930,18 @@ class _EmptyCard extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: Text(text, style: const TextStyle(color: AppColors.textSecondary)),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: cs.onSurfaceVariant),
+      ),
     );
   }
 }
@@ -876,7 +1008,7 @@ String _selectedTypeLabel(String type) {
   }
 }
 
-Widget _detailRow(String label, String value) {
+Widget _detailRow(ColorScheme cs, String label, String value) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Row(
@@ -884,16 +1016,16 @@ Widget _detailRow(String label, String value) {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: cs.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),

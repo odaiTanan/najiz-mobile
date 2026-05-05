@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/models/live_order_info.dart';
@@ -627,7 +628,7 @@ class ShippingController extends GetxController {
     appliedCouponCode.value = normalized;
     await calculateShippingPrice();
     if (appliedCouponCode.value != null && couponDiscount.value <= 0) {
-      Get.snackbar(
+      AppSnackbar.show(
         'تنبيه',
         'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
       );

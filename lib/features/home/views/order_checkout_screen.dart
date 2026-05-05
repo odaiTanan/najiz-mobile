@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
-import 'package:najiz_go_express/core/utils/error_mappers.dart';
-import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
+import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
+import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/order_checkout_controller.dart';
 import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
@@ -30,6 +31,7 @@ class OrderCheckoutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final controller = Get.put(
       OrderCheckoutController(token: token, vendorId: vendorId, items: items),
       tag: 'checkout-$vendorId',
@@ -43,20 +45,22 @@ class OrderCheckoutScreen extends StatelessWidget {
       final cart = Get.find<AppCartService>();
       if (cart.vendorId.value != vendorId || !cart.hasItems) return true;
 
-      final shouldSave = await showDialog<bool>(
+      final shouldSave = await AppPopupDialog.show<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
+          backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
           title: const Text('حفظ السلة؟'),
           content: const Text('هل تريد حفظ السلة'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('نعم'),
-            ),
-            TextButton(
+            OutlinedButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('لا'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('نعم'),
             ),
           ],
         ),
@@ -77,7 +81,6 @@ class OrderCheckoutScreen extends StatelessWidget {
     return WillPopScope(
       onWillPop: _confirmLeaveCheckoutIfNeeded,
       child: Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoading.value) {
@@ -100,7 +103,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 20,
-                        color: AppColors.textPrimary,
+                        color: cs.onSurface,
                       ),
                     ),
                   ),
@@ -118,7 +121,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3E8),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -134,17 +137,17 @@ class OrderCheckoutScreen extends StatelessWidget {
                         children: [
                           Text(
                             controller.customAddressName.value,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: cs.onSurface,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -177,9 +180,9 @@ class OrderCheckoutScreen extends StatelessWidget {
                                   children: [
                                     Text(
                                       '${item.quantity}x ${item.name}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        color: AppColors.textPrimary,
+                                        color: cs.onSurface,
                                       ),
                                     ),
                                     if (item.description != null &&
@@ -188,8 +191,8 @@ class OrderCheckoutScreen extends StatelessWidget {
                                         item.description!,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
+                                        style: TextStyle(
+                                          color: cs.onSurfaceVariant,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -200,8 +203,8 @@ class OrderCheckoutScreen extends StatelessWidget {
                                           '+ ${extra.name} (${_price(extra.price)})',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: AppColors.textSecondary,
+                                          style: TextStyle(
+                                            color: cs.onSurfaceVariant,
                                             fontSize: 11,
                                           ),
                                         ),
@@ -212,8 +215,8 @@ class OrderCheckoutScreen extends StatelessWidget {
                                         'ملاحظة: ${item.note}',
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
+                                        style: TextStyle(
+                                          color: cs.onSurfaceVariant,
                                           fontSize: 11,
                                         ),
                                       ),
@@ -222,9 +225,9 @@ class OrderCheckoutScreen extends StatelessWidget {
                               ),
                               Text(
                                 _price(item.lineTotal),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
+                                  color: cs.onSurface,
                                 ),
                               ),
                             ],
@@ -245,9 +248,14 @@ class OrderCheckoutScreen extends StatelessWidget {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
+                        color: Color.alphaBlend(
+                          const Color(0x33FF8A00),
+                          cs.surface,
+                        ),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFED7AA)),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.28),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -256,11 +264,11 @@ class OrderCheckoutScreen extends StatelessWidget {
                             color: AppColors.primary,
                           ),
                           const SizedBox(width: 8),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'وفر على طلبك',
                               style: TextStyle(
-                                color: AppColors.textPrimary,
+                                color: cs.onSurface,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -275,17 +283,23 @@ class OrderCheckoutScreen extends StatelessWidget {
                               try {
                                 await controller.applyCoupon(selectedCode);
                               } on HomeApiException catch (e) {
-                                Get.snackbar('خطأ', e.message);
+                                AppSnackbar.show('خطأ', e.message);
                               }
                             },
-                            itemBuilder: (context) {
+                            itemBuilder: (menuContext) {
+                              final menuCs = Theme.of(menuContext).colorScheme;
                               final coupons = controller.availableCoupons;
                               if (coupons.isEmpty) {
-                                return const [
+                                return [
                                   PopupMenuItem<String>(
                                     enabled: false,
                                     value: '',
-                                    child: Text('لا توجد كوبونات مفعلة'),
+                                    child: Text(
+                                      'لا توجد كوبونات مفعلة',
+                                      style: TextStyle(
+                                        color: menuCs.onSurfaceVariant,
+                                      ),
+                                    ),
                                   ),
                                 ];
                               }
@@ -298,14 +312,15 @@ class OrderCheckoutScreen extends StatelessWidget {
                                           Expanded(
                                             child: Text(
                                               coupon.code,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.w700,
+                                                color: menuCs.onSurface,
                                               ),
                                             ),
                                           ),
                                           Text(
                                             coupon.valueLabel,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: AppColors.primary,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -330,7 +345,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                               try {
                                 await controller.applyCoupon(selected);
                               } on HomeApiException catch (e) {
-                                Get.snackbar('خطأ', e.message);
+                                AppSnackbar.show('خطأ', e.message);
                               }
                             },
                             child: const Text('كتابة'),
@@ -347,9 +362,9 @@ class OrderCheckoutScreen extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: cs.surface,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: cs.outlineVariant),
                         ),
                         child: Row(
                           children: [
@@ -362,16 +377,16 @@ class OrderCheckoutScreen extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 controller.appliedCouponCode.value!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
+                                  color: cs.onSurface,
                                 ),
                               ),
                             ),
                             IconButton(
                               onPressed: () => controller.clearCoupon(),
                               icon: const Icon(Icons.close, size: 18),
-                              color: AppColors.textSecondary,
+                              color: cs.onSurfaceVariant,
                             ),
                           ],
                         ),
@@ -389,12 +404,12 @@ class OrderCheckoutScreen extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F4F7),
+                        color: cs.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.payments_outlined,
-                        color: AppColors.textPrimary,
+                        color: cs.onSurface,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -406,13 +421,13 @@ class OrderCheckoutScreen extends StatelessWidget {
                             'checkout.cashPayment'.tr,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: cs.onSurface,
                             ),
                           ),
                           Text(
                             'checkout.payOnDelivery'.tr,
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: cs.onSurfaceVariant,
                               fontSize: 12,
                             ),
                           ),
@@ -444,9 +459,9 @@ class OrderCheckoutScreen extends StatelessWidget {
                                   activeColor: AppColors.primary,
                                   title: Text(
                                     option.label,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
+                                      color: cs.onSurface,
                                     ),
                                   ),
                                   subtitle: Text(
@@ -454,8 +469,8 @@ class OrderCheckoutScreen extends StatelessWidget {
                                       original: option.description,
                                       serviceId: serviceId,
                                     ),
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: cs.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -504,37 +519,33 @@ class OrderCheckoutScreen extends StatelessWidget {
                                     ),
                                   );
                                 } on HomeApiException catch (e) {
-                                  if (ErrorMappers.isNoInternetErrorMessage(e.message)) {
-                                    Future<void> _retryPlaceOrder() async {
-                                      final placed =
-                                          await controller.placeOrder();
-                                      if (Get.isRegistered<AppCartService>()) {
-                                        await Get.find<AppCartService>()
-                                            .clearSavedCart();
-                                      }
-                                      Get.off(
-                                        () => OrderTrackingScreen(
-                                          token: authToken,
-                                          orderId: placed.orderId,
-                                          orderNumber: placed.orderNumber,
-                                          initialStatus: placed.status,
-                                          initialDispatchStatus:
-                                              placed.dispatchStatus,
-                                        ),
-                                      );
-                                    }
-
-                                    await Get.dialog(
-                                      NoInternetScreen(
-                                        onRetry: _retryPlaceOrder,
-                                      ),
-                                      barrierDismissible: false,
+                                  if (e.isConnectivityIssue) {
+                                    showNoInternetGateIfNeeded(
+                                      e,
+                                      retry: () async {
+                                        final placed =
+                                            await controller.placeOrder();
+                                        if (Get.isRegistered<AppCartService>()) {
+                                          await Get.find<AppCartService>()
+                                              .clearSavedCart();
+                                        }
+                                        Get.off(
+                                          () => OrderTrackingScreen(
+                                            token: authToken,
+                                            orderId: placed.orderId,
+                                            orderNumber: placed.orderNumber,
+                                            initialStatus: placed.status,
+                                            initialDispatchStatus:
+                                                placed.dispatchStatus,
+                                          ),
+                                        );
+                                      },
                                     );
                                     return;
                                   }
-                                  Get.snackbar('orders.error'.tr, e.message);
+                                  AppSnackbar.show('orders.error'.tr, e.message);
                                 } catch (_) {
-                                  Get.snackbar(
+                                  AppSnackbar.show(
                                     'orders.error'.tr,
                                     'checkout.confirmOrderFailed'.tr,
                                   );
@@ -570,7 +581,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   controller.errorMessage.value!,
-                  style: const TextStyle(color: AppColors.error),
+                  style: TextStyle(color: cs.error),
                 ),
               ],
             ],
@@ -597,12 +608,13 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEDEDED)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,10 +623,10 @@ class _SectionCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                 ),
               ),
               const Spacer(),
@@ -623,7 +635,7 @@ class _SectionCard extends StatelessWidget {
                   onTap: onActionTap,
                   child: Text(
                     actionText!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,
                     ),
@@ -646,16 +658,18 @@ class _InvoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEDEDED)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         children: [
           _row(
+            context,
             'checkout.subtotal'.tr,
             _priceOrPlaceholder(
               value: controller.subtotal.value,
@@ -664,6 +678,7 @@ class _InvoiceCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _row(
+            context,
             'checkout.deliveryFee'.tr,
             _priceOrPlaceholder(
               value: controller.deliveryFee.value,
@@ -672,6 +687,7 @@ class _InvoiceCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _row(
+            context,
             'checkout.serviceFee'.tr,
             _priceOrPlaceholder(
               value: controller.serviceFee.value,
@@ -681,6 +697,7 @@ class _InvoiceCard extends StatelessWidget {
           const SizedBox(height: 8),
           if (controller.appliedCouponCode.value != null)
             _row(
+              context,
               'خصم الكوبون',
               controller.hasCalculatedPricing.value
                   ? '-${_price(controller.couponDiscount.value)}'
@@ -688,6 +705,7 @@ class _InvoiceCard extends StatelessWidget {
             ),
           const Divider(height: 22),
           _row(
+            context,
             'checkout.total'.tr,
             _priceOrPlaceholder(
               value: controller.total.value,
@@ -700,13 +718,15 @@ class _InvoiceCard extends StatelessWidget {
     );
   }
 
-  Widget _row(String title, String value, {bool isTotal = false}) {
+  Widget _row(BuildContext context, String title, String value,
+      {bool isTotal = false}) {
+    final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
         Text(
           title,
           style: TextStyle(
-            color: isTotal ? AppColors.textPrimary : AppColors.textSecondary,
+            color: isTotal ? cs.onSurface : cs.onSurfaceVariant,
             fontWeight: isTotal ? FontWeight.w900 : FontWeight.w600,
             fontSize: isTotal ? 22 : 14,
           ),
@@ -715,7 +735,7 @@ class _InvoiceCard extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            color: isTotal ? AppColors.primary : AppColors.textPrimary,
+            color: isTotal ? AppColors.primary : cs.onSurface,
             fontWeight: isTotal ? FontWeight.w900 : FontWeight.w700,
             fontSize: isTotal ? 22 : 14,
           ),
@@ -757,7 +777,7 @@ Future<void> _openLocationPicker(
 ) async {
   final lat = double.tryParse(controller.lat.value) ?? 33.5138;
   final lng = double.tryParse(controller.lng.value) ?? 36.2765;
-  final selected = await showDialog<ll.LatLng>(
+  final selected = await AppPopupDialog.show<ll.LatLng>(
     context: context,
     builder: (_) => _MapPickerDialog(initialPoint: ll.LatLng(lat, lng)),
   );
@@ -788,7 +808,10 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Dialog(
+      backgroundColor: cs.surface,
+      surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: SizedBox(
@@ -805,6 +828,7 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
+                        color: cs.onSurface,
                       ),
                     ),
                   ),

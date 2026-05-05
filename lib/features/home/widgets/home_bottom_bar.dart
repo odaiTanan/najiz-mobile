@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/theme/theme_context.dart';
 
 class HomeBottomBar extends StatelessWidget {
   const HomeBottomBar({
@@ -30,9 +32,9 @@ class HomeBottomBar extends StatelessWidget {
       top: false,
       child: Container(
         height: 74,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFEFF2F6))),
+        decoration: BoxDecoration(
+          color: context.uiCard,
+          border: Border(top: BorderSide(color: context.uiHairline)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -96,9 +98,10 @@ class _BottomItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const activeColor = Color(0xFFC87422);
-    final iconColor = active ? activeColor : const Color(0xFF1F2937);
-    final textColor = active ? activeColor : const Color(0xFF6B7280);
+    const activeColor = AppColors.primary;
+    final cs = Theme.of(context).colorScheme;
+    final iconColor = active ? activeColor : cs.onSurface;
+    final textColor = active ? activeColor : cs.onSurfaceVariant;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
