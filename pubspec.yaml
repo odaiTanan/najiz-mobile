@@ -55,6 +55,7 @@ dependencies:
   url_launcher: ^6.3.1
   image_picker: ^1.1.2
   flutter_svg: ^2.2.0
+  video_player: ^2.10.0
 
 dev_dependencies:
   flutter_test:
@@ -103,6 +104,7 @@ flutter:
     - assets/najiz_go_express_logo.png
     - assets/google_logo.png
     - assets/apple_logo.png
+    - assets/videos/splash.mp4.mp4
     - assets/i18n/ar.json
     - assets/i18n/en.json
   fonts:

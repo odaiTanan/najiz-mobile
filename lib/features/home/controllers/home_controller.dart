@@ -194,7 +194,7 @@ class HomeController extends GetxController {
             'لديك سلة محفوظة',
             style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
           ),
-          duration: const Duration(seconds: 0.5),
+          duration: const Duration(milliseconds: 500),
           action: SnackBarAction(
             label: '→',
             textColor: AppColors.primary,

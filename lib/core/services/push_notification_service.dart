@@ -19,8 +19,7 @@ class PushNotificationService extends GetxService {
   static const String _storageKey = 'app_notifications_history';
   static const String _orderNotificationIdsKey = 'order_progress_notification_ids';
   static const String _chatNotificationIdsKey = 'chat_progress_notification_ids';
-  /// v2: channel recreated so importance/playSound apply (Android locks first creation).
-  static const String _ordersChannelId = 'orders_progress_channel_v2';
+  static const String _ordersChannelId = 'orders_progress_channel';
   static const String _chatChannelId = 'chat_updates_channel';
 
   final _http = http.Client();
@@ -104,9 +103,9 @@ class PushNotificationService extends GetxService {
           _ordersChannelId,
           'تتبع الطلبات',
           description: 'تحديث حالة الطلب مع شريط التقدم',
-          importance: Importance.defaultImportance,
+          importance: Importance.low,
           playSound: true,
-          enableVibration: true,
+          enableVibration: false,
         ),
       );
     }
@@ -314,7 +313,7 @@ class PushNotificationService extends GetxService {
         groupKey: groupKey,
         onlyAlertOnce: true,
         playSound: true,
-        enableVibration: true,
+        enableVibration: false,
         enableLights: false,
         ongoing: !isFinished,
         autoCancel: isFinished,
