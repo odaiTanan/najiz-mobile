@@ -1,3 +1,4 @@
+import java.io.StringReader
 import java.util.Properties
 
 plugins {
@@ -17,14 +18,30 @@ val localProperties = Properties().apply {
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
-    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+    // UTF-8 BOM (common when creating key.properties via PowerShell) breaks the first key otherwise.
+    val rawText = keystorePropertiesFile.readText(Charsets.UTF_8).removePrefix("\uFEFF")
+    keystoreProperties.load(StringReader(rawText))
 }
+fun Properties.req(name: String): String? =
+    getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
+
+val storeFileProp = keystoreProperties.req("storeFile")
+val storeFileResolved = storeFileProp?.let { rootProject.file(it) }
 val hasReleaseKeystore = keystorePropertiesFile.exists() &&
-    keystoreProperties.getProperty("storeFile") != null &&
-    keystoreProperties.getProperty("storePassword") != null &&
-    keystoreProperties.getProperty("keyAlias") != null &&
-    keystoreProperties.getProperty("keyPassword") != null &&
-    rootProject.file(keystoreProperties.getProperty("storeFile")!!).exists()
+    storeFileProp != null &&
+    keystoreProperties.req("storePassword") != null &&
+    keystoreProperties.req("keyAlias") != null &&
+    keystoreProperties.req("keyPassword") != null &&
+    storeFileResolved != null &&
+    storeFileResolved.exists()
+
+if (!hasReleaseKeystore && keystorePropertiesFile.exists()) {
+    logger.warn(
+        "android/key.properties exists but release signing is disabled. " +
+            "Check storeFile path (relative to android/), passwords, and that the .jks file exists. " +
+            "Release builds would fall back to DEBUG signing — Play Console will reject them."
+    )
+}
 
 android {
     namespace = "com.najizgo.app"
@@ -44,10 +61,10 @@ android {
     signingConfigs {
         if (hasReleaseKeystore) {
             create("release") {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile")!!)
-                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.req("keyAlias")
+                keyPassword = keystoreProperties.req("keyPassword")
+                storeFile = storeFileResolved
+                storePassword = keystoreProperties.req("storePassword")
             }
         }
     }
