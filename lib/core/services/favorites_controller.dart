@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
@@ -13,6 +15,7 @@ class FavoritesController extends GetxController {
   final vendorFavoriteIds = <int>{}.obs;
   final productFavoriteIds = <int>{}.obs;
   final isSyncing = false.obs;
+  bool _startupSyncScheduled = false;
 
   bool isVendorFavorite(int id) => vendorFavoriteIds.contains(id);
   bool isProductFavorite(int id) => productFavoriteIds.contains(id);
@@ -27,13 +30,22 @@ class FavoritesController extends GetxController {
 
   void _onAuthChanged() {
     if (!_auth.isAuthenticated) {
+      _startupSyncScheduled = false;
       vendorFavoriteIds.clear();
       productFavoriteIds.clear();
       vendorFavoriteIds.refresh();
       productFavoriteIds.refresh();
       return;
     }
-    syncFavoriteIdsFromServer();
+    if (_startupSyncScheduled) return;
+    _startupSyncScheduled = true;
+    // Defer initial favorites sync to avoid competing with home bootstrap APIs.
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 2), () async {
+        if (!_auth.isAuthenticated) return;
+        await syncFavoriteIdsFromServer();
+      }),
+    );
   }
 
   /// Loads all pages of favorites into local id sets (for star UI).

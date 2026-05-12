@@ -55,7 +55,7 @@
     "referralCodeLabel": "Your code:",
     "referralsCount": "Referrals: @count",
     "referralLoadError": "Could not load your code. Pull to refresh.",
-    "referralGuestHint": "Sign in to see and copy your referral code.",
+    "referralGuestHint": "Create your account now and get a discount code when you sign up for the first time.",
     "copyCode": "Copy code",
     "copiedReferralCode": "Referral code @code copied",
     "accountSettings": "Account settings",

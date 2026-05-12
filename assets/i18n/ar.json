@@ -55,7 +55,7 @@
     "referralCodeLabel": "رمزك:",
     "referralsCount": "عدد الإحالات: @count",
     "referralLoadError": "تعذر تحميل الرمز. اسحب للتحديث.",
-    "referralGuestHint": "سجّل الدخول لعرض رمز إحالتك ونسخه.",
+    "referralGuestHint": "أنشئ الآن واحصل على كود حسم عند إنشاء حسابك لأول مرة.",
     "copyCode": "نسخ الرمز",
     "copiedReferralCode": "تم نسخ كود الإحالة @code",
     "accountSettings": "إعدادات الحساب",

@@ -90,7 +90,9 @@ class PushNotificationService extends GetxService {
 
   Future<void> _initLocalNotifications() async {
     if (_localInitialized) return;
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings(
+      '@drawable/ic_launcher_foreground',
+    );
     const settings = InitializationSettings(android: android);
     await _localNotifications.initialize(settings);
 
@@ -273,31 +275,8 @@ class PushNotificationService extends GetxService {
         '$statusText ($clampedStep/$clampedTotal)';
     final isFinished = _isTerminalOrderStatus(effectiveStatus);
 
-    DefaultStyleInformation styleInfo = BigTextStyleInformation(body);
-    var useStepperBitmap = false;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      final labels = stepperLabelsForOrderType(orderType);
-      final n = clampedTotal.clamp(1, labels.length).toInt();
-      final subLabels = labels.sublist(0, n);
-      final maxActive = subLabels.length - 1;
-      final activeDraw =
-          isFinished ? maxActive : clampedStep.clamp(0, maxActive).toInt();
-      final bytes = await renderOrderStepperPng(
-        labels: subLabels,
-        activeIndex: activeDraw,
-        allComplete: isFinished,
-        orderType: orderType,
-        isStore: serviceName == 'store',
-      );
-      if (bytes != null && bytes.isNotEmpty) {
-        styleInfo = BigPictureStyleInformation(
-          ByteArrayAndroidBitmap(bytes),
-          summaryText: body,
-          hideExpandedLargeIcon: true,
-        );
-        useStepperBitmap = true;
-      }
-    }
+    // Keep Android native progress line visible and stable across devices.
+    final styleInfo = BigTextStyleInformation(body);
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -307,7 +286,7 @@ class PushNotificationService extends GetxService {
         color: const Color(0xFFFF8A00),
         importance: Importance.low,
         priority: Priority.low,
-        showProgress: !isFinished && !useStepperBitmap,
+        showProgress: !isFinished,
         maxProgress: clampedTotal,
         progress: isFinished ? clampedTotal : clampedStep,
         groupKey: groupKey,
@@ -397,17 +376,40 @@ class PushNotificationService extends GetxService {
     'waiting_at_pickup',
   };
 
+  static const Set<String> _dispatchPreferredStatuses = {
+    'accepted',
+    'assigned',
+    'on_the_way_to_pickup',
+    'picked_up',
+    'on_way',
+    'arrived',
+    'waiting',
+    'arrived_waiting',
+    'driver_arrived',
+    'at_destination',
+    'at_pickup',
+    'waiting_at_destination',
+    'waiting_at_pickup',
+    'delivered',
+    'completed',
+  };
+
   String _effectiveStatusForProgress(Map<String, dynamic> data) {
-    final main = _normalizeStatus(
+    final main = _canonicalStatus(
       data['status']?.toString() ?? data['order_status']?.toString() ?? '',
     );
-    final dispatch = _normalizeStatus(
+    final dispatch = _canonicalStatus(
       data['dispatch_status']?.toString() ??
           data['driver_status']?.toString() ??
           '',
     );
     if (_arrivalProgressStatuses.contains(main)) return main;
     if (_arrivalProgressStatuses.contains(dispatch)) return dispatch;
+    if (dispatch.isNotEmpty &&
+        _dispatchPreferredStatuses.contains(dispatch) &&
+        (main.isEmpty || main == 'pending' || main == 'accepted')) {
+      return dispatch;
+    }
     if (main.isNotEmpty) return main;
     return dispatch;
   }
@@ -418,6 +420,7 @@ class PushNotificationService extends GetxService {
     String orderType = '',
     String? serviceName,
   }) {
+    final normalizedStatus = _canonicalStatus(status);
     final max = stepTotal <= 0 ? 5 : stepTotal;
     final isStore = serviceName == 'store';
     final type = orderType == 'shipping'
@@ -432,6 +435,7 @@ class PushNotificationService extends GetxService {
         case 'no_driver':
           return 0;
         case 'accepted':
+        case 'assigned':
           return 1;
         case 'preparing':
         case 'ready':
@@ -467,6 +471,7 @@ class PushNotificationService extends GetxService {
         case 'no_driver':
           return 0;
         case 'accepted':
+        case 'assigned':
           return 1;
         case 'preparing':
           return 1;
@@ -501,6 +506,7 @@ class PushNotificationService extends GetxService {
         case 'no_driver':
           return 0;
         case 'accepted':
+        case 'assigned':
           return 1;
         case 'preparing':
           return 2;
@@ -530,16 +536,16 @@ class PushNotificationService extends GetxService {
 
     switch (type) {
       case 'shipping':
-        return mapShipping(status).clamp(0, max);
+        return mapShipping(normalizedStatus).clamp(0, max);
       case 'taxi':
-        return mapTaxi(status).clamp(0, max);
+        return mapTaxi(normalizedStatus).clamp(0, max);
       default:
-        return mapFood(status).clamp(0, max);
+        return mapFood(normalizedStatus).clamp(0, max);
     }
   }
 
   String _defaultStatusLabel(String statusRaw) {
-    final status = _normalizeStatus(statusRaw);
+    final status = _canonicalStatus(statusRaw);
     switch (status) {
       case 'pending':
         return 'بانتظار القبول';
@@ -578,11 +584,46 @@ class PushNotificationService extends GetxService {
   }
 
   bool _isTerminalOrderStatus(String statusRaw) {
-    final status = _normalizeStatus(statusRaw);
+    final status = _canonicalStatus(statusRaw);
     return status == 'delivered' ||
         status == 'completed' ||
         status == 'cancelled' ||
         status == 'canceled';
+  }
+
+  String _canonicalStatus(String raw) {
+    var s = _normalizeStatus(raw);
+    if (s.isEmpty) return s;
+
+    // Backend payloads may prefix values, e.g. food_preparing / order_delivered.
+    if (s.startsWith('food_')) s = s.substring(5);
+    if (s.startsWith('order_')) s = s.substring(6);
+
+    switch (s) {
+      case 'driver_assigned':
+      case 'accepted_by_driver':
+      case 'dispatching':
+        return 'assigned';
+      case 'preparing_food':
+      case 'being_prepared':
+        return 'preparing';
+      case 'pickup':
+      case 'pickedup':
+        return 'picked_up';
+      case 'on_the_way':
+      case 'on_the_way_to_customer':
+      case 'on_the_way_to_dropoff':
+      case 'out_for_delivery':
+      case 'in_transit':
+      case 'heading_to_customer':
+        return 'on_way';
+      case 'delivered_to_customer':
+        return 'delivered';
+      case 'complete':
+        return 'completed';
+      default:
+        return s;
+    }
   }
 
   Future<void> _handleOrderStatusMilestones(Map<String, dynamic>? data) async {
@@ -593,10 +634,10 @@ class PushNotificationService extends GetxService {
     final orderId = data['order_id']?.toString();
     if (orderId == null || orderId.trim().isEmpty) return;
 
-    final status = _normalizeStatus(
+    final status = _canonicalStatus(
       data['status']?.toString() ?? data['order_status']?.toString() ?? '',
     );
-    final dispatchStatus = _normalizeStatus(
+    final dispatchStatus = _canonicalStatus(
       data['dispatch_status']?.toString() ??
           data['driver_status']?.toString() ??
           '',

@@ -1,6 +1,6 @@
 {
-    "name": "najiz_go_express",
-    "short_name": "najiz_go_express",
+    "name": "NajizGo",
+    "short_name": "NajizGo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

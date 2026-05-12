@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:najiz_go_express/core/constants/api_config.dart';
 import 'package:pusher_client/pusher_client.dart';
 import 'package:http/http.dart' as http;
@@ -11,14 +12,27 @@ class OrderWebSocketService {
   static const String _wsHost = 'mobile.najizgo.com';
   static const int _wsPort = 443;
   static const bool _wsUseTls = true;
+  static const int _kMaxWsLogChars = 360;
   PusherClient? _pusher;
   Channel? _orderChannel;
   bool _isConnected = false;
 
+  void _log(String message) {
+    if (!kDebugMode) return;
+    print(message);
+  }
+
+  String _shorten(dynamic value) {
+    final text = value?.toString() ?? '';
+    final compact = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (compact.length <= _kMaxWsLogChars) return compact;
+    return '${compact.substring(0, _kMaxWsLogChars)}...';
+  }
+
   Future<void> connectIfNeeded() async {
     if (_isConnected) return;
     final authEndpoint = _resolveBroadcastAuthEndpoint();
-    print(
+    _log(
       '[WS][INIT] host=${_resolveWsHost()} tls=${_resolveWsUseTls()} auth=$authEndpoint',
     );
 
@@ -39,15 +53,15 @@ class OrderWebSocketService {
     _pusher = PusherClient(
       'np5pmfyxuslyl7romizd',
       options,
-      enableLogging: true,
+      enableLogging: kDebugMode,
       autoConnect: false,
     );
     _pusher!.onConnectionStateChange((state) {
       if (state == null) return;
-      print('[WS][STATE] ${state.previousState} -> ${state.currentState}');
+      _log('[WS][STATE] ${state.previousState} -> ${state.currentState}');
     });
     _pusher!.onConnectionError((error) {
-      print(
+      _log(
         '[WS][ERROR] message=${error?.message} code=${error?.code} exception=${error?.exception}',
       );
     });
@@ -67,7 +81,7 @@ class OrderWebSocketService {
     }
 
     final channelName = 'private-order.$orderId';
-    print('[WS][SUBSCRIBE] $channelName');
+    _log('[WS][SUBSCRIBE] $channelName');
     await _debugAuthProbe(channelName);
     _orderChannel = _pusher!.subscribe(channelName);
     await _orderChannel!.bind('order.status.updated', (event) {
@@ -89,7 +103,7 @@ class OrderWebSocketService {
     void Function(Map<String, dynamic> orderPayload) onOrderUpdated,
     bool allowLocationOnly,
   ) {
-    print('[WS][EVENT][RAW] $rawData');
+    _log('[WS][EVENT][RAW] ${_shorten(rawData)}');
     if (rawData == null) return;
     final decoded = _decodeJsonMap(rawData);
     if (decoded.isEmpty) return;
@@ -100,19 +114,19 @@ class OrderWebSocketService {
     final hasLatLng = orderData.containsKey('lat') && orderData.containsKey('lng');
     if (!hasStatus && !hasDispatch && !(allowLocationOnly && hasLatLng)) return;
     onOrderUpdated(orderData);
-    print(
+    _log(
       '[WS][EVENT][PARSED] status=${orderData['status']} dispatch=${orderData['dispatch_status']}',
     );
   }
 
   Future<void> disconnect() async {
     if (_orderChannel != null) {
-      print('[WS][UNSUBSCRIBE] ${_orderChannel!.name}');
+      _log('[WS][UNSUBSCRIBE] ${_orderChannel!.name}');
       await _pusher?.unsubscribe(_orderChannel!.name);
       _orderChannel = null;
     }
     if (_isConnected) {
-      print('[WS][DISCONNECT]');
+      _log('[WS][DISCONNECT]');
       await _pusher?.disconnect();
       _isConnected = false;
     }
@@ -126,13 +140,13 @@ class OrderWebSocketService {
     try {
       final socketId = _pusher?.getSocketId();
       if (socketId == null || socketId.trim().isEmpty) {
-        print('[WS][AUTH][SKIP] socket_id is null/empty');
+        _log('[WS][AUTH][SKIP] socket_id is null/empty');
         return;
       }
       final endpoint = _resolveBroadcastAuthEndpoint();
       final body = {'socket_id': socketId, 'channel_name': channelName};
-      print('[WS][AUTH][REQ] POST $endpoint');
-      print('[WS][AUTH][REQ][BODY] $body');
+      _log('[WS][AUTH][REQ] POST $endpoint');
+      _log('[WS][AUTH][REQ][BODY] ${_shorten(body)}');
       final response = await http
           .post(
             Uri.parse(endpoint),
@@ -144,10 +158,10 @@ class OrderWebSocketService {
             body: body,
           )
           .timeout(ApiConfig.timeout);
-      print('[WS][AUTH][RES] ${response.statusCode}');
-      print('[WS][AUTH][RES][BODY] ${response.body}');
+      _log('[WS][AUTH][RES] ${response.statusCode}');
+      _log('[WS][AUTH][RES][BODY] ${_shorten(response.body)} (len=${response.body.length})');
     } catch (e) {
-      print('[WS][AUTH][ERROR] $e');
+      _log('[WS][AUTH][ERROR] $e');
     }
   }
 

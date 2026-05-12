@@ -28,6 +28,10 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final profileLogoAsset = isDark
+        ? 'assets/logo_dark.png'
+        : 'assets/logo_light.png';
     final auth = Get.find<AuthStateManager>();
     final controller = Get.put(ProfileController(), tag: 'profile-controller');
     return Scaffold(
@@ -91,18 +95,18 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       Container(
-                        width: 92,
-                        height: 92,
+                        width: 152,
+                        height: 152,
                         decoration: BoxDecoration(
                           color: cs.surfaceContainerHigh,
                           shape: BoxShape.circle,
                           border: Border.all(color: cs.outlineVariant),
                         ),
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(4),
                         child: ClipOval(
                           child: Image.asset(
-                            'assets/najiz_go_express_logo.png',
-                            fit: BoxFit.cover,
+                            profileLogoAsset,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
@@ -407,18 +411,21 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Obx(() {
-      if (isGuest) {
-        return Text(
-          'profile.referralGuestHint'.tr,
-          style: TextStyle(
-            color: cs.onSurfaceVariant,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        );
-      }
+    // Guest path must stay outside [Obx]: an [Obx] with no `.obs` reads throws at runtime
+    // and shows the global [ErrorWidget] (black box + displayError).
+    if (isGuest) {
+      return Text(
+        'profile.referralGuestHint'.tr,
+        style: TextStyle(
+          color: cs.onSurfaceVariant,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          height: 1.35,
+        ),
+      );
+    }
 
+    return Obx(() {
       if (controller.isLoading.value) {
         return const Padding(
           padding: EdgeInsets.symmetric(vertical: 10),

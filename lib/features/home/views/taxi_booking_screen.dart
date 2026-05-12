@@ -154,7 +154,7 @@ class TaxiBookingScreen extends StatelessWidget {
                       )
                     else if (pricing == null || pricing.categories.isEmpty)
                       Text(
-                        'لا توجد فئات تاكسي متاحة',
+                        'حدد رحلتك الآن لننطلق',
                         style: TextStyle(color: cs.onSurfaceVariant),
                       )
                     else

@@ -60,7 +60,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_native_splash: ^2.4.6
   flutter_launcher_icons: ^0.14.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -70,23 +69,14 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
-flutter_native_splash:
-  color: "#FFFFFF"
-  image: assets/najiz_go_express_logo.png
-  android: true
-  ios: false
-  web: false
-  android_12:
-    color: "#FFFFFF"
-    image: assets/najiz_go_express_logo.png
-
 flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  image_path: assets/najiz_go_express_logo.png
+  image_path: assets/logo_light.png
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/najiz_go_express_logo.png
+  adaptive_icon_foreground: assets/logo_light.png
+  adaptive_icon_foreground_inset: 10
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -100,8 +90,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
-    - assets/lottie/delivery_splash.json
-    - assets/najiz_go_express_logo.png
+    - assets/logo_light.png
+    - assets/logo_dark.png
+    - assets/lottie/yellow_delivery_guy.json
     - assets/google_logo.png
     - assets/apple_logo.png
     - assets/videos/splash.mp4.mp4

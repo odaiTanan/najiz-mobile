@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
 import 'package:najiz_go_express/core/errors/error_sanitizer.dart';
-import 'package:najiz_go_express/core/errors/home_api_exception.dart';
-import 'package:najiz_go_express/core/network/connectivity_guard.dart';
 
 class AuthResult {
   final String message;
@@ -61,16 +60,16 @@ class AuthRepository {
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl;
 
+  void _logAuthError(Uri uri, Object error) {
+    if (!kDebugMode) return;
+    print('[AUTH][ERR] POST $uri -> $error');
+  }
+
   Future<http.Response> _postJsonWithRetry({
     required Uri uri,
     required Map<String, dynamic> body,
     int retries = 1,
   }) async {
-    try {
-      await ConnectivityGuard.requireOnline();
-    } on HomeApiException catch (e) {
-      throw AuthApiException(e.message);
-    }
     Object? lastError;
     for (var attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -86,13 +85,13 @@ class AuthRepository {
             .timeout(ApiConfig.timeout);
       } on TimeoutException catch (e) {
         // Keep detailed reason in debug logs to diagnose device-specific issues.
-        print('[AUTH][ERR] POST $uri -> $e');
+        _logAuthError(uri, e);
         lastError = e;
       } on SocketException catch (e) {
-        print('[AUTH][ERR] POST $uri -> $e');
+        _logAuthError(uri, e);
         lastError = e;
       } on http.ClientException catch (e) {
-        print('[AUTH][ERR] POST $uri -> $e');
+        _logAuthError(uri, e);
         lastError = e;
       }
 

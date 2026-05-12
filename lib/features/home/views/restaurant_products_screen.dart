@@ -162,7 +162,10 @@ class RestaurantProductsScreen extends StatelessWidget {
                           controller.selectedClassificationId.value == c.id;
                       return _ClassificationIconItem(
                         label: c.name,
-                        icon: _classificationIcon(name: c.name),
+                        icon: _classificationIcon(
+                          name: c.name,
+                          isStoresService: isStoresService,
+                        ),
                         backendIconUrl: c.icon,
                         selected: selected,
                         onTap: () => controller.selectClassification(c.id),
@@ -837,7 +840,10 @@ class _RatingPill extends StatelessWidget {
   }
 }
 
-IconData _classificationIcon({required String name}) {
+IconData _classificationIcon({
+  required String name,
+  required bool isStoresService,
+}) {
   final n = name.toLowerCase();
   if (n.contains('pizza') || n.contains('بيتزا'))
     return Icons.local_pizza_outlined;
@@ -845,6 +851,7 @@ IconData _classificationIcon({required String name}) {
     return Icons.lunch_dining_outlined;
   if (n.contains('healthy') || n.contains('صحي')) return Icons.eco_outlined;
   if (n.contains('sushi') || n.contains('سوشي')) return Icons.set_meal_outlined;
+  if (isStoresService) return Icons.shopping_basket_outlined;
   return Icons.restaurant_menu_outlined;
 }
 

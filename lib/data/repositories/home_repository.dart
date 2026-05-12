@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
 import 'package:najiz_go_express/core/errors/home_api_exception.dart';
-import 'package:najiz_go_express/core/network/connectivity_guard.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/data/models/service_model.dart';
 import 'package:najiz_go_express/data/models/vendor_model.dart';
@@ -25,6 +25,7 @@ import 'package:najiz_go_express/features/home/models/faq_item_model.dart';
 export 'package:najiz_go_express/core/errors/home_api_exception.dart';
 
 class HomeRepository {
+  static const int _kMaxLogBodyChars = 420;
   final http.Client _client;
   final String _baseUrl;
 
@@ -37,9 +38,10 @@ class HomeRepository {
     required Uri uri,
     Map<String, dynamic>? body,
   }) {
+    if (!kDebugMode) return;
     print('[API][REQ] $method $uri');
     if (body != null) {
-      print('[API][REQ][BODY] ${jsonEncode(body)}');
+      print('[API][REQ][BODY] ${_shortenLog(jsonEncode(body))}');
     }
   }
 
@@ -48,8 +50,12 @@ class HomeRepository {
     required Uri uri,
     required http.Response response,
   }) {
+    if (!kDebugMode) return;
     print('[API][RES] $method $uri -> ${response.statusCode}');
-    print('[API][RES][BODY] ${response.body}');
+    print(
+      '[API][RES][BODY] ${_shortenLog(response.body)} '
+      '(len=${response.body.length})',
+    );
   }
 
   void _logApiError({
@@ -57,7 +63,14 @@ class HomeRepository {
     required Uri uri,
     required Object error,
   }) {
+    if (!kDebugMode) return;
     print('[API][ERR] $method $uri -> $error');
+  }
+
+  String _shortenLog(String text) {
+    final compact = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (compact.length <= _kMaxLogBodyChars) return compact;
+    return '${compact.substring(0, _kMaxLogBodyChars)}...';
   }
 
   Future<List<OfferModel>> getOffers({String? token}) async {
@@ -848,7 +861,6 @@ class HomeRepository {
         'page': page.toString(),
       },
     );
-    await ConnectivityGuard.requireOnline();
     _logApiRequest(method: 'GET', uri: uri);
     final res = await _client
         .get(
@@ -926,7 +938,6 @@ class HomeRepository {
     required String endpoint,
     String? token,
   }) async {
-    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl$endpoint');
     Object? lastError;
     const retries = 1;

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/core/services/order_websocket_service.dart';
@@ -59,7 +60,9 @@ class OrderTrackingController extends GetxController {
   }
 
   void _onOrderUpdated(Map<String, dynamic> payload) {
-    print('[TRACKING][UPDATE] $payload');
+    if (kDebugMode) {
+      print('[TRACKING][UPDATE] status=${payload['status']} dispatch=${payload['dispatch_status']}');
+    }
     currentStatus.value = (payload['status'] ?? currentStatus.value).toString();
     currentDispatchStatus.value =
         (payload['dispatch_status'] ?? currentDispatchStatus.value).toString();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/errors/global_error_hooks.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -29,10 +31,10 @@ Future<void> main() async {
   Get.put(ThemeController(), permanent: true);
   await Get.find<ThemeController>().hydrate();
   Get.put(NoInternetGateController(), permanent: true);
-  final pushService = Get.put(PushNotificationService(), permanent: true);
-  await pushService.initialize(token: token);
+  Get.put(PushNotificationService(), permanent: true);
   Get.put(LoginController());
   runApp(MyApp(initialLocaleCode: savedLocale));
+  unawaited(Get.find<PushNotificationService>().initialize(token: token));
 }
 
 class MyApp extends StatelessWidget {
@@ -72,13 +74,11 @@ class MyApp extends StatelessWidget {
           final gate = Get.find<NoInternetGateController>();
           final wrapped = MediaQuery(
             data: media.copyWith(textScaler: const TextScaler.linear(0.88)),
-            child: SafeArea(
-              child: Directionality(
-                textDirection: localeCode == 'ar'
-                    ? TextDirection.rtl
-                    : TextDirection.ltr,
-                child: child ?? const SizedBox.shrink(),
-              ),
+            child: Directionality(
+              textDirection: localeCode == 'ar'
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
+              child: child ?? const SizedBox.shrink(),
             ),
           );
           return Obx(() {

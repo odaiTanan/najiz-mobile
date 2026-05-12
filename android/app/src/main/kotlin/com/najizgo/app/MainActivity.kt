@@ -1,4 +1,4 @@
-package com.example.najiz_go_express
+package com.najizgo.app
 
 import io.flutter.embedding.android.FlutterActivity
 

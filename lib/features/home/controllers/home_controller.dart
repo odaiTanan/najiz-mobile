@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
@@ -106,8 +108,12 @@ class HomeController extends GetxController {
   }
 
   Future<void> _fetchHomePayload({required bool propagateConnectivity}) async {
-    final loadedOffers = await _repository.getOffers(token: activeToken);
-    final loadedServices = await _repository.getServices(token: activeToken);
+    final results = await Future.wait<dynamic>([
+      _repository.getOffers(token: activeToken),
+      _repository.getServices(token: activeToken),
+    ]);
+    final loadedOffers = (results[0] as List<OfferModel>);
+    final loadedServices = (results[1] as List<ServiceModel>);
 
     offers.assignAll(loadedOffers);
     services.assignAll(loadedServices);
@@ -118,15 +124,17 @@ class HomeController extends GetxController {
       );
       restaurantServiceId.value = initialServiceId;
       selectedServiceId.value = initialServiceId;
-      await loadVendorsByService(
-        initialServiceId,
-        propagateConnectivity: propagateConnectivity,
+      unawaited(
+        loadVendorsByService(
+          initialServiceId,
+          propagateConnectivity: propagateConnectivity,
+        ),
       );
     } else {
       restaurantServiceId.value = null;
       vendors.clear();
     }
-    await _loadActiveOrders();
+    unawaited(_loadActiveOrders());
   }
 
   Future<void> loadHomeData() async {

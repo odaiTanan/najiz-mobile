@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
-import 'package:najiz_go_express/core/network/connectivity_guard.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/support/models/support_chat_models.dart';
 
@@ -56,7 +55,6 @@ class SupportRepository {
     required int conversationId,
     required String message,
   }) async {
-    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl/chat/messages/$conversationId');
     final payload = {'message': message};
     try {
@@ -95,7 +93,6 @@ class SupportRepository {
     required List<int> messageIds,
   }) async {
     if (messageIds.isEmpty) return;
-    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl/chat/messages/$conversationId/read');
     final payload = {'message_ids': messageIds};
     try {
@@ -129,7 +126,6 @@ class SupportRepository {
     required String endpoint,
     required String token,
   }) async {
-    await ConnectivityGuard.requireOnline();
     final uri = Uri.parse('$_baseUrl$endpoint');
     try {
       final res = await _client

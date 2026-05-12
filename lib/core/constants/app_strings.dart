@@ -1,7 +1,7 @@
 class AppStrings {
   AppStrings._();
 
-  static const String appName = 'NajizGo Express';
+  static const String appName = 'NajizGo';
   static const String welcomeBack = 'مرحباً بعودتك';
   static const String loginSubtitle = 'سجّل الدخول إلى حسابك للمتابعة';
 
