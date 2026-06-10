@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:geocoding/geocoding.dart';
@@ -37,7 +37,7 @@ class ShippingController extends GetxController {
   final pickupLng = RxnDouble();
   final destLat = RxnDouble();
   final destLng = RxnDouble();
-  final pickupAddress = 'جاري تحديد موقع الاستلام...'.obs;
+  late final pickupAddress = ''.obs;
   final destinationAddress = RxnString();
   final pickupAddressName = ''.obs;
   final pickupArea = ''.obs;
@@ -94,7 +94,7 @@ class ShippingController extends GetxController {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        pickupAddress.value = 'لم يتم منح صلاحية الموقع';
+        pickupAddress.value = 'location.permissionDenied'.tr;
         return;
       }
 
@@ -107,7 +107,7 @@ class ShippingController extends GetxController {
         isPickup: true,
       );
     } catch (_) {
-      pickupAddress.value = 'تعذر تحديد موقعك الحالي';
+      pickupAddress.value = 'location.geoFailed'.tr;
     } finally {
       isLoadingLocation.value = false;
     }
@@ -118,7 +118,7 @@ class ShippingController extends GetxController {
     required double lng,
   }) async {
     if (!_isWithinSyria(lat: lat, lng: lng)) {
-      errorMessage.value = 'الموقع المحدد خارج سوريا';
+      errorMessage.value = 'shipping.outsideSyria'.tr;
       return;
     }
     pickupLat.value = lat;
@@ -132,7 +132,7 @@ class ShippingController extends GetxController {
     required double lng,
   }) async {
     if (!_isWithinSyria(lat: lat, lng: lng)) {
-      errorMessage.value = 'الموقع المحدد خارج سوريا';
+      errorMessage.value = 'shipping.outsideSyria'.tr;
       return;
     }
     destLat.value = lat;
@@ -205,7 +205,7 @@ class ShippingController extends GetxController {
       if (addressName.trim().isNotEmpty) addressName.trim(),
       if (area.trim().isNotEmpty) area.trim(),
       if (street.trim().isNotEmpty) street.trim(),
-      if (building.trim().isNotEmpty) 'بناء $building',
+      if (building.trim().isNotEmpty) 'shipping.buildingPrefix'.trParams({'name': building}),
       if (details.trim().isNotEmpty) details.trim(),
     ];
     if (meta.isEmpty) return mapLabel.trim();
@@ -514,7 +514,7 @@ class ShippingController extends GetxController {
       distance.value = null;
       parcelCategory.value = null;
     } catch (e) {
-      errorMessage.value = 'تعذر حساب سعر الشحن: $e';
+      errorMessage.value = 'shipping.calcFailed'.tr;
       subtotal.value = null;
       deliveryFee.value = null;
       couponDiscount.value = 0;
@@ -534,9 +534,9 @@ class ShippingController extends GetxController {
       if (!_isValidPhone(senderPhoneController.value)) {
         final digits = _phoneDigits(senderPhoneController.value);
         if (!digits.startsWith('09')) {
-          throw HomeApiException('رقم المرسل يجب أن يبدأ بـ 09');
+          throw HomeApiException('shipping.phoneStart09'.trParams({'field': 'shipping.senderPhone'.tr}));
         }
-        throw HomeApiException('رقم المرسل يجب أن يكون 10 أرقام');
+        throw HomeApiException('shipping.phone10Digits'.trParams({'field': 'shipping.senderPhone'.tr}));
       }
       if (!_isValidFullName(receiverNameController.value)) {
         throw HomeApiException(_nameValidationMessage(receiverNameController.value));
@@ -544,17 +544,17 @@ class ShippingController extends GetxController {
       if (!_isValidPhone(receiverPhoneController.value)) {
         final digits = _phoneDigits(receiverPhoneController.value);
         if (!digits.startsWith('09')) {
-          throw HomeApiException('رقم المستلم يجب أن يبدأ بـ 09');
+          throw HomeApiException('shipping.phoneStart09'.trParams({'field': 'shipping.receiverPhone'.tr}));
         }
-        throw HomeApiException('رقم المستلم يجب أن يكون 10 أرقام');
+        throw HomeApiException('shipping.phone10Digits'.trParams({'field': 'shipping.receiverPhone'.tr}));
       }
-      throw HomeApiException('يرجى تعبئة جميع الحقول المطلوبة');
+      throw HomeApiException('shipping.fillAllFields'.tr);
     }
     isCreatingOrder.value = true;
     try {
       final authToken = token.value;
       if (authToken == null || authToken.trim().isEmpty) {
-        throw HomeApiException('يرجى تسجيل الدخول لإكمال الطلب');
+        throw HomeApiException('shipping.loginRequired'.tr);
       }
       final response = await _repository.createShippingOrder(
         token: authToken,
@@ -589,7 +589,7 @@ class ShippingController extends GetxController {
           : <String, dynamic>{};
       final orderId = _asInt(data['id']);
       if (orderId == null) {
-        throw HomeApiException('لم يتم استلام رقم طلب الشحن');
+        throw HomeApiException('shipping.noOrderId'.tr);
       }
       return LiveOrderInfo(
         orderId: orderId,
@@ -629,8 +629,7 @@ class ShippingController extends GetxController {
     await calculateShippingPrice();
     if (appliedCouponCode.value != null && couponDiscount.value <= 0) {
       AppSnackbar.show(
-        'تنبيه',
-        'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
+        'common.warning'.tr, 'checkout.couponInvalid'.tr,
       );
     }
   }
@@ -784,11 +783,11 @@ class ShippingController extends GetxController {
 
   String _nameValidationMessage(String value) {
     final input = value.trim();
-    if (input.runes.length < 5) return 'الاسم قصير للغاية';
+    if (input.runes.length < 5) return 'shipping.nameTooShort'.tr;
     if (!RegExp(r'^[\p{L}\s]+$', unicode: true).hasMatch(input)) {
-      return 'الاسم يجب أن يحتوي على أحرف فقط';
+      return 'shipping.nameCharsOnly'.tr;
     }
-    return 'الاسم غير صالح';
+    return 'shipping.nameInvalid'.tr;
   }
 
   bool _isValidPhone(String value) {
@@ -811,9 +810,9 @@ class ShippingController extends GetxController {
     final input = value.trim();
     if (input.isEmpty) return null;
     final digits = _phoneDigits(input);
-    if (!digits.startsWith('09')) return '$label يجب أن يبدأ بـ 09';
-    if (digits.length < 10) return '$label أقل من 10 أرقام';
-    if (digits.length > 10) return '$label يجب أن يكون 10 أرقام';
+    if (!digits.startsWith('09')) return 'shipping.phoneStart09'.trParams({'field': label});
+    if (digits.length < 10) return 'shipping.phoneTooShort'.trParams({'field': label});
+    if (digits.length > 10) return 'shipping.phone10Digits'.trParams({'field': label});
     return null;
   }
 

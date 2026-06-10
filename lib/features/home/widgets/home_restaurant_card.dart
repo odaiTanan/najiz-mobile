@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:najiz_go_express/features/home/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 import 'package:najiz_go_express/features/home/widgets/vendor_order_status.dart';
@@ -95,7 +96,7 @@ class HomeRestaurantCard extends StatelessWidget {
                 padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 8, 0),
                 child: Text(
                   (subtitle == null || subtitle!.trim().isEmpty)
-                      ? 'مطعم'
+                      ? 'services.restaurantLabel'.tr
                       : subtitle!.trim(),
                   textAlign: TextAlign.right,
                   textDirection: TextDirection.rtl,
@@ -143,9 +144,9 @@ class HomeRestaurantCard extends StatelessWidget {
                 child: Row(
                   textDirection: TextDirection.rtl,
                   children: [
-                    const Text(
-                      'توصيل مجاني',
-                      style: TextStyle(
+                    Text(
+                      'services.freeDelivery'.tr,
+                      style: const TextStyle(
                         color: Color(0xFF7EB17B),
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/constants/app_strings.dart';
+import 'package:get/get.dart';
 import 'package:najiz_go_express/core/theme/text_styles.dart';
 
 class AuthHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
+  final String? title;
+  final String? subtitle;
 
   const AuthHeader({
     super.key,
-    this.title = AppStrings.welcomeBack,
-    this.subtitle = AppStrings.loginSubtitle,
+    this.title,
+    this.subtitle,
   });
 
   @override
@@ -35,11 +35,10 @@ class AuthHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text(title, style: AppTextStyles.heading1),
+        Text(title ?? 'login.title'.tr, style: AppTextStyles.heading1),
         const SizedBox(height: 6),
-        Text(subtitle, style: AppTextStyles.subtitle),
+        Text(subtitle ?? 'login.subtitle'.tr, style: AppTextStyles.subtitle),
       ],
     );
   }
 }
-

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/features/home/models/referral_coupon_models.dart';
 
@@ -41,7 +42,7 @@ Future<String?> showCouponPickerSheet({
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'اختر كوبون',
+                  'checkout.pickCoupon'.tr,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -53,7 +54,7 @@ Future<String?> showCouponPickerSheet({
                   controller: inputController,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(
-                    hintText: 'اكتب كود الكوبون',
+                    hintText: 'checkout.enterCouponCode'.tr,
                     prefixIcon: const Icon(Icons.local_offer_outlined),
                     filled: true,
                     fillColor: cs.surfaceContainerHigh,
@@ -70,7 +71,7 @@ Future<String?> showCouponPickerSheet({
                 if (coupons.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Text(
-                    'كوبوناتك المتاحة',
+                    'checkout.availableCoupons'.tr,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: cs.onSurface,
@@ -149,9 +150,9 @@ Future<String?> showCouponPickerSheet({
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'تطبيق الكوبون',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    child: Text(
+                      'checkout.applyCoupon'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                 ),

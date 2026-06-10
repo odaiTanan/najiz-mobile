@@ -8,6 +8,7 @@ import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
 import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/save_cart_dialog.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/order_checkout_controller.dart';
 import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
@@ -45,27 +46,7 @@ class OrderCheckoutScreen extends StatelessWidget {
       final cart = Get.find<AppCartService>();
       if (cart.vendorId.value != vendorId || !cart.hasItems) return true;
 
-      final shouldSave = await AppPopupDialog.show<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: Theme.of(dialogContext).colorScheme.surface,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('حفظ السلة؟'),
-          content: const Text('هل تريد حفظ السلة'),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('لا'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('نعم'),
-            ),
-          ],
-        ),
-      );
-
+      final shouldSave = await showSaveCartDialog(context);
       if (shouldSave == null) return false;
 
       if (shouldSave) {
@@ -78,8 +59,14 @@ class OrderCheckoutScreen extends StatelessWidget {
       return true;
     }
 
-    return WillPopScope(
-      onWillPop: _confirmLeaveCheckoutIfNeeded,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, _) async {
+        if (!didPop) {
+          final shouldPop = await _confirmLeaveCheckoutIfNeeded();
+          if (shouldPop) Get.back();
+        }
+      },
       child: Scaffold(
       body: SafeArea(
         child: Obx(() {
@@ -212,7 +199,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                                     ],
                                     if ((item.note ?? '').trim().isNotEmpty)
                                       Text(
-                                        'ملاحظة: ${item.note}',
+                                        'checkout.itemNote'.trParams({'note': item.note ?? ''}),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -239,7 +226,7 @@ class OrderCheckoutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _SectionCard(
-                title: 'أضف كوبون',
+                title: 'checkout.addCoupon'.tr,
                 child: Column(
                   children: [
                     Container(
@@ -266,7 +253,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'وفر على طلبك',
+                              'checkout.saveOnOrder'.tr,
                               style: TextStyle(
                                 color: cs.onSurface,
                                 fontWeight: FontWeight.w800,
@@ -274,7 +261,9 @@ class OrderCheckoutScreen extends StatelessWidget {
                             ),
                           ),
                           PopupMenuButton<String>(
-                            tooltip: 'اختر كوبون',
+                            tooltip: 'checkout.selectCoupon'.tr,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                             icon: const Icon(
                               Icons.add_circle_outline_rounded,
                               color: AppColors.primary,
@@ -283,7 +272,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                               try {
                                 await controller.applyCoupon(selectedCode);
                               } on HomeApiException catch (e) {
-                                AppSnackbar.show('خطأ', e.message);
+                                AppSnackbar.show('common.error'.tr, e.message);
                               }
                             },
                             itemBuilder: (menuContext) {
@@ -295,7 +284,7 @@ class OrderCheckoutScreen extends StatelessWidget {
                                     enabled: false,
                                     value: '',
                                     child: Text(
-                                      'لا توجد كوبونات مفعلة',
+                                      'checkout.noActiveCoupons'.tr,
                                       style: TextStyle(
                                         color: menuCs.onSurfaceVariant,
                                       ),
@@ -332,23 +321,25 @@ class OrderCheckoutScreen extends StatelessWidget {
                                   .toList(growable: false);
                             },
                           ),
-                          TextButton(
-                            onPressed: () async {
-                              final selected = await showCouponPickerSheet(
-                                context: context,
-                                coupons: controller.availableCoupons,
-                                initialCode: controller.appliedCouponCode.value,
-                              );
-                              if (selected == null || selected.trim().isEmpty) {
-                                return;
-                              }
-                              try {
-                                await controller.applyCoupon(selected);
-                              } on HomeApiException catch (e) {
-                                AppSnackbar.show('خطأ', e.message);
-                              }
-                            },
-                            child: const Text('كتابة'),
+                          Flexible(
+                            child: TextButton(
+                              onPressed: () async {
+                                final selected = await showCouponPickerSheet(
+                                  context: context,
+                                  coupons: controller.availableCoupons,
+                                  initialCode: controller.appliedCouponCode.value,
+                                );
+                                if (selected == null || selected.trim().isEmpty) {
+                                  return;
+                                }
+                                try {
+                                  await controller.applyCoupon(selected);
+                                } on HomeApiException catch (e) {
+                                  AppSnackbar.show('errors.generic'.tr, e.message);
+                                }
+                              },
+                              child: Text('checkout.writeManually'.tr),
+                            ),
                           ),
                         ],
                       ),
@@ -443,40 +434,41 @@ class OrderCheckoutScreen extends StatelessWidget {
                 () => controller.unavailabilityOptions.isEmpty
                     ? const SizedBox.shrink()
                     : _SectionCard(
-                        title: 'في حال عدم توفر منتج',
-                        child: Column(
-                          children: controller.unavailabilityOptions
-                              .map(
-                                (option) => RadioListTile<String>(
-                                  value: option.value,
-                                  groupValue:
-                                      controller.selectedUnavailabilityAction.value,
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    controller.selectUnavailabilityAction(value);
-                                  },
-                                  contentPadding: EdgeInsets.zero,
-                                  activeColor: AppColors.primary,
-                                  title: Text(
-                                    option.label,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: cs.onSurface,
+                        title: 'checkout.unavailabilityTitle'.tr,
+                        child: RadioGroup<String>(
+                          groupValue: controller.selectedUnavailabilityAction.value,
+                          onChanged: (value) {
+                            if (value == null) return;
+                            controller.selectUnavailabilityAction(value);
+                          },
+                          child: Column(
+                            children: controller.unavailabilityOptions
+                                .map(
+                                  (option) => RadioListTile<String>(
+                                    value: option.value,
+                                    contentPadding: EdgeInsets.zero,
+                                    activeColor: AppColors.primary,
+                                    title: Text(
+                                      option.label,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: cs.onSurface,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      _resolveUnavailabilityDescription(
+                                        original: option.description,
+                                        serviceId: serviceId,
+                                      ),
+                                      style: TextStyle(
+                                        color: cs.onSurfaceVariant,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
-                                  subtitle: Text(
-                                    _resolveUnavailabilityDescription(
-                                      original: option.description,
-                                      serviceId: serviceId,
-                                    ),
-                                    style: TextStyle(
-                                      color: cs.onSurfaceVariant,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(growable: false),
+                                )
+                                .toList(growable: false),
+                          ),
                         ),
                       ),
               ),
@@ -621,26 +613,33 @@ class _SectionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                  color: cs.onSurface,
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: cs.onSurface,
+                  ),
                 ),
               ),
-              const Spacer(),
-              if (actionText != null)
+              if (actionText != null) ...[
+                const SizedBox(width: 8),
                 GestureDetector(
                   onTap: onActionTap,
                   child: Text(
                     actionText!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -698,7 +697,7 @@ class _InvoiceCard extends StatelessWidget {
           if (controller.appliedCouponCode.value != null)
             _row(
               context,
-              'خصم الكوبون',
+              'checkout.couponDiscount'.tr,
               controller.hasCalculatedPricing.value
                   ? '-${_price(controller.couponDiscount.value)}'
                   : '--',
@@ -723,21 +722,30 @@ class _InvoiceCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: isTotal ? cs.onSurface : cs.onSurfaceVariant,
-            fontWeight: isTotal ? FontWeight.w900 : FontWeight.w600,
-            fontSize: isTotal ? 22 : 14,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isTotal ? cs.onSurface : cs.onSurfaceVariant,
+              fontWeight: isTotal ? FontWeight.w900 : FontWeight.w600,
+              fontSize: isTotal ? 22 : 14,
+            ),
           ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            color: isTotal ? AppColors.primary : cs.onSurface,
-            fontWeight: isTotal ? FontWeight.w900 : FontWeight.w700,
-            fontSize: isTotal ? 22 : 14,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: isTotal ? AppColors.primary : cs.onSurface,
+              fontWeight: isTotal ? FontWeight.w900 : FontWeight.w700,
+              fontSize: isTotal ? 22 : 14,
+            ),
           ),
         ),
       ],
@@ -758,11 +766,11 @@ String _resolveUnavailabilityDescription({
   final normalized = original.trim();
   if (normalized.isEmpty) return normalized;
   if (serviceId != 1 && serviceId != 3) {
-    if (normalized.contains('المطعم/المتجر')) return 'سيتم التواصل معك';
+    if (normalized.contains('المطعم/المتجر')) return 'checkout.willContactYou'.tr;
     return normalized;
   }
 
-  final entity = serviceId == 3 ? 'المتجر' : 'المطعم';
+  final entity = serviceId == 3 ? 'checkout.store'.tr : 'checkout.restaurant'.tr;
   var result = normalized;
   result = result.replaceAll(RegExp(r'المطعم\s*/\s*المتجر'), entity);
   result = result.replaceAll(RegExp(r'المطعم\s*-\s*المتجر'), entity);

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/data/repositories/auth_repository.dart';
@@ -35,10 +35,10 @@ class ForgotPasswordController extends GetxController {
       );
     } on AuthApiException catch (e) {
       errorMessage.value = e.message;
-      AppSnackbar.show('خطأ', e.message);
+      AppSnackbar.show('errors.generic'.tr, e.message);
     } catch (_) {
-      errorMessage.value = 'خطأ في الشبكة';
-      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
+      errorMessage.value = 'auth.networkError'.tr;
+      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }

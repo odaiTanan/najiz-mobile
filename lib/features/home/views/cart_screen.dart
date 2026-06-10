@@ -251,7 +251,7 @@ class _CartLineCard extends StatelessWidget {
                 if ((item.note ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'ملاحظة: ${item.note}',
+                    'checkout.itemNote'.trParams({'note': item.note ?? ''}),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

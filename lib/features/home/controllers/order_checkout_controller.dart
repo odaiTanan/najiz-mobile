@@ -1,4 +1,4 @@
-import 'package:get/get.dart';
+﻿import 'package:get/get.dart';
 import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:geocoding/geocoding.dart';
@@ -38,7 +38,7 @@ class OrderCheckoutController extends GetxController {
 
   final lat = '33.5138'.obs;
   final lng = '36.2765'.obs;
-  final customAddressName = 'جاري تحديد موقعك...'.obs;
+  late final RxString customAddressName;
   final paymentMethod = 'cash';
   static const String _mapsApiKey = String.fromEnvironment(
     'MAPS_API_KEY',
@@ -60,6 +60,7 @@ class OrderCheckoutController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    customAddressName = 'checkout.determiningLocation'.tr.obs;
     _initUserLocationAndCalculate();
     loadCoupons();
     loadUnavailabilityOptions();
@@ -108,7 +109,7 @@ class OrderCheckoutController extends GetxController {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        customAddressName.value = 'الموقع غير متاح، يمكنك اختياره من الخريطة';
+        customAddressName.value = 'checkout.locationUnavailable'.tr;
         return;
       }
       final current = await Geolocator.getCurrentPosition();
@@ -119,7 +120,7 @@ class OrderCheckoutController extends GetxController {
         current.longitude,
       );
     } catch (_) {
-      customAddressName.value = 'تعذر تحديد الموقع تلقائيا';
+      customAddressName.value = 'checkout.locationDetectFailed'.tr;
     }
   }
 
@@ -239,7 +240,7 @@ class OrderCheckoutController extends GetxController {
     if (currentLat == null ||
         currentLng == null ||
         !_isWithinSyria(lat: currentLat, lng: currentLng)) {
-      errorMessage.value = 'يرجى اختيار عنوان داخل سوريا لحساب السعر';
+      errorMessage.value = 'checkout.locationOutsideSyria'.tr;
       isLoading.value = false;
       return;
     }
@@ -285,7 +286,7 @@ class OrderCheckoutController extends GetxController {
       if (gateRetry) {
         rethrow;
       }
-      errorMessage.value = 'فشل حساب الفاتورة';
+      errorMessage.value = 'checkout.invoiceFailed'.tr;
     } finally {
       isLoading.value = false;
     }
@@ -296,7 +297,7 @@ class OrderCheckoutController extends GetxController {
     try {
       final authToken = token.value;
       if (authToken == null || authToken.trim().isEmpty) {
-        throw HomeApiException('يرجى تسجيل الدخول لإكمال الطلب');
+        throw HomeApiException('checkout.loginForOrder'.tr);
       }
       final response = await _repository.createOrder(
         token: authToken,
@@ -316,7 +317,7 @@ class OrderCheckoutController extends GetxController {
           : <String, dynamic>{};
       final orderId = _asInt(data['id']);
       if (orderId == null) {
-        throw HomeApiException('لم يتم استلام رقم الطلب من الخادم');
+        throw HomeApiException('checkout.noOrderIdFromServer'.tr);
       }
       orderPlaced.value = true;
       return PlacedOrderInfo(
@@ -355,8 +356,7 @@ class OrderCheckoutController extends GetxController {
         appliedCouponCode.value != null &&
         couponDiscount.value <= 0) {
       AppSnackbar.show(
-        'تنبيه',
-        'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
+        'common.warning'.tr, 'checkout.couponInvalid'.tr,
       );
     }
   }

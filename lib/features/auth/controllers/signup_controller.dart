@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
@@ -57,7 +57,7 @@ class SignupController extends GetxController {
     final validationError = Validators.password8(value);
     if (validationError == null) {
       isPasswordStrong.value = true;
-      passwordLiveMessage.value = 'كلمة المرور قوية';
+      passwordLiveMessage.value = 'auth.passwordStrong'.tr;
       return;
     }
 
@@ -71,7 +71,7 @@ class SignupController extends GetxController {
     if (form == null || !form.validate()) return;
 
     if (passwordController.text != confirmPasswordController.text) {
-      errorMessage.value = 'كلمتا المرور غير متطابقتين';
+      errorMessage.value = 'auth.passwordsMismatch'.tr;
       return;
     }
 
@@ -90,7 +90,7 @@ class SignupController extends GetxController {
                 if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                   final mapped = ErrorMappers.mapSignupErrorMessage(raw);
                   errorMessage.value = mapped;
-                  AppSnackbar.show('خطأ', mapped);
+                  AppSnackbar.show('errors.generic'.tr, mapped);
                   Get.back();
                 }
               }
@@ -103,7 +103,7 @@ class SignupController extends GetxController {
 
       final mapped = ErrorMappers.mapSignupErrorMessage(e.message);
       errorMessage.value = mapped;
-      AppSnackbar.show('خطأ', mapped);
+      AppSnackbar.show('errors.generic'.tr, mapped);
     } on TimeoutException catch (_) {
       isLoading.value = false;
       await Get.dialog(
@@ -115,7 +115,7 @@ class SignupController extends GetxController {
               if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                 final mapped = ErrorMappers.mapSignupErrorMessage(raw);
                 errorMessage.value = mapped;
-                AppSnackbar.show('خطأ', mapped);
+                AppSnackbar.show('errors.generic'.tr, mapped);
                 Get.back();
               }
             }
@@ -135,7 +135,7 @@ class SignupController extends GetxController {
               if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
                 final mapped = ErrorMappers.mapSignupErrorMessage(raw);
                 errorMessage.value = mapped;
-                AppSnackbar.show('خطأ', mapped);
+                AppSnackbar.show('errors.generic'.tr, mapped);
                 Get.back();
               }
             }
@@ -145,8 +145,8 @@ class SignupController extends GetxController {
       );
       return;
     } catch (_) {
-      errorMessage.value = 'خطأ في الشبكة';
-      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
+      errorMessage.value = 'auth.networkError'.tr;
+      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }

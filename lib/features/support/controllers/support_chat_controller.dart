@@ -20,7 +20,7 @@ class SupportChatController extends GetxController {
   final messages = <SupportChatMessage>[].obs;
   final currentUserId = RxnInt();
   final conversation = Rxn<SupportConversation>();
-  final supportAgentName = 'خدمة العملاء'.obs;
+  late final supportAgentName = ''.obs;
 
   ChatWebSocketService? _chatWs;
   String get _cacheScope => token.hashCode.abs().toString();
@@ -52,7 +52,7 @@ class SupportChatController extends GetxController {
     } on HomeApiException catch (e) {
       errorMessage.value = e.message;
     } catch (_) {
-      errorMessage.value = 'تعذر تحميل محادثة الدعم الفني';
+      errorMessage.value = 'support.loadFailed'.tr;
     } finally {
       isLoading.value = false;
     }
@@ -138,7 +138,7 @@ class SupportChatController extends GetxController {
     } on HomeApiException catch (e) {
       throw e.message;
     } catch (_) {
-      throw 'تعذر إرسال الرسالة';
+      throw 'support.sendFailed'.tr;
     } finally {
       isSending.value = false;
     }
@@ -169,7 +169,7 @@ class SupportChatController extends GetxController {
       );
       final cachedConversation = SupportConversation(
         id: _asInt(map['id']) ?? 0,
-        name: (map['name'] ?? 'الدعم الفني').toString(),
+        name: (map['name'] ?? 'support.agentTitle'.tr).toString(),
         avatar: map['avatar']?.toString(),
       );
       if (cachedConversation.id == 0) return;
@@ -266,7 +266,7 @@ class SupportChatController extends GetxController {
         ? fromSupport!.senderName!.trim()
         : (fallbackFromConversation?.isNotEmpty == true
               ? fallbackFromConversation!
-              : 'خدمة العملاء');
+              : 'support.customerService'.tr);
   }
 
   Future<void> _markIncomingAsRead() async {

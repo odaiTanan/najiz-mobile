@@ -16,6 +16,8 @@ import 'package:najiz_go_express/features/home/views/favorites_screen.dart';
 import 'package:najiz_go_express/features/home/views/referral_coupon_screen.dart';
 import 'package:najiz_go_express/features/home/views/profile_settings_screen.dart';
 import 'package:najiz_go_express/features/home/views/search_screen.dart';
+import 'package:najiz_go_express/data/repositories/auth_repository.dart';
+import 'package:najiz_go_express/features/home/widgets/delete_account_dialog.dart';
 import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
 import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/support/views/support_chat_screen.dart';
@@ -265,8 +267,8 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.search_rounded,
-                  title: 'البحث',
-                  subtitle: 'ابحث عن المطاعم والمتاجر والمنتجات',
+                  title: 'profile.searchTitle'.tr,
+                  subtitle: 'profile.searchSubtitle'.tr,
                   onTap: () => Get.to(() => SearchScreen(token: token)),
                 ),
                 const SizedBox(height: 10),
@@ -285,8 +287,8 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _ActionCard(
                   icon: Icons.card_giftcard_rounded,
-                  title: 'الإحالة والكوبونات',
-                  subtitle: 'شارك كودك واطلع على كوبوناتك',
+                  title: 'profile.referralTitle'.tr,
+                  subtitle: 'profile.referralSubtitle'.tr,
                   onTap: () {
                     final currentToken = auth.token.value;
                     if (currentToken == null || currentToken.trim().isEmpty) {
@@ -383,6 +385,66 @@ class ProfileScreen extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFC2410C),
                         side: const BorderSide(color: Color(0xFFF2C6A4)),
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (!isGuest) const SizedBox(height: 10),
+                if (!isGuest)
+                  Obx(
+                    () => OutlinedButton.icon(
+                      onPressed: controller.isDeletingAccount.value ||
+                              controller.isLoggingOut.value
+                          ? null
+                          : () async {
+                              final deleted = await DeleteAccountDialog.show(
+                                context: context,
+                                onSubmit: (password) async {
+                                  try {
+                                    await controller.deleteAccount(password);
+                                  } on AuthApiException catch (e) {
+                                    final message = e.statusCode == 400
+                                        ? 'profile.deleteAccountActiveOrders'.tr
+                                        : e.message;
+                                    AppSnackbar.show(
+                                      'errors.generic'.tr,
+                                      message,
+                                    );
+                                    rethrow;
+                                  } catch (_) {
+                                    AppSnackbar.show(
+                                      'errors.generic'.tr,
+                                      'profile.deleteAccountFailed'.tr,
+                                    );
+                                    rethrow;
+                                  }
+                                },
+                              );
+                              if (deleted != true) return;
+                              Get.offAll(() => const HomeScreen());
+                              AppSnackbar.show(
+                                'common.done'.tr,
+                                'profile.deleteAccountSuccess'.tr,
+                              );
+                            },
+                      icon: controller.isDeletingAccount.value
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.delete_outline),
+                      label: Text(
+                        controller.isDeletingAccount.value
+                            ? 'profile.deletingAccount'.tr
+                            : 'profile.deleteAccount'.tr,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFDC2626),
+                        side: const BorderSide(color: Color(0xFFFECACA)),
                         minimumSize: const Size.fromHeight(52),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(26),
@@ -497,19 +559,24 @@ class _ProfileReferralCodeBlock extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: code));
-              AppSnackbar.show(
-                'profile.inviteFriend'.tr,
-                'profile.copiedReferralCode'.trParams({'code': code}),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+          Flexible(
+            child: ElevatedButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: code));
+                AppSnackbar.show(
+                  'profile.inviteFriend'.tr,
+                  'profile.copiedReferralCode'.trParams({'code': code}),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('profile.copyCode'.tr),
+              ),
             ),
-            child: Text('profile.copyCode'.tr),
           ),
         ],
       );

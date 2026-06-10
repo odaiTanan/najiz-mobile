@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/disconnect_dialog.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/data/models/taxi_pricing_model.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
@@ -33,7 +34,7 @@ class TaxiBookingScreen extends StatelessWidget {
       backgroundColor: cs.surfaceContainerLowest,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 0,
-        serviceText: 'تكسي',
+        serviceText: 'taxi.title'.tr,
         serviceIcon: Icons.local_taxi_outlined,
         serviceActive: true,
         onServiceTap: () {},
@@ -84,8 +85,8 @@ class TaxiBookingScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           _LocationCard(
-                            title: 'موقع الانطلاق',
-                            subtitle: controller.pickupAddress.value,
+                            title: 'taxi.departureLabel'.tr,
+                            subtitle: controller.pickupAddress.value.isEmpty ? 'location.determining'.tr : controller.pickupAddress.value,
                             selected: controller.selectingPickupOnMap.value,
                             onTap: () => _showLocationActionSheet(
                               context: context,
@@ -95,10 +96,10 @@ class TaxiBookingScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           _LocationCard(
-                            title: 'الوجهة',
+                            title: 'taxi.destinationLabel'.tr,
                             subtitle:
                                 controller.dropoffAddress.value ??
-                                'اضغط ثم اختر الوجهة من الخريطة',
+                                'taxi.destinationHint'.tr,
                             selected: !controller.selectingPickupOnMap.value,
                             onTap: () => _showLocationActionSheet(
                               context: context,
@@ -133,7 +134,7 @@ class TaxiBookingScreen extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'اختر الرحلة',
+                        'taxi.chooseTripTitle'.tr,
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 24,
@@ -154,7 +155,7 @@ class TaxiBookingScreen extends StatelessWidget {
                       )
                     else if (pricing == null || pricing.categories.isEmpty)
                       Text(
-                        'حدد رحلتك الآن لننطلق',
+                        'taxi.setTripPrompt'.tr,
                         style: TextStyle(color: cs.onSurfaceVariant),
                       )
                     else
@@ -207,8 +208,11 @@ class TaxiBookingScreen extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 controller.appliedCouponCode.value == null
-                                    ? 'أضف كوبون لرحلتك'
-                                    : 'الكوبون: ${controller.appliedCouponCode.value}',
+                                    ? 'checkout.addCouponForTrip'.tr
+                                    : 'checkout.couponLabel'.trParams({
+                                        'code':
+                                            controller.appliedCouponCode.value!,
+                                      }),
                                 style: TextStyle(
                                   color: cs.onSurface,
                                   fontWeight: FontWeight.w700,
@@ -229,10 +233,10 @@ class TaxiBookingScreen extends StatelessWidget {
                                 try {
                                   await controller.applyCoupon(selected);
                                 } on HomeApiException catch (e) {
-                                  AppSnackbar.show('خطأ', e.message);
+                                  AppSnackbar.show('common.error'.tr, e.message);
                                 }
                               },
-                              child: const Text('أضف كوبون'),
+                              child: Text('checkout.addCoupon'.tr),
                             ),
                             if (controller.appliedCouponCode.value != null)
                               IconButton(
@@ -252,7 +256,7 @@ class TaxiBookingScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'الدفع: نقداً',
+                          'checkout.cashPaymentLabel'.tr,
                           style: TextStyle(
                             color: cs.onSurface,
                             fontWeight: FontWeight.w700,
@@ -269,23 +273,45 @@ class TaxiBookingScreen extends StatelessWidget {
                       final discountedPrice =
                           selected.pricing.estimatedPrice -
                           controller.couponDiscount.value;
+                      final discountAmount =
+                          controller.couponDiscount.value.toStringAsFixed(2);
+                      final discountedTotal =
+                          discountedPrice.toStringAsFixed(2);
                       return Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
                           children: [
+                            Flexible(
+                              child: Text(
+                                'checkout.couponDiscount'.tr,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                             Text(
-                              'خصم الكوبون: -${controller.couponDiscount.value.toStringAsFixed(2)}',
+                              '-$discountAmount',
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const Spacer(),
-                            Text(
-                              'الإجمالي بعد الخصم: \$${discountedPrice.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: cs.onSurface,
-                                fontWeight: FontWeight.w800,
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'checkout.totalAfterDiscount'.trParams({
+                                  'amount': discountedTotal,
+                                }),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                                style: TextStyle(
+                                  color: cs.onSurface,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ],
@@ -342,11 +368,11 @@ class TaxiBookingScreen extends StatelessWidget {
                                       },
                                     );
                                   } on HomeApiException catch (e) {
-                                    AppSnackbar.show('خطأ', e.message);
+                                    AppSnackbar.show('errors.generic'.tr, e.message);
                                   } catch (e) {
                                     AppSnackbar.show(
-                                      'خطأ',
-                                      'فشل تأكيد طلب التاكسي: $e',
+                                      'errors.generic'.tr,
+                                      'taxi.confirmOrderFailed'.trParams({'error': e.toString()}),
                                     );
                                   }
                                 },
@@ -367,7 +393,7 @@ class TaxiBookingScreen extends StatelessWidget {
                                   ),
                                 )
                               : Text(
-                                  'تأكيد ${controller.selectedCategory?.vehicleCategory.name ?? 'الرحلة'}',
+                                  'taxi.confirmBooking'.trParams({'name': controller.selectedCategory?.vehicleCategory.name ?? 'taxi.tripLabel'.tr}),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 19,
@@ -392,7 +418,7 @@ Future<void> _showLocationActionSheet({
   required TaxiBookingController controller,
   required bool isPickup,
 }) async {
-  final targetName = isPickup ? 'موقع الانطلاق' : 'الوجهة';
+  final targetName = isPickup ? 'taxi.departureLabel'.tr : 'taxi.destinationLabel'.tr;
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -444,8 +470,8 @@ Future<void> _showLocationActionSheet({
                 const SizedBox(height: 14),
                 _SheetActionTile(
                   icon: Icons.map_outlined,
-                  title: 'حدد الموقع على الخريطة',
-                  subtitle: 'اضغط على الخريطة لتحديد النقطة',
+                  title: 'taxi.pickOnMap'.tr,
+                  subtitle: 'taxi.tapMapHint'.tr,
                   onTap: () {
                     controller.setMapSelectionMode(isPickup);
                     Navigator.of(sheetContext).pop();
@@ -454,8 +480,8 @@ Future<void> _showLocationActionSheet({
                 const SizedBox(height: 10),
                 _SheetActionTile(
                   icon: Icons.search,
-                  title: 'ابحث عن موقع',
-                  subtitle: 'بحث بالاسم داخل سوريا',
+                  title: 'location.searchPlaceholder'.tr,
+                  subtitle: 'location.searchHint'.tr,
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     _showSearchLocationDialog(
@@ -1541,28 +1567,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     }
     _lastTimeoutPopupAt = now;
 
-    await AppPopupDialog.show<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('انقطاع الاتصال'),
-        content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('إغلاق'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _pollOnce(force: true);
-            },
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
-    );
+    showDisconnectDialog(context, onRetry: () => _pollOnce(force: true));
   }
 
   Future<void> _loadDriverDetailsFromDriverEndpoint() async {
@@ -1857,13 +1862,13 @@ class _TaxiCancelReasonSheetState extends State<_TaxiCancelReasonSheet> {
 
   void _submit() {
     if (_selectedReason == null) {
-      AppSnackbar.show('تنبيه', 'يرجى تحديد سبب الإلغاء');
+      AppSnackbar.show('orders.warning'.tr, 'orders.selectCancelReason'.tr);
       return;
     }
     final customReason = _customReasonController.text.trim();
     final reason = _isCustomReason ? customReason : _selectedReason!;
     if (reason.isEmpty) {
-      AppSnackbar.show('تنبيه', 'يرجى كتابة سبب الإلغاء');
+      AppSnackbar.show('orders.warning'.tr, 'orders.writeCancelReason'.tr);
       return;
     }
     Navigator.of(context).pop(reason);

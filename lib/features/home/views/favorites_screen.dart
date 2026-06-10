@@ -426,12 +426,12 @@ class _FavoriteListTile extends StatelessWidget {
       final dp = e['discount_price'];
       final parts = <String>[
         if (vn.isNotEmpty) vn,
-        if (price != null) '$price ل.س',
+        if (price != null) 'search.priceLabel'.trParams({'price': price.toString()}),
       ];
       if (dp != null &&
           dp.toString().trim().isNotEmpty &&
           dp.toString() != price?.toString()) {
-        parts.add('→ $dp ل.س');
+        parts.add('search.pricePrimeLabel'.trParams({'price': dp.toString()}));
       }
       subtitle = parts.join(' · ');
     }

@@ -59,7 +59,7 @@ class PushNotificationService extends GetxService {
       _handleLocalProgressNotification(merged);
       _handleOrderStatusMilestones(merged);
       _appendNotification(
-        title: notification.title ?? 'إشعار جديد',
+        title: notification.title ?? 'notifications.newNotification'.tr,
         body: notification.body ?? '',
         externalId: notification.notificationId,
         data: merged,
@@ -76,7 +76,7 @@ class PushNotificationService extends GetxService {
           ? _orderStatusInAppId(merged)
           : notification.notificationId;
       _appendNotification(
-        title: notification.title ?? 'إشعار جديد',
+        title: notification.title ?? 'notifications.newNotification'.tr,
         body: notification.body ?? '',
         externalId: inAppId,
         data: merged,
@@ -101,10 +101,10 @@ class PushNotificationService extends GetxService {
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(
-        const AndroidNotificationChannel(
+        AndroidNotificationChannel(
           _ordersChannelId,
-          'تتبع الطلبات',
-          description: 'تحديث حالة الطلب مع شريط التقدم',
+          'notifications.trackOrders'.tr,
+          description: 'notifications.orderStatusProgress'.tr,
           importance: Importance.low,
           playSound: true,
           enableVibration: false,
@@ -187,7 +187,7 @@ class PushNotificationService extends GetxService {
     );
     _handleOrderStatusMilestones(merged);
     await _appendNotification(
-      title: notification.title ?? 'إشعار جديد',
+      title: notification.title ?? 'notifications.newNotification'.tr,
       body: notification.body ?? '',
       externalId: _orderStatusInAppId(merged),
       data: merged,
@@ -265,8 +265,8 @@ class PushNotificationService extends GetxService {
     final title = (titleOverride != null && titleOverride.trim().isNotEmpty)
         ? titleOverride.trim()
         : (orderNumber != null && orderNumber.isNotEmpty
-            ? 'طلبك $orderNumber'
-            : 'تحديث حالة الطلب');
+            ? 'notifications.orderNumber'.trParams({'number': orderNumber})
+            : 'notifications.orderStatusUpdate'.tr);
     final bodyFromRemote =
         bodyOverride != null && bodyOverride.trim().isNotEmpty
             ? bodyOverride.trim()
@@ -281,8 +281,8 @@ class PushNotificationService extends GetxService {
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _ordersChannelId,
-        'تتبع الطلبات',
-        channelDescription: 'تحديث حالة الطلب مع شريط التقدم',
+        'notifications.trackOrders'.tr,
+        channelDescription: 'notifications.orderStatusProgress'.tr,
         color: const Color(0xFFFF8A00),
         importance: Importance.low,
         priority: Priority.low,
@@ -320,11 +320,11 @@ class PushNotificationService extends GetxService {
     final sender = data['sender_name']?.toString().trim();
     final message = data['message']?.toString().trim();
     final title = (sender != null && sender.isNotEmpty)
-        ? 'رسالة جديدة من $sender'
-        : 'رسالة جديدة';
+        ? 'notifications.newChatMessage'.trParams({'sender': sender})
+        : 'notifications.newMessage'.tr;
     final body = (message != null && message.isNotEmpty)
         ? message
-        : 'لديك رسالة جديدة في المحادثة';
+        : 'notifications.newMessageInChat'.tr;
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -548,19 +548,19 @@ class PushNotificationService extends GetxService {
     final status = _canonicalStatus(statusRaw);
     switch (status) {
       case 'pending':
-        return 'بانتظار القبول';
+        return 'notifications.statusPending'.tr;
       case 'accepted':
-        return 'تم قبول الطلب';
+        return 'notifications.statusAccepted'.tr;
       case 'on_the_way_to_pickup':
-        return 'السائق متجه للاستلام';
+        return 'notifications.statusOnWayToPickup'.tr;
       case 'picked_up':
-        return 'تم الاستلام';
+        return 'notifications.statusPickedUp'.tr;
       case 'on_way':
-        return 'في الطريق للتسليم';
+        return 'notifications.statusOnWay'.tr;
       case 'preparing':
-        return 'قيد التحضير';
+        return 'notifications.statusPreparing'.tr;
       case 'ready':
-        return 'طلبك جاهز';
+        return 'notifications.statusReady'.tr;
       case 'arrived':
       case 'waiting':
       case 'arrived_waiting':
@@ -569,17 +569,17 @@ class PushNotificationService extends GetxService {
       case 'at_pickup':
       case 'waiting_at_destination':
       case 'waiting_at_pickup':
-        return 'السائق وصل وهو في الانتظار';
+        return 'notifications.statusDriverWaiting'.tr;
       case 'no_driver':
-        return 'لا يوجد سائق متاح حالياً';
+        return 'notifications.statusNoDriver'.tr;
       case 'delivered':
       case 'completed':
-        return 'تم التسليم';
+        return 'notifications.statusDelivered'.tr;
       case 'cancelled':
       case 'canceled':
-        return 'تم إلغاء الطلب';
+        return 'notifications.statusCancelled'.tr;
       default:
-        return 'تحديث جديد على الطلب';
+        return 'notifications.statusGenericUpdate'.tr;
     }
   }
 
@@ -649,8 +649,8 @@ class PushNotificationService extends GetxService {
 
     if (isNearAddress) {
       await pushLocalInAppNotification(
-        title: 'تنبيه التوصيل',
-        body: 'السائق أصبح على مقربة من عنوانك',
+        title: 'tracking.deliveryAlert'.tr,
+        body: 'tracking.driverNearby'.tr,
         dedupeKey: 'onesignal-order-$orderId-near-address',
         data: {
           ...data,
@@ -661,8 +661,8 @@ class PushNotificationService extends GetxService {
 
     if (isArrivedWaiting) {
       await pushLocalInAppNotification(
-        title: 'تنبيه التوصيل',
-        body: 'السائق وصل وهو في الانتظار',
+        title: 'tracking.deliveryAlert'.tr,
+        body: 'tracking.driverWaiting'.tr,
         dedupeKey: 'onesignal-order-$orderId-arrived-waiting',
         data: {
           ...data,

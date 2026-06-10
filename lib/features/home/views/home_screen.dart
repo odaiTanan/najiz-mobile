@@ -138,11 +138,15 @@ class HomeScreen extends StatelessWidget {
                                 color: AppColors.primary,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                'home.guestBrowsing'.tr,
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w700,
+                              Expanded(
+                                child: Text(
+                                  'home.guestBrowsing'.tr,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ],
@@ -181,8 +185,8 @@ class HomeScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 18),
                 _SectionHeader(
-                  title: 'الخدمات',
-                  actionText: 'عرض الكل',
+                  title: 'home.services'.tr,
+                  actionText: 'home.showAll'.tr,
                   onActionTap: () => _openAllServicesPage(controller),
                 ),
                 const SizedBox(height: 10),
@@ -198,15 +202,15 @@ class HomeScreen extends StatelessWidget {
                         controller.services,
                       );
                       return HomeServiceGrid(
-                        services: orderedServices.take(4).toList(growable: false),
+                        services: orderedServices,
                         onTap: controller.onServiceTap,
                       );
                     },
                   ),
                 const SizedBox(height: 18),
                 _SectionHeader(
-                  title: 'المطاعم الأكثر طلباً',
-                  actionText: 'عرض الكل',
+                  title: 'home.mostOrderedRestaurants'.tr,
+                  actionText: 'home.showAll'.tr,
                   onActionTap: () {
                     final serviceId =
                         controller.restaurantServiceId.value ??
@@ -396,7 +400,12 @@ class _ActiveOrderHomeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final currentStep = _activeStepIndex(order);
-    const labels = ['تم الطلب', 'في الطريق', 'قريباً', 'تم الوصول'];
+    final labels = [
+      'home.orderStep1'.tr,
+      'home.orderStep2'.tr,
+      'home.orderStep3'.tr,
+      'home.orderStep4'.tr,
+    ];
     const icons = [
       Icons.check_rounded,
       Icons.directions_car_filled_rounded,
@@ -687,26 +696,23 @@ class _ShimmerSectionHeaderRow extends StatelessWidget {
   }
 }
 
-/// يطابق [HomeServiceGrid] الافتراضي: 4 أعمدة، aspect 0.86، فراغات 10.
+/// يطابق [HomeServiceGrid]: صف أفقي قابل للتمرير، 82×100، فراغ 10.
 class _ShimmerServiceGridFourCol extends StatelessWidget {
   const _ShimmerServiceGridFourCol();
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 4,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.86,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemBuilder: (_, __) => LayoutBuilder(
-        builder: (_, c) => _ShimmerBox(
-          height: c.maxHeight,
-          width: c.maxWidth,
+    return SizedBox(
+      height: HomeServiceGrid.tileHeight,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4,
+        separatorBuilder: (_, __) =>
+            const SizedBox(width: HomeServiceGrid.tileSpacing),
+        itemBuilder: (_, __) => const _ShimmerBox(
+          height: HomeServiceGrid.tileHeight,
+          width: HomeServiceGrid.tileWidth,
           radius: 14,
         ),
       ),
@@ -730,7 +736,7 @@ class _TopGreetingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final name = displayName.trim().isEmpty ? 'عميلنا' : displayName.trim();
+    final name = displayName.trim().isEmpty ? 'home.greetingDefault'.tr : displayName.trim();
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Row(
@@ -783,7 +789,7 @@ class _TopGreetingRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  'مرحباً، $name',
+                  'home.greeting'.trParams({'name': name}),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
@@ -796,7 +802,7 @@ class _TopGreetingRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'ماذا تريد طلبه اليوم؟',
+                  'home.whatToOrder'.tr,
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     color: cs.onSurfaceVariant,
@@ -1026,10 +1032,10 @@ class _HeroPromoSlide extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'خدمة تكسي رقمية آمنة وسريعة',
+                      Text(
+                        'taxi.tagline'.tr,
                         textAlign: TextAlign.right,
-                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                        style: const TextStyle(color: Colors.white70, fontSize: 11),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -1047,7 +1053,7 @@ class _HeroPromoSlide extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'احجز الآن',
+                                'home.bookNow'.tr,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: cs.onSurface,
@@ -1091,26 +1097,33 @@ class _SectionHeader extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: cs.onSurface,
+        Flexible(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+            ),
           ),
         ),
-        const Spacer(),
-        if (actionText != null && onActionTap != null)
+        if (actionText != null && onActionTap != null) ...[
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: onActionTap,
             child: Text(
               actionText!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
+        ],
       ],
     );
   }

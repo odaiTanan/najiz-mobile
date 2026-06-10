@@ -53,8 +53,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     return PopScope(
       canPop: true,
-      onPopInvoked: (didPop) {
-        // If the system didn't pop, we still allow leaving the screen.
+      onPopInvokedWithResult: (bool didPop, _) {
         if (!didPop && mounted) Get.back();
       },
       child: Scaffold(
@@ -90,7 +89,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           Icon(Icons.arrow_back, size: 18, color: cs.onSurface),
                           const SizedBox(width: 10),
                           Text(
-                            'التحقق',
+                            'auth.verificationTitle'.tr,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 24,
@@ -123,7 +122,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى رقم الجوال أو البريد الإلكتروني للمتابعة',
+                        'auth.verificationSubtitle'.tr,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: cs.onSurfaceVariant,
@@ -168,35 +167,41 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               builder: (_, value, unusedValue) {
                                 final code = value.text;
                                 return Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: List.generate(6, (index) {
                                     final char = index < code.length
                                         ? code[index]
                                         : '';
                                     final isCurrent = code.length == index;
-                                    return Container(
-                                      width: 44,
-                                      height: 52,
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: cs.surface,
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: isCurrent
-                                              ? AppColors.primary
-                                              : cs.outlineVariant,
-                                          width: isCurrent ? 1.4 : 1,
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 3,
                                         ),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        char,
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w700,
-                                          color: cs.onSurface,
+                                        child: AspectRatio(
+                                          aspectRatio: 44 / 52,
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color: cs.surface,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: isCurrent
+                                                    ? AppColors.primary
+                                                    : cs.outlineVariant,
+                                                width: isCurrent ? 1.4 : 1,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                char,
+                                                style: TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: cs.onSurface,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     );
@@ -216,13 +221,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           children: [
                             _TimeBox(
                               value: formatUnit(minutes),
-                              label: 'د',
+                              label: 'tracking.minutesAbbr'.tr.trim(),
                               colorScheme: cs,
                             ),
                             const SizedBox(width: 12),
                             _TimeBox(
                               value: formatUnit(seconds),
-                              label: 'ث',
+                              label: 'tracking.secondsAbbr'.tr,
                               colorScheme: cs,
                             ),
                           ],
@@ -230,11 +235,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       }),
                       const SizedBox(height: 14),
                       Obx(
-                        () => Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        () => Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              'لم يصلك الرمز؟ ',
+                              'auth.didntReceiveCode'.tr,
                               style: TextStyle(color: cs.onSurfaceVariant),
                             ),
                             GestureDetector(
@@ -242,7 +248,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                   ? controller.resendCode
                                   : null,
                               child: Text(
-                                'إعادة إرسال الرمز',
+                                'auth.resendCode'.tr,
                                 style: TextStyle(
                                   color: controller.remainingSeconds.value == 0
                                       ? AppColors.primary
@@ -275,11 +281,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         color: cs.onSurfaceVariant,
                         fontSize: 16,
                       ),
-                      children: const [
-                        TextSpan(text: 'هل تواجه مشكلة؟ '),
+                      children: [
+                        TextSpan(text: 'auth.troubleQuestion'.tr),
                         TextSpan(
-                          text: 'تواصل مع الدعم',
-                          style: TextStyle(color: AppColors.primary),
+                          text: 'auth.contactSupport'.tr,
+                          style: const TextStyle(color: AppColors.primary),
                         ),
                       ],
                     ),

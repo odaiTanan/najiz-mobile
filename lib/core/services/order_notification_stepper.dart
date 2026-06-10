@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 /// OneSignal often nests Laravel `data` under [rawPayload] (`custom`, `custom.a`, …).
@@ -51,11 +52,11 @@ Map<String, dynamic> mergeOneSignalNotificationData(OSNotification notification)
 List<String> stepperLabelsForOrderType(String orderType) {
   switch (orderType) {
     case 'taxi':
-      return const ['تم الطلب', 'مقبول', 'في الطريق', 'الرحلة'];
+      return ['orders.stepPlaced'.tr, 'orders.stepAccepted'.tr, 'orders.stepOnWay'.tr, 'orders.stepTrip'.tr];
     case 'shipping':
-      return const ['تم الطلب', 'مقبول', 'الاستلام', 'بالطريق', 'تم التوصيل'];
+      return ['orders.stepPlaced'.tr, 'orders.stepAccepted'.tr, 'orders.stepPickup'.tr, 'orders.stepOnWayDelivery'.tr, 'orders.stepDelivered'.tr];
     default:
-      return const ['تم الطلب', 'مقبول', 'تحضير', 'استلام', 'بالطريق'];
+      return ['orders.stepPlaced'.tr, 'orders.stepAccepted'.tr, 'orders.stepPreparing'.tr, 'orders.stepPickup'.tr, 'orders.stepOnWayDelivery'.tr];
   }
 }
 

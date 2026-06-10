@@ -38,7 +38,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 22),
                 AuthTextField(
                   label: AppStrings.phone,
-                  hintText: 'أدخل رقم الجوال',
+                  hintText: 'auth.enterPhoneHint'.tr,
                   controller: controller.phoneOrEmailController,
                   keyboardType: TextInputType.phone,
                   validator: Validators.phone,
@@ -47,7 +47,7 @@ class LoginScreen extends StatelessWidget {
                 Obx(
                   () => AuthTextField(
                     label: AppStrings.password,
-                    hintText: 'أدخل كلمة المرور',
+                    hintText: 'auth.enterPasswordHint'.tr,
                     controller: controller.passwordController,
                     obscureText: controller.isPasswordHidden.value,
                     validator: Validators.password,

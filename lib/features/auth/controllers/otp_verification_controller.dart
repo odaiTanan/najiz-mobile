@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'dart:async';
 import 'package:get/get.dart';
@@ -76,14 +76,14 @@ class OtpVerificationController extends GetxController {
       final result = purpose == OtpPurpose.forgotPassword
           ? await _authRepository.forgotPassword(phone: phone)
           : await _authRepository.resendOtp(phone: phone);
-      AppSnackbar.show('رمز التحقق', result.message);
+      AppSnackbar.show('auth.otpTitle'.tr, result.message);
       _startCountdown();
     } on AuthApiException catch (e) {
       errorMessage.value = e.message;
-      AppSnackbar.show('خطأ', e.message);
+      AppSnackbar.show('errors.generic'.tr, e.message);
     } catch (_) {
-      errorMessage.value = 'خطأ في الشبكة';
-      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
+      errorMessage.value = 'auth.networkError'.tr;
+      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     }
   }
 
@@ -102,7 +102,7 @@ class OtpVerificationController extends GetxController {
         );
         final resetToken = result.resetToken;
         if (resetToken == null || resetToken.trim().isEmpty) {
-          throw AuthApiException('تعذر استلام رمز إعادة التعيين من الخادم');
+          throw AuthApiException('auth.resetTokenError'.tr);
         }
         Get.to(
           () => ResetPasswordScreen(
@@ -129,10 +129,10 @@ class OtpVerificationController extends GetxController {
     } on AuthApiException catch (e) {
       final mapped = ErrorMappers.mapOtpErrorMessage(e.message);
       errorMessage.value = mapped;
-      AppSnackbar.show('خطأ', mapped);
+      AppSnackbar.show('errors.generic'.tr, mapped);
     } catch (_) {
-      errorMessage.value = 'خطأ في الشبكة';
-      AppSnackbar.show('خطأ', 'خطأ في الشبكة');
+      errorMessage.value = 'auth.networkError'.tr;
+      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }

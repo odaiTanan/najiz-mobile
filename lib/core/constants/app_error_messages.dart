@@ -1,17 +1,17 @@
-/// User-facing Arabic copy for errors (non-technical).
+import 'package:get/get.dart';
+
+/// User-facing error messages — returns translated strings via i18n.
 class AppErrorMessages {
   AppErrorMessages._();
 
-  static const String noInternet = 'لا يوجد اتصال بالإنترنت';
-  static const String requestTimeout = 'انتهت مهلة الاتصال. حاول مرة أخرى.';
-  static const String connectionFailed = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
-  static const String unexpected = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
-  static const String serverUnavailable =
-      'الخدمة غير متاحة مؤقتاً. حاول لاحقاً.';
-  static const String notFound = 'المحتوى غير متوفر.';
-  static const String unauthorized = 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.';
-  static const String forbidden = 'لا يمكن تنفيذ هذا الإجراء.';
-  static const String badRequest = 'تعذر تنفيذ الطلب. تحقق من البيانات.';
-  static const String displayError =
-      'حدث خطأ في العرض. أعد فتح الصفحة أو حاول لاحقاً.';
+  static String get noInternet => 'errors.noInternet'.tr;
+  static String get requestTimeout => 'errors.requestTimeout'.tr;
+  static String get connectionFailed => 'errors.connectionFailed'.tr;
+  static String get unexpected => 'errors.unexpected'.tr;
+  static String get serverUnavailable => 'errors.serverUnavailable'.tr;
+  static String get notFound => 'errors.notFound'.tr;
+  static String get unauthorized => 'errors.unauthorized'.tr;
+  static String get forbidden => 'errors.forbidden'.tr;
+  static String get badRequest => 'errors.badRequest'.tr;
+  static String get displayError => 'errors.displayError'.tr;
 }

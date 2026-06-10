@@ -68,10 +68,10 @@ class TransportOrderTrackingScreen extends StatelessWidget {
       tag: 'transport-tracking-$orderId',
     );
 
-    return WillPopScope(
-      onWillPop: () async {
-        _handleBack(controller);
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, _) {
+        if (!didPop) _handleBack(controller);
       },
       child: Scaffold(
         backgroundColor: cs.surfaceContainerLowest,
@@ -87,7 +87,7 @@ class TransportOrderTrackingScreen extends StatelessWidget {
           elevation: 0,
           centerTitle: true,
           title: Text(
-            'تتبع الطلب',
+            'tracking.title'.tr,
             style: TextStyle(
               fontWeight: FontWeight.w800,
               color: cs.onSurface,
@@ -156,20 +156,20 @@ class _AcceptedTrackingLayout extends StatelessWidget {
   String _titleForStatus() {
     if (orderType == 'shipping') {
       if (controller.currentStatus.value == 'delivered') {
-        return 'تم التوصيل والتسليم';
+        return 'tracking.deliveredAndHandedOver'.tr;
       }
       if (controller.isTripInProgress) {
-        return 'السائق في الطريق للتوصيل';
+        return 'tracking.driverOnWayToDelivery'.tr;
       }
       if (controller.isHeadingToPickup) {
-        return 'السائق متجه للاستلام';
+        return 'tracking.driverHeadingToPickup'.tr;
       }
-      return 'تم قبول الطلب من السائق';
+      return 'tracking.driverAcceptedOrder'.tr;
     }
-    if (controller.currentStatus.value == 'delivered') return 'تم إنهاء الرحلة';
-    if (controller.isTripInProgress) return 'في الطريق إلى الوجهة';
-    if (controller.isHeadingToPickup) return 'السائق في الطريق إليك';
-    return 'تم قبول طلبك';
+    if (controller.currentStatus.value == 'delivered') return 'tracking.tripFinished'.tr;
+    if (controller.isTripInProgress) return 'tracking.headingToDestination'.tr;
+    if (controller.isHeadingToPickup) return 'tracking.driverHeadingToYou'.tr;
+    return 'tracking.orderAcceptedByDriver'.tr;
   }
 
   String _subtitleForStatus() {
@@ -177,23 +177,23 @@ class _AcceptedTrackingLayout extends StatelessWidget {
       return _titleForStatus();
     }
     if (controller.currentStatus.value == 'delivered') {
-      return 'شكرًا لاستخدامك خدمة النقل';
+      return 'tracking.thankYouForTrip'.tr;
     }
     if (controller.isTripInProgress) {
-      return 'يمكنك متابعة مسار السائق لحظيًا';
+      return 'tracking.followDriverLive'.tr;
     }
     if (controller.isHeadingToPickup) {
-      return 'تابع موقع السائق حتى نقطة الالتقاط';
+      return 'tracking.followUntilPickup'.tr;
     }
-    return 'السائق بدأ تجهيز الرحلة';
+    return 'tracking.tripPreparing'.tr;
   }
 
   Future<void> _callDriver() async {
     final phone = controller.driverPhone.value;
     if (phone == null || phone.trim().isEmpty) {
       AppSnackbar.show(
-        'رقم السائق غير متوفر',
-        'سيظهر الرقم فور توفره من النظام',
+        'tracking.phoneUnavailable'.tr,
+        'tracking.phoneWillAppear'.tr,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
       );
@@ -205,8 +205,8 @@ class _AcceptedTrackingLayout extends StatelessWidget {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
       AppSnackbar.show(
-        'تعذر فتح تطبيق الاتصال',
-        'حاول مرة أخرى بعد قليل',
+        'tracking.callFailed'.tr,
+        'tracking.tryAgainLater'.tr,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
       );
@@ -222,15 +222,15 @@ class _AcceptedTrackingLayout extends StatelessWidget {
     final mapsLink =
         'https://www.google.com/maps/dir/?api=1&origin=$originLat,$originLng&destination=$destLat,$destLng&travelmode=driving';
     final message =
-        'تتبع رحلتي رقم $orderNumber\n'
-        'السائق: ${controller.driverName.value ?? 'غير محدد'}\n'
-        'المسار المباشر: $mapsLink';
+        'tracking.shareMessage'.trParams({'orderNumber': orderNumber}) + '\n'
+        + 'tracking.driverLabel'.tr + ': ${controller.driverName.value ?? 'tracking.driverUnknown'.tr}\n'
+        + 'tracking.shareRoute'.trParams({'link': mapsLink});
     final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(message)}');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
       AppSnackbar.show(
-        'تعذر فتح واتساب',
-        'تأكد من تثبيت واتساب أو حاول لاحقًا',
+        'tracking.whatsappFailed'.tr,
+        'tracking.whatsappHint'.tr,
         snackPosition: SnackPosition.BOTTOM,
       );
     }
@@ -263,8 +263,8 @@ class _AcceptedTrackingLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final estimate = _estimateTripInfo();
-    final driverName = controller.driverName.value ?? 'السائق';
-    final vehicle = controller.driverVehicleType.value ?? 'مركبة غير محددة';
+    final driverName = controller.driverName.value ?? 'tracking.driverLabel'.tr;
+    final vehicle = controller.driverVehicleType.value ?? 'tracking.vehicleUnknown'.tr;
     final plate = controller.driverPlate.value ?? '---';
     final rating = controller.driverRating.value ?? '--';
     final isTransportTripView = controller.isTripInProgress;
@@ -360,7 +360,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                             children: [
                               Text(
                                 estimate.etaMinutes != null
-                                    ? '${estimate.etaMinutes} دقيقة'
+                                    ? 'tracking.etaMinutes'.trParams({'minutes': estimate.etaMinutes.toString()})
                                     : '--',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -371,8 +371,8 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 estimate.distanceKm != null
-                                    ? '${estimate.distanceKm!.toStringAsFixed(1)} كم'
-                                    : 'بانتظار الموقع',
+                                    ? 'tracking.etaDistanceKm'.trParams({'distance': estimate.distanceKm!.toStringAsFixed(1)})
+                                    : 'tracking.waitingLocation'.tr,
                                 style: TextStyle(
                                   color: cs.onSurfaceVariant,
                                   fontSize: 10,
@@ -467,7 +467,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                           child: ElevatedButton.icon(
                             onPressed: () => Get.to(() => SupportChatScreen(token: token)),
                             icon: const Icon(Icons.support_agent),
-                            label: const Text('التواصل مع الدعم'),
+                            label: Text('tracking.contactSupport'.tr),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -481,7 +481,7 @@ class _AcceptedTrackingLayout extends StatelessWidget {
                           child: OutlinedButton.icon(
                             onPressed: _callDriver,
                             icon: const Icon(Icons.phone_outlined),
-                            label: const Text('اتصال بالسائق'),
+                            label: Text('tracking.callDriver'.tr),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -564,11 +564,11 @@ class _TaxiTripLivePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final title = orderType == 'shipping' ? 'السائق في الطريق للتوصيل' : 'في الطريق إلى الوجهة';
+    final title = orderType == 'shipping' ? 'tracking.driverOnWayToDelivery'.tr : 'tracking.headingToDestination'.tr;
     final etaText = estimate.etaMinutes != null ? '${estimate.etaMinutes}' : '--';
     final distanceText = estimate.distanceKm != null
-        ? '${estimate.distanceKm!.toStringAsFixed(1)} كم متبقي'
-        : 'بانتظار تحديث المسافة';
+        ? 'tracking.etaDistanceLeft'.trParams({'distance': estimate.distanceKm!.toStringAsFixed(1)})
+        : 'tracking.waitingDistanceUpdate'.tr;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -597,7 +597,7 @@ class _TaxiTripLivePanel extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'متابعة الرحلة لحظيًا',
+                      'tracking.followLiveTripLabel'.tr,
                       style: TextStyle(
                         color: cs.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -619,10 +619,10 @@ class _TaxiTripLivePanel extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                         fontSize: 20,
                       ),
-                      children: const [
+                      children: [
                         TextSpan(
-                          text: ' د',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          text: 'tracking.minutesAbbr'.tr,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                         ),
                       ],
                     ),
@@ -713,7 +713,7 @@ class _TaxiTripLivePanel extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onShareTrip,
                   icon: const Icon(Icons.share_outlined),
-                  label: const Text('مشاركة الرحلة'),
+                  label: Text('tracking.shareTrip'.tr),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -729,7 +729,7 @@ class _TaxiTripLivePanel extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onCallDriver,
                   icon: const Icon(Icons.phone_outlined),
-                  label: const Text('اتصال بالسائق'),
+                  label: Text('tracking.callDriver'.tr),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                     shape: RoundedRectangleBorder(
@@ -746,7 +746,7 @@ class _TaxiTripLivePanel extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onOpenSupport,
               icon: const Icon(Icons.support_agent),
-              label: const Text('التواصل مع الدعم'),
+              label: Text('tracking.contactSupport'.tr),
             ),
           ),
         ],
@@ -770,9 +770,9 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final completedTitle = orderType == 'shipping'
-        ? 'تم التوصيل والتسليم'
-        : 'انتهت الرحلة';
-    final ratingCta = orderType == 'shipping' ? 'قيّم طلبك' : 'قيّم رحلتك';
+        ? 'tracking.deliveredAndHandedOver'.tr
+        : 'tracking.tripEndedLabel'.tr;
+    final ratingCta = orderType == 'shipping' ? 'tracking.rateOrder'.tr : 'tracking.rateTrip'.tr;
     final distanceKm = controller.tripDistanceKm.value;
     final fare = controller.finalFare.value;
     return Container(
@@ -808,7 +808,7 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'ملخص الرحلة',
+            'tracking.tripSummary'.tr,
             style: TextStyle(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -821,8 +821,8 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
                 child: _summaryMetric(
                   context,
                   icon: Icons.route_rounded,
-                  label: 'المسافة المقطوعة',
-                  value: distanceKm != null ? '${distanceKm.toStringAsFixed(1)} كم' : '--',
+                  label: 'tracking.distanceTraveled'.tr,
+                  value: distanceKm != null ? 'tracking.distanceKmLabel'.trParams({'distance': distanceKm.toStringAsFixed(1)}) : '--',
                 ),
               ),
               const SizedBox(width: 10),
@@ -830,8 +830,8 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
                 child: _summaryMetric(
                   context,
                   icon: Icons.payments_outlined,
-                  label: 'السعر النهائي',
-                  value: fare != null ? '${fare.toStringAsFixed(0)} ل.س' : '--',
+                  label: 'tracking.finalPrice'.tr,
+                  value: fare != null ? 'tracking.finalPriceSyp'.trParams({'price': fare.toStringAsFixed(0)}) : '--',
                 ),
               ),
             ],
@@ -844,7 +844,7 @@ class _TaxiTripCompletedPanel extends StatelessWidget {
                 onPressed: controller.ratingSubmitted.value ? null : onRateNow,
                 icon: const Icon(Icons.star_rounded),
                 label: Text(
-                  controller.ratingSubmitted.value ? 'تم إرسال تقييمك' : ratingCta,
+                  controller.ratingSubmitted.value ? 'tracking.ratingSubmitted'.tr : ratingCta,
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -932,7 +932,7 @@ class _DriverInfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'معلومات السائق',
+            'tracking.driverInfo'.tr,
             style: TextStyle(
               fontWeight: FontWeight.w800,
               color: cs.onSurface,
@@ -942,14 +942,14 @@ class _DriverInfoCard extends StatelessWidget {
           const SizedBox(height: 10),
           if (!hasDriverData)
             Text(
-              'جاري تعيين/تحديث بيانات السائق...',
+              'tracking.driverDataUpdating'.tr,
               style: TextStyle(color: cs.onSurfaceVariant),
             )
           else ...[
-            _driverRow(cs, 'الاسم', controller.driverName.value ?? 'غير متاح'),
-            _driverRow(cs, 'نوع المركبة', controller.driverVehicleType.value ?? 'غير متاح'),
-            _driverRow(cs, 'رقم اللوحة', controller.driverPlate.value ?? 'غير متاح'),
-            _driverRow(cs, 'التقييم', controller.driverRating.value ?? 'غير متاح'),
+            _driverRow(cs, 'tracking.driverNameLabel'.tr, controller.driverName.value ?? 'tracking.notAvailable'.tr),
+            _driverRow(cs, 'tracking.vehicleTypeLabel'.tr, controller.driverVehicleType.value ?? 'tracking.notAvailable'.tr),
+            _driverRow(cs, 'tracking.plateNumberLabel'.tr, controller.driverPlate.value ?? 'tracking.notAvailable'.tr),
+            _driverRow(cs, 'tracking.ratingLabel'.tr, controller.driverRating.value ?? 'tracking.notAvailable'.tr),
           ],
           const SizedBox(height: 12),
           SizedBox(
@@ -957,7 +957,7 @@ class _DriverInfoCard extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => Get.to(() => SupportChatScreen(token: token)),
               icon: const Icon(Icons.support_agent),
-              label: const Text('التواصل مع الدعم'),
+              label: Text('tracking.contactSupport'.tr),
             ),
           ),
         ],
@@ -1020,7 +1020,7 @@ class _DeliveryCodeCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'كود التسليم',
+            'tracking.deliveryCode'.tr,
             style: TextStyle(
               color: cs.onSurface,
               fontWeight: FontWeight.w800,
@@ -1029,7 +1029,7 @@ class _DeliveryCodeCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'شارك هذا الكود مع المستلم لتأكيد تسليم طلب الشحن',
+            'tracking.shareDeliveryCode'.tr,
             style: TextStyle(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -1099,26 +1099,31 @@ class _TopCard extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: connected
-                  ? Color.alphaBlend(
-                      const Color(0xFF0F9D58).withValues(alpha: 0.16),
-                      cs.surface,
-                    )
-                  : Color.alphaBlend(
-                      cs.error.withValues(alpha: 0.14),
-                      cs.surface,
-                    ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              connected ? 'متصل لحظيا' : 'غير متصل',
-              style: TextStyle(
-                color: connected ? const Color(0xFF0F9D58) : cs.error,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: connected
+                    ? Color.alphaBlend(
+                        const Color(0xFF0F9D58).withValues(alpha: 0.16),
+                        cs.surface,
+                      )
+                    : Color.alphaBlend(
+                        cs.error.withValues(alpha: 0.14),
+                        cs.surface,
+                      ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                connected ? 'tracking.liveConnected'.tr : 'tracking.liveDisconnected'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: connected ? const Color(0xFF0F9D58) : cs.error,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1169,7 +1174,7 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
   Future<void> _submit() async {
     final comment = _commentController.text.trim();
     if (_rating <= 3 && comment.isEmpty) {
-      setState(() => _error = 'يرجى كتابة ملاحظة عند تقييم أقل من 4 نجوم');
+      setState(() => _error = 'tracking.lowRatingNeedsComment'.tr);
       return;
     }
     try {
@@ -1180,13 +1185,13 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
       if (!mounted) return;
       Navigator.of(context).pop();
       AppSnackbar.show(
-        'شكراً لك',
-        'تم إرسال تقييم الرحلة بنجاح',
+        'tracking.thankYou'.tr,
+        'tracking.ratingSentSuccess'.tr,
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show('فشل الإرسال', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show('tracking.submissionFailed'.tr, e.toString(), snackPosition: SnackPosition.BOTTOM);
     }
   }
 
@@ -1204,7 +1209,7 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'قيّم رحلتك',
+              'tracking.rateYourTrip'.tr,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -1213,7 +1218,7 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
             ),
             const SizedBox(height: 4),
             Text(
-              'شاركنا تجربتك لتحسين جودة الخدمة',
+              'tracking.shareExperience'.tr,
               style: TextStyle(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
@@ -1235,7 +1240,7 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
                 if (_error != null) setState(() => _error = null);
               },
               decoration: InputDecoration(
-                hintText: 'ملاحظاتك (اختياري)',
+                hintText: 'tracking.ratingNotesHint'.tr,
                 hintStyle: TextStyle(color: cs.onSurfaceVariant),
                 errorText: _error,
                 filled: true,
@@ -1264,7 +1269,7 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('لاحقًا'),
+                    child: Text('tracking.later'.tr),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1288,7 +1293,7 @@ class _TaxiTripRatingDialogState extends State<_TaxiTripRatingDialog> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('إرسال'),
+                          : Text('tracking.submit'.tr),
                     ),
                   ),
                 ),
@@ -1751,7 +1756,7 @@ class _MapCardState extends State<_MapCard> {
         Marker(
           markerId: const MarkerId('driver'),
           position: LatLng(driver.latitude, driver.longitude),
-          infoWindow: const InfoWindow(title: 'السائق'),
+          infoWindow: InfoWindow(title: 'tracking.driverMarker'.tr),
           flat: true,
           anchor: const Offset(0.5, 0.58),
           zIndexInt: 3,
@@ -1762,7 +1767,7 @@ class _MapCardState extends State<_MapCard> {
         Marker(
           markerId: const MarkerId('rider'),
           position: LatLng(_userPoint!.latitude, _userPoint!.longitude),
-          infoWindow: const InfoWindow(title: 'موقعي'),
+          infoWindow: InfoWindow(title: 'tracking.myLocationMarker'.tr),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
         ),
     };
@@ -1881,7 +1886,7 @@ class _MapCardState extends State<_MapCard> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'تنبيه: مسار السائق مختلف عن المسار المتوقع',
+                        'tracking.driverRouteWarning'.tr,
                         style: TextStyle(
                           color: cs.onSurface,
                           fontWeight: FontWeight.w700,
@@ -1893,44 +1898,55 @@ class _MapCardState extends State<_MapCard> {
               ),
             ),
           Positioned(
+            left: 10,
             right: 10,
             bottom: 10,
             child: Row(
               children: [
                 if (canFollowDriver)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() => _followDriver = !_followDriver);
-                      if (_followDriver) {
-                        _focusDriverIfNeeded();
-                      } else {
-                        _fitVisibleRoute();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _followDriver
-                          ? AppColors.primary
-                          : cs.surface,
-                      foregroundColor: _followDriver
-                          ? Colors.white
-                          : cs.onSurface,
-                      elevation: 1.5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: _followDriver
-                              ? AppColors.primary
-                              : cs.outlineVariant,
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() => _followDriver = !_followDriver);
+                        if (_followDriver) {
+                          _focusDriverIfNeeded();
+                        } else {
+                          _fitVisibleRoute();
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _followDriver
+                            ? AppColors.primary
+                            : cs.surface,
+                        foregroundColor: _followDriver
+                            ? Colors.white
+                            : cs.onSurface,
+                        elevation: 1.5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: _followDriver
+                                ? AppColors.primary
+                                : cs.outlineVariant,
+                          ),
                         ),
                       ),
+                      icon: Icon(
+                        _followDriver
+                            ? Icons.gps_fixed
+                            : Icons.my_location_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _followDriver
+                            ? 'tracking.stopTracking'.tr
+                            : 'tracking.trackDriver'.tr,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    icon: Icon(
-                      _followDriver ? Icons.gps_fixed : Icons.my_location_outlined,
-                      size: 18,
-                    ),
-                    label: Text(_followDriver ? 'إيقاف التتبع' : 'تتبع السائق'),
                   ),
-                const SizedBox(width: 8),
+                if (canFollowDriver) const SizedBox(width: 8),
                 FloatingActionButton.small(
                   heroTag: 'fit_route_button',
                   backgroundColor: cs.surface,
@@ -1960,17 +1976,17 @@ class _TransportTimelineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final steps = orderType == 'shipping'
-        ? const [
-            'تم قبول الطلب من السائق',
-            'السائق متجه للاستلام',
-            'السائق في الطريق للتوصيل',
-            'تم التوصيل والتسليم',
+        ? [
+            'tracking.driverAcceptedOrder'.tr,
+            'tracking.driverHeadingToPickup'.tr,
+            'tracking.driverOnWayToDelivery'.tr,
+            'tracking.deliveredAndHandedOver'.tr,
           ]
-        : const [
-            'تم قبول الطلب من السائق',
-            'تم بدء الرحلة',
-            'خلال الرحلة',
-            'تم انهاء الرحلة',
+        : [
+            'tracking.driverAcceptedOrder'.tr,
+            'tracking.tripStartedLabel'.tr,
+            'tracking.duringTrip'.tr,
+            'tracking.tripFinishedLabel'.tr,
           ];
     final shippingIcons = const [
       Icons.check_circle_outline,
@@ -1990,7 +2006,7 @@ class _TransportTimelineCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'مراحل الطلب',
+            'tracking.orderStages'.tr,
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,

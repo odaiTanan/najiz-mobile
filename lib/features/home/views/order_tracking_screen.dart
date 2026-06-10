@@ -40,10 +40,10 @@ class OrderTrackingScreen extends StatelessWidget {
       tag: 'order-tracking-$orderId',
     );
 
-    return WillPopScope(
-      onWillPop: () async {
-        _handleBack(controller, context);
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, _) {
+        if (!didPop) _handleBack(controller, context);
       },
       child: Scaffold(
         backgroundColor: cs.surfaceContainerLowest,
@@ -628,24 +628,29 @@ class _TopLiveCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: connected
-                  ? const Color(0xFFE9F9EE)
-                  : const Color(0xFFFFF1F2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              connected
-                  ? 'tracking.liveConnected'.tr
-                  : 'tracking.liveDisconnected'.tr,
-              style: TextStyle(
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
                 color: connected
-                    ? const Color(0xFF0F9D58)
-                    : const Color(0xFFE11D48),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                    ? const Color(0xFFE9F9EE)
+                    : const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                connected
+                    ? 'tracking.liveConnected'.tr
+                    : 'tracking.liveDisconnected'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: connected
+                      ? const Color(0xFF0F9D58)
+                      : const Color(0xFFE11D48),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -673,26 +678,35 @@ class _StatusCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: cs.onSurfaceVariant,
+          Flexible(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: cs.onSurfaceVariant,
+              ),
             ),
           ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              value,
-              style: TextStyle(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),

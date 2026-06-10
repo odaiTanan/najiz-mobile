@@ -579,28 +579,40 @@ class _TypeTabs extends StatelessWidget {
       ('food', 'orders.food'.tr),
       ('stores', 'orders.store'.tr),
     ];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: items
-          .map((it) => InkWell(
-                onTap: () => onChanged(it.$1),
-                child: Container(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: selected == it.$1 ? AppColors.primary : Colors.transparent, width: 2)),
-                  ),
-                  child: Text(
-                    it.$2,
-                    style: TextStyle(
-                      color: selected == it.$1
-                          ? AppColors.primary
-                          : cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: items
+            .map((it) => Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 12),
+                  child: InkWell(
+                    onTap: () => onChanged(it.$1),
+                    child: Container(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: selected == it.$1
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        it.$2,
+                        style: TextStyle(
+                          color: selected == it.$1
+                              ? AppColors.primary
+                              : cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ))
-          .toList(growable: false),
+                ))
+            .toList(growable: false),
+      ),
     );
   }
 }
@@ -612,32 +624,35 @@ class _FilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _FilterChip(
-          text: 'orders.all'.tr,
-          active: selected == 'all',
-          onTap: () => onChanged('all'),
-        ),
-        const SizedBox(width: 8),
-        _FilterChip(
-          text: 'orders.active'.tr,
-          active: selected == 'active',
-          onTap: () => onChanged('active'),
-        ),
-        const SizedBox(width: 8),
-        _FilterChip(
-          text: 'orders.completed'.tr,
-          active: selected == 'completed',
-          onTap: () => onChanged('completed'),
-        ),
-        const SizedBox(width: 8),
-        _FilterChip(
-          text: 'orders.cancelled'.tr,
-          active: selected == 'cancelled',
-          onTap: () => onChanged('cancelled'),
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _FilterChip(
+            text: 'orders.all'.tr,
+            active: selected == 'all',
+            onTap: () => onChanged('all'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            text: 'orders.active'.tr,
+            active: selected == 'active',
+            onTap: () => onChanged('active'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            text: 'orders.completed'.tr,
+            active: selected == 'completed',
+            onTap: () => onChanged('completed'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            text: 'orders.cancelled'.tr,
+            active: selected == 'cancelled',
+            onTap: () => onChanged('cancelled'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -747,12 +762,17 @@ class _ActiveOrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                '\$${order.total.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
-                  color: cs.onSurface,
+              Flexible(
+                child: Text(
+                  '\$${order.total.toStringAsFixed(2)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    color: cs.onSurface,
+                  ),
                 ),
               ),
             ],
@@ -870,12 +890,17 @@ class _CompletedOrderCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              '\$${order.total.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-                color: cs.onSurface,
+            Flexible(
+              child: Text(
+                '\$${order.total.toStringAsFixed(2)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  color: cs.onSurface,
+                ),
               ),
             ),
             Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
@@ -912,11 +937,16 @@ class _CancelledOrderCard extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            'orders.cancelled'.tr,
-            style: TextStyle(
-              color: cs.error,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              'orders.cancelled'.tr,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: cs.error,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1022,11 +1052,16 @@ Widget _detailRow(ColorScheme cs, String label, String value) {
             ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            color: cs.onSurface,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: cs.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

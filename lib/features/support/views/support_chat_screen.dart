@@ -190,16 +190,18 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                         children: [
                           const Icon(Icons.headset_mic_rounded, color: Colors.white),
                           const SizedBox(width: 8),
-                          Text(
-                            _controller.supportAgentName.value,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: Text(
+                              _controller.supportAgentName.value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -211,6 +213,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                             ),
                             child: Text(
                               'support.online'.tr,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,

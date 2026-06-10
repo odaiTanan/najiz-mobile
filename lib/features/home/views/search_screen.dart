@@ -40,7 +40,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<String> _suggestions = const [];
   List<SearchTrendingItem> _trending = const [];
   List<SearchHistoryItem> _history = const [];
-  String _locationLabel = 'موقعي';
+  late String _locationLabel = 'search.myLocation'.tr;
 
   String? get _activeToken {
     final auth = Get.find<AuthStateManager>();
@@ -60,7 +60,7 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final trending = await _repository.getTrendingSearches(limit: 10, days: 7);
       List<SearchHistoryItem> history = const [];
-      String locationLabel = 'موقعي';
+      String locationLabel = 'search.myLocation'.tr;
       List<VendorModel> preSearchVendors = const [];
       final token = _activeToken;
       if (!_isGuest && token != null && token.trim().isNotEmpty) {
@@ -146,7 +146,7 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'تعذر تنفيذ البحث');
+      setState(() => _error = 'search.searchFailed'.tr);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -164,7 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
         SnackBar(
           backgroundColor: cs.surface,
           content: Text(
-            'تم مسح سجل البحث',
+            'search.historyCleared'.tr,
             style: TextStyle(color: cs.onSurface),
           ),
         ),
@@ -177,7 +177,7 @@ class _SearchScreenState extends State<SearchScreen> {
         SnackBar(
           backgroundColor: cs.surface,
           content: Text(
-            'تعذر مسح السجل: $e',
+            'search.clearHistoryFailed'.tr,
             style: TextStyle(color: cs.onSurface),
           ),
         ),
@@ -219,12 +219,16 @@ class _SearchScreenState extends State<SearchScreen> {
                 children: [
                   Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: cs.onSurfaceVariant),
                   const SizedBox(width: 2),
-                  Text(
-                    _locationLabel,
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      _locationLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -240,6 +244,13 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
+
+  // Runtime decoration — do not use const with .tr
+  InputDecoration _searchInputDecoration() => InputDecoration(
+        hintText: 'search.placeholder'.tr,
+        border: InputBorder.none,
+        isDense: true,
+      );
 
   Widget _buildSearchBar() {
     final cs = Theme.of(context).colorScheme;
@@ -266,11 +277,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 setState(() {});
               },
               onSubmitted: _performSearch,
-              decoration: const InputDecoration(
-                hintText: 'ابحث عن وجبتك المفضلة',
-                border: InputBorder.none,
-                isDense: true,
-              ),
+              decoration: _searchInputDecoration(),
             ),
           ),
           if (_searchController.text.trim().isNotEmpty)
@@ -298,7 +305,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Row(
         children: [
           _TopTabItem(
-            label: 'الكل',
+            label: 'search.filterAll'.tr,
             selected: _selectedType == null,
             onTap: () {
               setState(() => _selectedType = null);
@@ -307,7 +314,7 @@ class _SearchScreenState extends State<SearchScreen> {
             },
           ),
           _TopTabItem(
-            label: 'المنتجات',
+            label: 'search.filterProducts'.tr,
             selected: _selectedType == 'product',
             onTap: () {
               setState(() => _selectedType = 'product');
@@ -316,7 +323,7 @@ class _SearchScreenState extends State<SearchScreen> {
             },
           ),
           _TopTabItem(
-            label: 'المطاعم والمتاجر',
+            label: 'search.filterVendors'.tr,
             selected: _selectedType == 'vendor',
             onTap: () {
               setState(() => _selectedType = 'vendor');
@@ -376,7 +383,7 @@ class _SearchScreenState extends State<SearchScreen> {
             if (_preSearchActiveFilter == null && _preSearchCuisineFilter == null) ...[
               const SizedBox(height: 10),
               Text(
-                'اختر فلتر لعرض النتائج',
+                'search.selectFilter'.tr,
                 style: TextStyle(
                   color: cs.onSurfaceVariant,
                   fontSize: 12,
@@ -387,7 +394,7 @@ class _SearchScreenState extends State<SearchScreen> {
               const SizedBox(height: 8),
               if (filteredPreSearch.isEmpty)
                 Text(
-                  'لا توجد نتائج لهذا الفلتر حالياً',
+                  'search.noResultsForFilter'.tr,
                   style: TextStyle(color: cs.onSurfaceVariant),
                 )
               else
@@ -399,7 +406,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
           const SizedBox(height: 6),
           Text(
-            'الأكثر بحثاً من قبل المستخدمين',
+            'search.mostSearched'.tr,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
@@ -409,7 +416,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 10),
           if (_trending.isEmpty)
             Text(
-              'لا توجد بيانات حالياً',
+              'search.noData'.tr,
               style: TextStyle(color: cs.onSurfaceVariant),
             )
           else
@@ -432,8 +439,8 @@ class _SearchScreenState extends State<SearchScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'بحثت مسبقاً عن',
+                child:                   Text(
+                  'search.previouslySearched'.tr,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -444,9 +451,9 @@ class _SearchScreenState extends State<SearchScreen> {
               if (!_isGuest && _history.isNotEmpty)
                 TextButton(
                   onPressed: _clearHistory,
-                  child: const Text(
-                    'مسح الكل',
-                    style: TextStyle(color: AppColors.primary),
+                  child: Text(
+                    'search.clearAll'.tr,
+                    style: const TextStyle(color: AppColors.primary),
                   ),
                 ),
             ],
@@ -454,12 +461,12 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 8),
           if (_isGuest)
             Text(
-              'سجل البحث يظهر بعد تسجيل الدخول',
+              'search.loginForHistory'.tr,
               style: TextStyle(color: cs.onSurfaceVariant),
             )
           else if (_history.isEmpty)
             Text(
-              'لا يوجد سجل بحث',
+              'search.noHistory'.tr,
               style: TextStyle(color: cs.onSurfaceVariant),
             )
           else
@@ -489,7 +496,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Row(
         children: [
           _IconToggleChip(
-            label: 'نشط',
+            label: 'search.filterActive'.tr,
             icon: Icons.wifi_tethering_rounded,
             selected: _preSearchActiveFilter == true,
             onTap: () => setState(
@@ -497,7 +504,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           _IconToggleChip(
-            label: 'غير نشط',
+            label: 'search.filterInactive'.tr,
             icon: Icons.do_not_disturb_alt_rounded,
             selected: _preSearchActiveFilter == false,
             onTap: () => setState(
@@ -505,7 +512,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           _IconToggleChip(
-            label: 'وجبات سريعة',
+            label: 'search.filterFastFood'.tr,
             icon: Icons.fastfood_rounded,
             selected: _preSearchCuisineFilter == 'fastfood',
             onTap: () => setState(
@@ -515,7 +522,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           _IconToggleChip(
-            label: 'غربي',
+            label: 'search.filterWestern'.tr,
             icon: Icons.restaurant_rounded,
             selected: _preSearchCuisineFilter == 'western',
             onTap: () => setState(
@@ -525,7 +532,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           _IconToggleChip(
-            label: 'شرقي',
+            label: 'search.filterEastern'.tr,
             icon: Icons.ramen_dining_rounded,
             selected: _preSearchCuisineFilter == 'eastern',
             onTap: () => setState(
@@ -548,7 +555,7 @@ class _SearchScreenState extends State<SearchScreen> {
       children: [
         const SizedBox(height: 2),
         Text(
-          'تم العثور على ${results.totalResults} نتيجة',
+          'search.resultsCount'.trParams({'count': results.totalResults.toString()}),
           style: TextStyle(
             color: cs.onSurface,
             fontWeight: FontWeight.w800,
@@ -559,7 +566,7 @@ class _SearchScreenState extends State<SearchScreen> {
         const SizedBox(height: 12),
         if (results.products.isNotEmpty) ...[
           Text(
-            'المنتجات',
+            'search.tabProducts'.tr,
             style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
           ),
           const SizedBox(height: 8),
@@ -568,7 +575,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
         if (sortedVendors.isNotEmpty) ...[
           Text(
-            'المطاعم والمتاجر',
+            'search.tabVendors'.tr,
             style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
           ),
           const SizedBox(height: 8),
@@ -576,7 +583,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
         if (results.products.isEmpty && results.vendors.isEmpty)
           Text(
-            'لا توجد نتائج مطابقة',
+            'search.noMatchingResults'.tr,
             style: TextStyle(color: cs.onSurfaceVariant),
           ),
       ],
@@ -590,27 +597,27 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Row(
         children: [
           _SortPill(
-            label: 'الأكثر مطابقة',
+            label: 'search.sortBestMatch'.tr,
             selected: _selectedSort == SearchSortOption.bestMatch,
             onTap: () => setState(() => _selectedSort = SearchSortOption.bestMatch),
           ),
           _SortPill(
-            label: 'متصل',
+            label: 'search.sortOnline'.tr,
             selected: _selectedSort == SearchSortOption.online,
             onTap: () => setState(() => _selectedSort = SearchSortOption.online),
           ),
           _SortPill(
-            label: 'توصيل مجاني',
+            label: 'search.sortFreeDelivery'.tr,
             selected: _selectedSort == SearchSortOption.freeDelivery,
             onTap: () => setState(() => _selectedSort = SearchSortOption.freeDelivery),
           ),
           _SortPill(
-            label: 'الأعلى تقييماً',
+            label: 'search.sortTopRated'.tr,
             selected: _selectedSort == SearchSortOption.topRated,
             onTap: () => setState(() => _selectedSort = SearchSortOption.topRated),
           ),
           _SortPill(
-            label: 'نشط',
+            label: 'search.sortActive'.tr,
             selected: _selectedSort == SearchSortOption.active,
             onTap: () => setState(() => _selectedSort = SearchSortOption.active),
           ),
@@ -639,6 +646,7 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  // ignore: unused_element — candidate for future pre-search sorting feature
   List<VendorModel> _sortedPreSearchVendors(List<VendorModel> source) {
     final items = [...source];
     switch (_selectedSort) {
@@ -901,33 +909,36 @@ class _ProductRow extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
         ),
         subtitle: Text(
-          '${item.price.toStringAsFixed(0)} ل.س',
+          'search.priceLabel'.trParams({'price': item.price.toStringAsFixed(0)}),
           style: TextStyle(
             color: cs.onSurfaceVariant,
             fontWeight: FontWeight.w600,
             fontSize: 12,
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 80,
-              child: Text(
-                item.vendorName ?? '',
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
+        trailing: SizedBox(
+          width: 110,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Expanded(
+                child: Text(
+                  item.vendorName ?? '',
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                ),
               ),
-            ),
-            FavoriteHeartButton(
-              favoriteType: 'product',
-              entityId: item.id,
-              variant: FavoriteHeartVariant.onLightCard,
-              size: 22,
-              padding: EdgeInsets.zero,
-            ),
-          ],
+              FavoriteHeartButton(
+                favoriteType: 'product',
+                entityId: item.id,
+                variant: FavoriteHeartVariant.onLightCard,
+                size: 22,
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
         ),
         onTap: () {
           final vendorId = item.vendorId;
@@ -1002,7 +1013,7 @@ class _VendorRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    item.type == 'restaurant' ? 'مطعم' : 'متجر',
+                    item.type == 'restaurant' ? 'search.typeRestaurant'.tr : 'search.typeStore'.tr,
                     style: TextStyle(
                       color: cs.onSurfaceVariant,
                       fontSize: 11,
@@ -1012,7 +1023,7 @@ class _VendorRow extends StatelessWidget {
               ),
             ),
             Text(
-              item.isOpened ? 'مفتوح' : 'مغلق',
+              item.isOpened ? 'search.statusOpen'.tr : 'search.statusClosed'.tr,
               style: TextStyle(
                 color: item.isOpened ? const Color(0xFF0A8F48) : cs.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
@@ -1097,7 +1108,7 @@ class _PreSearchVendorRow extends StatelessWidget {
                     )
                   else
                     Text(
-                      item.isOpened ? 'متصل' : 'غير متصل',
+                      item.isOpened ? 'search.statusOnline'.tr : 'search.statusOffline'.tr,
                       style: TextStyle(
                         color: item.isOpened
                             ? const Color(0xFF0A8F48)

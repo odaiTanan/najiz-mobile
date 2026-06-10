@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+
 class ErrorMappers {
   /// Checks whether an API/controller error message likely represents
   /// "no internet / cannot reach the server".
@@ -31,12 +33,12 @@ class ErrorMappers {
         m.contains('credentials');
 
     if (looksLikePasswordIssue && looksLikeWrong) {
-      return 'كلمة المرور خاطئة';
+      return 'errors.wrongPassword'.tr;
     }
 
     // Fallback: common phrasing.
     if (m.contains('invalid credentials') || m.contains('unauthorized')) {
-      return 'كلمة المرور خاطئة';
+      return 'errors.wrongPassword'.tr;
     }
 
     return rawMessage;
@@ -54,7 +56,7 @@ class ErrorMappers {
         m.contains('مستخدم');
 
     if (phoneSignals && takenSignals) {
-      return 'لايمكنك انشاء حساب هذا الرقم مستخدم بالفعل اعد المحاولة برقم اخر جديد';
+      return 'errors.phoneAlreadyUsed'.tr;
     }
 
     return rawMessage;
@@ -79,12 +81,12 @@ class ErrorMappers {
         m.contains('تحقق');
 
     if (looksOtp && looksWrong) {
-      return 'رمز التحقق خاطئ';
+      return 'errors.wrongOtp'.tr;
     }
 
     // Common API phrasing fallback.
     if (m.contains('رمز التحقق') && (m.contains('خاطئ') || m.contains('خطأ'))) {
-      return 'رمز التحقق خاطئ';
+      return 'errors.wrongOtp'.tr;
     }
 
     return rawMessage;

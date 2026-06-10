@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
 import 'package:najiz_go_express/core/errors/error_sanitizer.dart';
 import 'package:najiz_go_express/core/errors/home_api_exception.dart';
@@ -9,8 +9,6 @@ import 'package:najiz_go_express/data/repositories/auth_repository.dart';
 /// Central snackbars for errors — never shows raw stack traces or HTTP dumps.
 class UserFeedback {
   UserFeedback._();
-
-  static const String _defaultTitle = 'تنبيه';
 
   static String _messageFor(Object error) {
     if (error is String) return error;
@@ -23,17 +21,18 @@ class UserFeedback {
 
   static void showError(
     Object error, {
-    String title = _defaultTitle,
+    String? title,
   }) {
+    final resolvedTitle = title ?? 'errors.title'.tr;
     final msg = _messageFor(error);
     if (kDebugMode) {
-      debugPrint('[UserFeedback] $title: $msg (${error.runtimeType})');
+      debugPrint('[UserFeedback] $resolvedTitle: $msg (${error.runtimeType})');
     }
     if (Get.isSnackbarOpen == true) {
       Get.closeAllSnackbars();
     }
     if (Get.key.currentContext != null || Get.overlayContext != null) {
-      AppSnackbar.show(title, msg, snackPosition: SnackPosition.BOTTOM);
+      AppSnackbar.show(resolvedTitle, msg, snackPosition: SnackPosition.BOTTOM);
     }
   }
 

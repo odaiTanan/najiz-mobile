@@ -43,15 +43,14 @@ class ResetPasswordScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 AuthHeader(
-                  title: 'إنشاء كلمة مرور جديدة',
-                  subtitle:
-                      'ضع كلمة مرور قوية لحساب NajizGo الخاص بك لحماية بياناتك.',
+                  title: 'auth.newPasswordLabel'.tr,
+                  subtitle: 'auth.newPasswordHint'.tr,
                 ),
                 const SizedBox(height: 18),
                 Obx(
                   () => AuthTextField(
-                    label: 'كلمة المرور الجديدة',
-                    hintText: 'أدخل على الأقل 8 أحرف',
+                    label: 'auth.newPasswordLabel'.tr,
+                    hintText: 'auth.newPasswordHint'.tr,
                     controller: controller.passwordController,
                     obscureText: controller.isPasswordHidden.value,
                     validator: Validators.password8,
@@ -74,9 +73,9 @@ class ResetPasswordScreen extends StatelessWidget {
                   minHeight: 4,
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'مطلوب كلمة مرور قوية',
-                  style: TextStyle(
+                Text(
+                  'auth.strongPasswordHint'.tr,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -85,16 +84,16 @@ class ResetPasswordScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 Obx(
                   () => AuthTextField(
-                    label: 'تأكيد كلمة المرور الجديدة',
-                    hintText: 'أعد إدخال كلمة المرور',
+                    label: 'auth.confirmNewPasswordLabel'.tr,
+                    hintText: 'auth.reenterPasswordHint'.tr,
                     controller: controller.confirmPasswordController,
                     obscureText: controller.isPasswordHidden.value,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'يرجى تأكيد كلمة المرور';
+                        return 'validation.confirmPassword'.tr;
                       }
                       if (value != controller.passwordController.text) {
-                        return 'كلمتا المرور غير متطابقتين';
+                        return 'validation.passwordsMismatch'.tr;
                       }
                       return null;
                     },
@@ -103,7 +102,7 @@ class ResetPasswordScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 Obx(
                   () => AuthButton(
-                    text: 'تحديث كلمة المرور',
+                    text: 'auth.updatePasswordBtn'.tr,
                     isLoading: controller.isLoading.value,
                     onPressed: controller.resetPassword,
                   ),
@@ -116,11 +115,11 @@ class ResetPasswordScreen extends StatelessWidget {
                         color: cs.onSurfaceVariant,
                         fontSize: 16,
                       ),
-                      children: const [
-                        TextSpan(text: 'هل تواجه مشكلة؟ '),
+                      children: [
+                        TextSpan(text: 'auth.troubleQuestion'.tr),
                         TextSpan(
-                          text: 'تواصل مع دعم نجز جو',
-                          style: TextStyle(color: AppColors.primary),
+                          text: 'auth.contactNajizSupport'.tr,
+                          style: const TextStyle(color: AppColors.primary),
                         ),
                       ],
                     ),
@@ -145,4 +144,3 @@ class ResetPasswordScreen extends StatelessWidget {
     );
   }
 }
-

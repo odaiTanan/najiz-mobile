@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:najiz_go_express/data/models/offer_model.dart';
 import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
 
@@ -66,14 +67,14 @@ class _HomeOfferBannerState extends State<HomeOfferBanner> {
           color: cs.primary,
         ),
         padding: const EdgeInsets.all(16),
-        child: const Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _OfferTag(),
-            SizedBox(height: 10),
+            const _OfferTag(),
+            const SizedBox(height: 10),
             Text(
-              'لا توجد عروض حالياً',
-              style: TextStyle(
+              'offers.noOffers'.tr,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -169,7 +170,7 @@ class _OfferSlide extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  offer.vendor?.name ?? 'استمتع بأفضل العروض الآن',
+                  offer.vendor?.name ?? 'offers.enjoyBestOffers'.tr,
                   style: const TextStyle(
                     color: Color(0xFFEAF5F5),
                     fontSize: 11,
@@ -188,7 +189,7 @@ class _OfferSlide extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
-                      'اطلب الآن',
+                      'offers.orderNow'.tr,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
@@ -217,9 +218,9 @@ class _OfferTag extends StatelessWidget {
         color: const Color(0xFFFF8A00),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Text(
-        'عرض محدود',
-        style: TextStyle(
+      child: Text(
+        'offers.limitedOffer'.tr,
+        style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
           fontSize: 9,

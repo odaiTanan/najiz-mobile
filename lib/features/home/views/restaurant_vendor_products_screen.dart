@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
-import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/save_cart_dialog.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/data/models/vendor_products_model.dart';
 import 'package:najiz_go_express/features/home/controllers/restaurant_vendor_products_controller.dart';
@@ -46,27 +46,7 @@ class _RestaurantVendorProductsScreenState
   Future<bool> _confirmLeaveCartIfNeeded() async {
     if (!_hasCartForThisVendor()) return true;
 
-    final shouldSave = await AppPopupDialog.show<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('حفظ السلة؟'),
-        content: const Text('هل تريد حفظ السلة'),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('لا'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('نعم'),
-          ),
-        ],
-      ),
-    );
-
+    final shouldSave = await showSaveCartDialog(context);
     if (shouldSave == null) return false;
 
     if (shouldSave) {
@@ -168,7 +148,7 @@ class _RestaurantVendorProductsScreenState
   ) {
     if (!canAcceptOrders) {
       AppSnackbar.show(
-        'تنبيه',
+        'restaurant.warning'.tr,
         VendorOrderStatus.cannotAddToCartMessage(
           vendorOrderStatus,
           isStore: widget.serviceId == 3,
@@ -210,7 +190,7 @@ class _RestaurantVendorProductsScreenState
       );
     });
     _syncSharedCart();
-    AppSnackbar.show('تمت الإضافة', '${product.name} أضيف إلى السلة');
+    AppSnackbar.show('restaurant.addedToCart'.tr, 'restaurant.addedToCartMsg'.trParams({'name': product.name}));
   }
 
   void _applyServiceItemsToLocalMap() {
@@ -257,8 +237,14 @@ class _RestaurantVendorProductsScreenState
       tag: 'vendor-menu-${widget.vendorId}',
     );
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, _) async {
+        if (!didPop) {
+          final shouldPop = await _onWillPop();
+          if (shouldPop) Get.back();
+        }
+      },
       child: Scaffold(
         backgroundColor: cs.surfaceContainerLowest,
         body: SafeArea(
@@ -367,7 +353,7 @@ class _RestaurantVendorProductsScreenState
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          'العروض',
+                          'restaurant.offersTab'.tr,
                           textAlign: TextAlign.right,
                           style: TextStyle(
                             fontSize: 18,
@@ -711,7 +697,7 @@ class _CategoryUnderlineTabs extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 4),
         itemBuilder: (_, index) {
           final isAll = index == 0;
-          final label = isAll ? 'الكل' : categories[index - 1].name;
+          final label = isAll ? 'restaurant.allTab'.tr : categories[index - 1].name;
           final id = isAll ? null : categories[index - 1].id;
           final selected = selectedCategoryId == id;
           return InkWell(
@@ -1015,9 +1001,9 @@ class _OfferProductCard extends StatelessWidget {
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Text(
-                              'اطلب الآن',
-                              style: TextStyle(
+                            child: Text(
+                              'restaurant.orderNow'.tr,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12,
@@ -1087,17 +1073,23 @@ class _CartBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(
-              'متابعة الطلب',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
+            Flexible(
+              child: Text(
+                'restaurant.trackOrder'.tr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             Text(
               '\$${total.toStringAsFixed(2)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w900,
@@ -1278,8 +1270,8 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                 ),
                 const SizedBox(height: 16),
                 if (_extras.isNotEmpty) ...[
-                  Text(
-                    'إضافات الصنف',
+                Text(
+                  'restaurant.addonsTitle'.tr,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -1340,7 +1332,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                   const SizedBox(height: 10),
                 ],
                 Text(
-                  'ملاحظات إضافية',
+                  'restaurant.extraNotes'.tr,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -1354,7 +1346,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                   minLines: 1,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    hintText: 'اكتب ملاحظتك هنا (اختياري)',
+                    hintText: 'restaurant.notesHint'.tr,
                     counterText: '',
                     filled: true,
                     fillColor: cs.surface,
@@ -1420,7 +1412,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                             const Icon(Icons.shopping_bag_outlined, size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              'أضف إلى السلة  \$${_total.toStringAsFixed(2)}',
+                              'restaurant.addToCartPrice'.trParams({'price': ' \$${_total.toStringAsFixed(2)}'}),
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ],

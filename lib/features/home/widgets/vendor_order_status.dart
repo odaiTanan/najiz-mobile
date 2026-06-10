@@ -26,9 +26,6 @@ abstract final class VendorOrderStatus {
     return n == 'busy' || n == 'not_accepting';
   }
 
-  static bool _isEnglishLocale() =>
-      Get.locale?.languageCode.toLowerCase() == 'en';
-
   /// Top dark strip on vendor image: only [busy] / [not_accepting], not [available].
   static String? blockingBannerMessage(
     String? vendorStatus, {
@@ -36,26 +33,14 @@ abstract final class VendorOrderStatus {
   }) {
     if (!showsBlockingBanner(vendorStatus)) return null;
     final n = normalized(vendorStatus)!;
-    if (_isEnglishLocale()) {
-      final u = isStore ? 'This store' : 'This restaurant';
-      switch (n) {
-        case 'busy':
-          return '$u is busy right now — try again shortly';
-        case 'not_accepting':
-          return '$u is not accepting orders right now';
-        default:
-          return null;
-      }
+    if (isStore) {
+      return n == 'busy'
+          ? 'vendor.storeBusyBanner'.tr
+          : 'vendor.storeNotAcceptingBanner'.tr;
     }
-    final u = isStore ? 'المتجر' : 'المطعم';
-    switch (n) {
-      case 'busy':
-        return '$u مزدحم حالياً، حاول بعد قليل';
-      case 'not_accepting':
-        return '$u لا يستقبل طلبات حالياً';
-      default:
-        return null;
-    }
+    return n == 'busy'
+        ? 'vendor.restaurantBusyBanner'.tr
+        : 'vendor.restaurantNotAcceptingBanner'.tr;
   }
 
   static Color statusDotColor(String? vendorStatus) {
@@ -65,28 +50,17 @@ abstract final class VendorOrderStatus {
     return const Color(0xFF1B8E4B);
   }
 
-  /// Short label next to the status dot (embedded strings so UI never shows raw i18n keys).
+  /// Short label next to the status dot.
   static String shortLabel(String? vendorStatus) {
     final n = normalized(vendorStatus);
-    if (_isEnglishLocale()) {
-      switch (n) {
-        case 'busy':
-          return 'Busy';
-        case 'not_accepting':
-          return 'Not accepting';
-        case 'available':
-        default:
-          return 'Available';
-      }
-    }
     switch (n) {
       case 'busy':
-        return 'مشغول';
+        return 'vendor.statusBusy'.tr;
       case 'not_accepting':
-        return 'لا يقبل الطلبات';
+        return 'vendor.statusNotAccepting'.tr;
       case 'available':
       default:
-        return 'متاح';
+        return 'vendor.statusAvailable'.tr;
     }
   }
 
@@ -96,24 +70,14 @@ abstract final class VendorOrderStatus {
     required bool isStore,
   }) {
     final n = normalized(vendorStatus);
-    if (_isEnglishLocale()) {
-      if (n == 'not_accepting') {
-        return isStore
-            ? 'This store is not accepting orders right now.'
-            : 'This restaurant is not accepting orders right now.';
-      }
-      return isStore
-          ? 'This store is busy. Please try again later.'
-          : 'The restaurant is busy. Please try again later.';
+    if (isStore) {
+      return n == 'not_accepting'
+          ? 'vendor.storeNotAcceptingCart'.tr
+          : 'vendor.storeBusyCart'.tr;
     }
-    if (n == 'not_accepting') {
-      return isStore
-          ? 'المتجر لا يستقبل طلبات حالياً.'
-          : 'المطعم لا يستقبل طلبات حالياً.';
-    }
-    return isStore
-        ? 'المتجر مزدحم، حاول لاحقاً.'
-        : 'المطعم مزدحم، حاول لاحقاً.';
+    return n == 'not_accepting'
+        ? 'vendor.restaurantNotAcceptingCart'.tr
+        : 'vendor.restaurantBusyCart'.tr;
   }
 }
 

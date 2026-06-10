@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/disconnect_dialog.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/data/repositories/home_repository.dart';
 import 'package:najiz_go_express/features/home/controllers/shipping_controller.dart';
@@ -43,6 +44,18 @@ class _ShippingScreenState extends State<ShippingScreen> {
     'هدايا',
     'مواد غذائية',
   ];
+
+  static String _packageTypeLabel(String type) {
+    switch (type) {
+      case 'مستندات': return 'shipping.parcelDocuments'.tr;
+      case 'طرود صغيرة': return 'shipping.parcelSmall'.tr;
+      case 'ملابس': return 'shipping.parcelClothes'.tr;
+      case 'إلكترونيات': return 'shipping.parcelElectronics'.tr;
+      case 'هدايا': return 'shipping.parcelGifts'.tr;
+      case 'مواد غذائية': return 'shipping.parcelFood'.tr;
+      default: return type;
+    }
+  }
 
   @override
   void initState() {
@@ -99,7 +112,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
       backgroundColor: cs.surfaceContainerLowest,
       bottomNavigationBar: HomeBottomBar(
         activeIndex: 0,
-        serviceText: 'شحن',
+        serviceText: 'shipping.title'.tr,
         serviceIcon: Icons.local_shipping_outlined,
         serviceActive: true,
         onServiceTap: () {},
@@ -114,7 +127,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
         backgroundColor: cs.surfaceContainerLowest,
         foregroundColor: cs.onSurface,
         title: Text(
-          'إنشاء طلب شحن',
+          'shipping.createTitle'.tr,
           style: TextStyle(fontWeight: FontWeight.w800, color: cs.onSurface),
         ),
       ),
@@ -124,35 +137,35 @@ class _ShippingScreenState extends State<ShippingScreen> {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
             children: [
               _StepCard(
-                title: 'الخطوة 1: مكان الاستلام',
+                title: 'shipping.step1'.tr,
                 child: _LocationRow(
-                  title: 'موقع الاستلام',
-                  subtitle: controller.pickupAddress.value,
+                  title: 'shipping.pickupLocation'.tr,
+                  subtitle: controller.pickupAddress.value.isEmpty ? 'shipping.pickupDetermining'.tr : controller.pickupAddress.value,
                   addressName: controller.pickupAddressName.value,
                   icon: Icons.my_location_outlined,
                   onChangeTap: () => _openLocationPicker(isPickup: true),
-                  manualButtonText: 'أضف عنوان الاستلام يدوي',
+                  manualButtonText: 'shipping.addPickupManual'.tr,
                   onManualTap: () => _openManualAddressSheet(isPickup: true),
                 ),
               ),
               const SizedBox(height: 10),
               _StepCard(
-                title: 'الخطوة 2: مكان التسليم',
+                title: 'shipping.step2'.tr,
                 child: _LocationRow(
-                  title: 'موقع التسليم',
+                  title: 'shipping.dropoffLocation'.tr,
                   subtitle:
                       controller.destinationAddress.value ??
-                      'اختر موقع التسليم من الخريطة',
+                      'shipping.chooseDropoffOnMap'.tr,
                   addressName: controller.destinationAddressName.value,
                   icon: Icons.location_on_outlined,
                   onChangeTap: () => _openLocationPicker(isPickup: false),
-                  manualButtonText: 'أضف عنوان المستلم يدوي',
+                  manualButtonText: 'shipping.addDropoffManual'.tr,
                   onManualTap: () => _openManualAddressSheet(isPickup: false),
                 ),
               ),
               const SizedBox(height: 10),
               _StepCard(
-                title: 'معاينة المسار على الخريطة',
+                title: 'shipping.previewRoute'.tr,
                 child: _ShippingRoutePreviewMap(
                   pickupLat: controller.pickupLat.value,
                   pickupLng: controller.pickupLng.value,
@@ -162,7 +175,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
               ),
               const SizedBox(height: 10),
               _StepCard(
-                title: 'الخطوة 3: بيانات الطرد',
+                title: 'shipping.step3'.tr,
                 child: Column(
                   children: [
                     Row(
@@ -170,7 +183,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         Expanded(
                           child: _InputField(
                             controller: _weightController,
-                            label: 'الوزن (كغ)',
+                            label: 'shipping.weightKg'.tr,
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -178,7 +191,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         Expanded(
                           child: _InputField(
                             controller: _lengthController,
-                            label: 'الطول (سم)',
+                            label: 'shipping.lengthCm'.tr,
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -190,7 +203,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         Expanded(
                           child: _InputField(
                             controller: _widthController,
-                            label: 'العرض (سم)',
+                            label: 'shipping.widthCm'.tr,
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -198,7 +211,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                         Expanded(
                           child: _InputField(
                             controller: _heightController,
-                            label: 'الارتفاع (سم)',
+                            label: 'shipping.heightCm'.tr,
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -208,7 +221,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
-                        'نوع الشحنة',
+                        'shipping.parcelType'.tr,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: cs.onSurface,
@@ -223,7 +236,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                           .map(
                             (type) => Obx(
                               () => _PackageTypeChip(
-                                label: type,
+                                label: _packageTypeLabel(type),
                                 selected: controller.packageType.value == type,
                                 onTap: () => controller.setPackageType(type),
                               ),
@@ -272,7 +285,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'الشحنة قابلة للكسر',
+                                    'shipping.fragile'.tr,
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       color: cs.onSurface,
@@ -280,7 +293,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'فعّلها إذا كانت تحتاج تعامل خاص',
+                                    'shipping.fragileHint'.tr,
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: cs.onSurfaceVariant,
@@ -303,7 +316,7 @@ class _ShippingScreenState extends State<ShippingScreen> {
               ),
               const SizedBox(height: 10),
               _StepCard(
-                title: 'الخطوة 4: كوبون الخصم',
+                title: 'shipping.couponStep'.tr,
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -331,8 +344,10 @@ class _ShippingScreenState extends State<ShippingScreen> {
                       Expanded(
                         child: Text(
                           controller.appliedCouponCode.value == null
-                              ? 'أضف كوبون لتخفيض تكلفة الشحن'
-                              : 'الكوبون: ${controller.appliedCouponCode.value}',
+                              ? 'checkout.addCouponForShipping'.tr
+                              : 'checkout.couponLabel'.trParams({
+                                  'code': controller.appliedCouponCode.value!,
+                                }),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: cs.onSurface,
@@ -350,10 +365,10 @@ class _ShippingScreenState extends State<ShippingScreen> {
                           try {
                             await controller.applyCoupon(selected);
                           } on HomeApiException catch (e) {
-                            AppSnackbar.show('خطأ', e.message);
+                            AppSnackbar.show('common.error'.tr, e.message);
                           }
                         },
-                        child: const Text('أضف كوبون'),
+                        child: Text('checkout.addCoupon'.tr),
                       ),
                       if (controller.appliedCouponCode.value != null)
                         IconButton(
@@ -366,25 +381,25 @@ class _ShippingScreenState extends State<ShippingScreen> {
               ),
               const SizedBox(height: 10),
               _StepCard(
-                title: 'بيانات المرسل',
+                title: 'shipping.senderData'.tr,
                 child: Column(
                   children: [
                     _InputField(
                       controller: _senderNameController,
-                      label: 'اسم المرسل',
+                      label: 'shipping.senderName'.tr,
                       errorText: controller.liveNameError(
                         _senderNameController.text,
-                        label: 'اسم المرسل',
+                        label: 'shipping.senderName'.tr,
                       ),
                     ),
                     const SizedBox(height: 8),
                     _InputField(
                       controller: _senderPhoneController,
-                      label: 'رقم المرسل',
+                      label: 'shipping.senderPhone'.tr,
                       keyboardType: TextInputType.phone,
                       errorText: controller.livePhoneError(
                         _senderPhoneController.text,
-                        label: 'رقم المرسل',
+                        label: 'shipping.senderPhone'.tr,
                       ),
                     ),
                   ],
@@ -392,25 +407,25 @@ class _ShippingScreenState extends State<ShippingScreen> {
               ),
               const SizedBox(height: 10),
               _StepCard(
-                title: 'بيانات المستلم',
+                title: 'shipping.receiverData'.tr,
                 child: Column(
                   children: [
                     _InputField(
                       controller: _receiverNameController,
-                      label: 'اسم المستلم',
+                      label: 'shipping.receiverName'.tr,
                       errorText: controller.liveNameError(
                         _receiverNameController.text,
-                        label: 'اسم المستلم',
+                        label: 'shipping.receiverName'.tr,
                       ),
                     ),
                     const SizedBox(height: 8),
                     _InputField(
                       controller: _receiverPhoneController,
-                      label: 'رقم المستلم',
+                      label: 'shipping.receiverPhone'.tr,
                       keyboardType: TextInputType.phone,
                       errorText: controller.livePhoneError(
                         _receiverPhoneController.text,
-                        label: 'رقم المستلم',
+                        label: 'shipping.receiverPhone'.tr,
                       ),
                     ),
                   ],
@@ -479,9 +494,9 @@ class _ShippingScreenState extends State<ShippingScreen> {
                                   },
                                 );
                               } on HomeApiException catch (e) {
-                                AppSnackbar.show('خطأ', e.message);
+                                AppSnackbar.show('errors.generic'.tr, e.message);
                               } catch (_) {
-                                AppSnackbar.show('خطأ', 'تعذر إنشاء طلب الشحن');
+                                AppSnackbar.show('errors.generic'.tr, 'shipping.createFailed'.tr);
                               }
                             },
                           );
@@ -506,9 +521,9 @@ class _ShippingScreenState extends State<ShippingScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'تأكيد الطلب',
-                          style: TextStyle(
+                      : Text(
+                          'shipping.confirmOrder'.tr,
+                          style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 18,
                           ),
@@ -1621,13 +1636,17 @@ class _PriceCard extends StatelessWidget {
                   ),
                 if (distance != null)
                   Text(
-                    'المسافة: ${distance!.toStringAsFixed(2)} كم',
+                    'shipping.distanceKm'.trParams({
+                      'distance': distance!.toStringAsFixed(2),
+                    }),
                     style: TextStyle(color: cs.onSurfaceVariant),
                   ),
                 const SizedBox(height: 6),
                 if (deliveryFee != null)
                   Text(
-                    'رسوم التوصيل: ${deliveryFee!.toStringAsFixed(0)}',
+                    'shipping.deliveryFeeLabel'.trParams({
+                      'amount': deliveryFee!.toStringAsFixed(0),
+                    }),
                     style: TextStyle(
                       color: cs.onSurface,
                       fontWeight: FontWeight.w700,
@@ -1636,7 +1655,10 @@ class _PriceCard extends StatelessWidget {
                 if (appliedCouponCode != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'خصم الكوبون (${appliedCouponCode!}): -${couponDiscount.toStringAsFixed(0)}',
+                    'checkout.couponDiscountWithCode'.trParams({
+                      'code': appliedCouponCode!,
+                      'amount': couponDiscount.toStringAsFixed(0),
+                    }),
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,
@@ -1645,7 +1667,9 @@ class _PriceCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 2),
                 Text(
-                  'السعر الإجمالي: ${total!.toStringAsFixed(0)}',
+                  'shipping.grandTotalLabel'.trParams({
+                    'amount': total!.toStringAsFixed(0),
+                  }),
                   style: TextStyle(
                     color: cs.onSurface,
                     fontWeight: FontWeight.w900,
@@ -1783,6 +1807,7 @@ class _ShippingFindingDriverDialogState extends State<_ShippingFindingDriverDial
   bool _isPollingRequestInFlight = false;
   DateTime? _lastTimeoutPopupAt;
   String _latestStatus = '';
+  // ignore: unused_field — reserved for future use (dispatch status display)
   String _latestDispatchStatus = '';
 
   String? _driverName;
@@ -1981,28 +2006,7 @@ class _ShippingFindingDriverDialogState extends State<_ShippingFindingDriverDial
     }
     _lastTimeoutPopupAt = now;
 
-    await AppPopupDialog.show<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('انقطاع الاتصال'),
-        content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('إغلاق'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _pollOnce(force: true);
-            },
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
-    );
+    showDisconnectDialog(context, onRetry: () => _pollOnce(force: true));
   }
 
   Future<void> _cancelOrder() async {

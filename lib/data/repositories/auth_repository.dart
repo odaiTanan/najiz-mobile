@@ -125,6 +125,57 @@ class AuthRepository {
         .timeout(ApiConfig.timeout);
   }
 
+  Future<http.Response> _postWithAuth({
+    required Uri uri,
+    required String token,
+    required Map<String, dynamic> body,
+  }) async {
+    return _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(ApiConfig.timeout);
+  }
+
+  Future<void> deleteAccount({
+    required String token,
+    required String password,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/auth/delete-account');
+    http.Response res;
+    try {
+      res = await _postWithAuth(
+        uri: uri,
+        token: token,
+        body: {'password': password},
+      );
+    } on TimeoutException {
+      throw AuthApiException(AppErrorMessages.requestTimeout);
+    } on SocketException {
+      throw AuthApiException(AppErrorMessages.connectionFailed);
+    } on http.ClientException {
+      throw AuthApiException(AppErrorMessages.connectionFailed);
+    }
+
+    final data = _safeJsonDecode(res.body);
+    final message = _extractMessage(data);
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return;
+    }
+
+    throw AuthApiException(
+      ErrorSanitizer.serverToUser(message, res.statusCode),
+      statusCode: res.statusCode,
+    );
+  }
+
   Future<AuthResult> login({
     required String phone,
     required String password,

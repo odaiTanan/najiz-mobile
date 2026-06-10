@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -106,7 +107,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
     if (placemarkLabel != null && placemarkLabel.isNotEmpty) {
       return placemarkLabel;
     }
-    return 'موقع محدد على الخريطة';
+    return 'address.selectedOnMap'.tr;
   }
 
   Future<String?> _reverseGeocodeByPlacemark(ll.LatLng point) async {
@@ -204,23 +205,23 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         headers: const {'Accept': 'application/json'},
       );
       if (suggestRes.statusCode != 200) {
-        _showSnack('خطأ', 'تعذر تنفيذ البحث');
+        _showSnackError('address.searchFailed'.tr);
         return;
       }
       final suggestBody = jsonDecode(suggestRes.body);
       if (suggestBody is! Map<String, dynamic>) {
-        _showSnack('خطأ', 'تعذر قراءة نتائج البحث');
+        _showSnackError('address.searchReadFailed'.tr);
         return;
       }
       final predictions = suggestBody['predictions'];
       if (predictions is! List || predictions.isEmpty) {
-        _showSnack('تنبيه', 'لا توجد نتائج داخل سوريا');
+        _showSnackError('address.noResultsInSyria'.tr);
         return;
       }
       final first = Map<String, dynamic>.from(predictions.first as Map);
       final placeId = (first['place_id'] ?? '').toString().trim();
       if (placeId.isEmpty) {
-        _showSnack('خطأ', 'تعذر قراءة الموقع');
+        _showSnackError('address.locationReadFailed'.tr);
         return;
       }
       final detailsUrl = Uri.https(
@@ -238,12 +239,12 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         headers: const {'Accept': 'application/json'},
       );
       if (detailsRes.statusCode != 200) {
-        _showSnack('خطأ', 'تعذر تحميل تفاصيل الموقع');
+        _showSnackError('address.detailsLoadFailed'.tr);
         return;
       }
       final detailsBody = jsonDecode(detailsRes.body);
       if (detailsBody is! Map<String, dynamic>) {
-        _showSnack('خطأ', 'تعذر قراءة تفاصيل الموقع');
+        _showSnackError('address.detailsReadFailed'.tr);
         return;
       }
       final result = (detailsBody['result'] is Map)
@@ -258,7 +259,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
       final lat = double.tryParse(location['lat']?.toString() ?? '');
       final lng = double.tryParse(location['lng']?.toString() ?? '');
       if (lat == null || lng == null) {
-        _showSnack('خطأ', 'تعذر قراءة الموقع');
+        _showSnackError('address.locationReadFailed'.tr);
         return;
       }
       final point = ll.LatLng(lat, lng);
@@ -270,9 +271,9 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
             ? result['formatted_address'].toString()
             : _selectedAddress;
       });
-      _showSnack('تم', 'تم العثور على الموقع');
+      _showSnackSuccess('address.locationFound'.tr);
     } catch (_) {
-      _showSnack('خطأ', 'فشل البحث عن الموقع');
+      _showSnackError('address.locationSearchFailed'.tr);
     } finally {
       if (mounted) {
         setState(() => _isSearching = false);
@@ -377,12 +378,12 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         headers: const {'Accept': 'application/json'},
       );
       if (detailsRes.statusCode != 200) {
-        _showSnack('خطأ', 'تعذر تحميل تفاصيل الموقع');
+        _showSnackError('address.detailsLoadFailed'.tr);
         return;
       }
       final detailsBody = jsonDecode(detailsRes.body);
       if (detailsBody is! Map<String, dynamic>) {
-        _showSnack('خطأ', 'تعذر قراءة تفاصيل الموقع');
+        _showSnackError('address.detailsReadFailed'.tr);
         return;
       }
       final result = (detailsBody['result'] is Map)
@@ -397,7 +398,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
       final lat = double.tryParse(location['lat']?.toString() ?? '');
       final lng = double.tryParse(location['lng']?.toString() ?? '');
       if (lat == null || lng == null) {
-        _showSnack('خطأ', 'تعذر قراءة الموقع');
+        _showSnackError('address.locationReadFailed'.tr);
         return;
       }
       final point = ll.LatLng(lat, lng);
@@ -409,9 +410,9 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
             ? result['formatted_address'].toString()
             : suggestion.description;
       });
-      _showSnack('تم', 'تم اختيار الموقع');
+      _showSnackSuccess('address.locationSelected'.tr);
     } catch (_) {
-      _showSnack('خطأ', 'فشل اختيار الموقع');
+      _showSnackError('address.locationSelectFailed'.tr);
     } finally {
       if (mounted) {
         setState(() => _isSearching = false);
@@ -436,7 +437,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
     final form = _formKey.currentState;
     if (form == null || !form.validate()) return;
     if (_selectedAddress == null || _selectedAddress!.trim().isEmpty) {
-      _showSnack('تنبيه', 'يرجى اختيار عنوان التوصيل أولًا');
+      _showSnackError('address.selectFirst'.tr);
       return;
     }
 
@@ -455,11 +456,11 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
       await widget.onSave(payload);
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showSnack('تم', 'تم اضافة العنوان بنجاح');
+      _showSnackSuccess('address.savedSuccess'.tr);
     } on HomeApiException catch (e) {
-      _showSnack('خطأ', e.message);
+      _showSnackError(e.message);
     } catch (_) {
-      _showSnack('خطأ', 'تعذر حفظ العنوان، حاول مرة أخرى');
+      _showSnackError('address.saveFailed'.tr);
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -467,8 +468,10 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
     }
   }
 
-  void _showSnack(String title, String message) {
-    final isSuccess = title == 'تم';
+  void _showSnackSuccess(String message) => _showSnack(message, success: true);
+  void _showSnackError(String message) => _showSnack(message, success: false);
+
+  void _showSnack(String message, {bool success = false}) {
     final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -481,7 +484,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
           message,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isSuccess ? AppColors.primary : cs.error,
+            color: success ? AppColors.primary : cs.error,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -510,7 +513,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         elevation: 0,
         centerTitle: true,
         title: Text(
-          'تفاصيل العنوان الجديد',
+          'address.newAddressTitle'.tr,
           style: TextStyle(
             color: cs.onSurface,
             fontWeight: FontWeight.w800,
@@ -523,7 +526,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
           children: [
             Text(
-              'اختر عنوان التوصيل',
+              'address.selectDelivery'.tr,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -537,7 +540,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
               onChanged: _onSearchChanged,
               onSubmitted: (_) => _searchByName(),
               decoration: InputDecoration(
-                hintText: 'ابحث عن الموقع',
+                hintText: 'address.searchPlaceholder'.tr,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _isSearching
                     ? const Padding(
@@ -621,7 +624,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                       child: Text(
                         _selectedAddress?.trim().isNotEmpty == true
                             ? _selectedAddress!
-                            : 'اضغط لاختيار الموقع من الخريطة',
+                            : 'address.tapToSelect'.tr,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -633,7 +636,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                     TextButton(
                       onPressed: _openMapPicker,
                       child: Text(
-                        _selectedAddress == null ? 'اختيار' : 'تعديل',
+                        _selectedAddress == null ? 'address.select'.tr : 'address.edit'.tr,
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w700,
@@ -646,30 +649,30 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
             ),
             const SizedBox(height: 12),
             _LabeledField(
-              label: 'اسم العنوان',
+              label: 'address.nameLabel'.tr,
               controller: _titleController,
-              hint: 'مثل: منزل، عمل، نادي...',
+              hint: 'address.nameHint'.tr,
               validator: _required,
             ),
             const SizedBox(height: 12),
             _LabeledField(
-              label: 'المنطقة',
+              label: 'address.regionLabel'.tr,
               controller: _areaController,
-              hint: 'المنطقة',
+              hint: 'address.regionLabel'.tr,
               validator: _required,
             ),
             const SizedBox(height: 12),
             _LabeledField(
-              label: 'الشارع',
+              label: 'address.streetLabel'.tr,
               controller: _streetController,
-              hint: 'الشارع',
+              hint: 'address.streetLabel'.tr,
               validator: _required,
             ),
             const SizedBox(height: 12),
             _LabeledField(
-              label: 'تفاصيل العنوان',
+              label: 'address.detailsLabel'.tr,
               controller: _detailsController,
-              hint: 'مثال: المبنى، الطابق، بجانب...',
+              hint: 'address.detailsHint'.tr,
               validator: _required,
               maxLines: 3,
             ),
@@ -694,9 +697,9 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        'حفظ العنوان',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    : Text(
+                        'address.save'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                       ),
               ),
             ),
@@ -707,7 +710,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
   }
 
   String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) return 'هذا الحقل مطلوب';
+    if (value == null || value.trim().isEmpty) return 'address.required'.tr;
     return null;
   }
 }
@@ -785,13 +788,14 @@ class _AddressMapPickerScreen extends StatefulWidget {
 
 class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
   late ll.LatLng _selectedPoint;
-  String _resolvedAddress = 'جاري تحديد العنوان...';
+  late String _resolvedAddress;
   bool _isResolving = false;
 
   @override
   void initState() {
     super.initState();
     _selectedPoint = widget.initialPoint;
+    _resolvedAddress = 'address.determining'.tr;
     _resolveCurrentPoint();
   }
 
@@ -822,7 +826,7 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _resolvedAddress = 'تعذر تحديد العنوان، يمكنك التأكيد');
+        setState(() => _resolvedAddress = 'address.determineFailed'.tr);
       }
     } finally {
       if (mounted) {
@@ -898,7 +902,7 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          'اختر عنوان التوصيل',
+          'address.selectDelivery'.tr,
           style: TextStyle(
             color: cs.onSurface,
             fontWeight: FontWeight.w800,
@@ -975,9 +979,9 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'تأكيد الموقع',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    child: Text(
+                      'address.confirmLocation'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                 ),

@@ -49,7 +49,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'تعذر تحميل بيانات الإحالة والكوبونات');
+      setState(() => _error = 'referral.loadFailed'.tr);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -64,7 +64,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
       SnackBar(
         backgroundColor: cs.surface,
         content: Text(
-          'تم نسخ رمز الإحالة',
+          'referral.codeCopied'.tr,
           style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
         ),
       ),
@@ -78,7 +78,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
       appBar: AppBar(
         elevation: 0,
         title: Text(
-          'الإحالة والكوبونات',
+          'referral.title'.tr,
           style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w800),
         ),
       ),
@@ -106,9 +106,9 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'رمز الإحالة الخاص بك',
-                              style: TextStyle(
+                            Text(
+                              'referral.codeLabel'.tr,
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textSecondary,
@@ -125,7 +125,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      _referralCode.trim().isEmpty ? 'غير متوفر' : _referralCode,
+                                      _referralCode.trim().isEmpty ? 'referral.codeUnavailable'.tr : _referralCode,
                                       style: const TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w900,
@@ -146,7 +146,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'الأشخاص الذين استخدموا كودك',
+                        'referral.referredUsers'.tr,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -155,9 +155,9 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                       ),
                       const SizedBox(height: 8),
                       if (_referrals.isEmpty)
-                        const Text(
-                          'لا يوجد إحالات بعد',
-                          style: TextStyle(color: AppColors.textSecondary),
+                        Text(
+                          'referral.noReferrals'.tr,
+                          style: const TextStyle(color: AppColors.textSecondary),
                         )
                       else
                         ..._referrals.map(
@@ -205,7 +205,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                         ),
                       const SizedBox(height: 12),
                       Text(
-                        'كوبوناتي',
+                        'referral.myCoupons'.tr,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -214,9 +214,9 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                       ),
                       const SizedBox(height: 8),
                       if (_coupons.isEmpty)
-                        const Text(
-                          'لا توجد كوبونات حالياً',
-                          style: TextStyle(color: AppColors.textSecondary),
+                        Text(
+                          'referral.noCoupons'.tr,
+                          style: const TextStyle(color: AppColors.textSecondary),
                         )
                       else
                         ..._coupons.map(
@@ -244,7 +244,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                                         ),
                                       ),
                                       Text(
-                                        'الخصم: ${coupon.valueLabel}',
+                                        'referral.discountLabel'.trParams({'value': coupon.valueLabel}),
                                         style: const TextStyle(
                                           color: AppColors.textSecondary,
                                           fontSize: 12,
@@ -262,7 +262,7 @@ class _ReferralCouponScreenState extends State<ReferralCouponScreen> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    coupon.isActive ? 'نشط' : 'غير نشط',
+                                    coupon.isActive ? 'search.filterActive'.tr : 'search.filterInactive'.tr,
                                     style: TextStyle(
                                       color: coupon.isActive
                                           ? const Color(0xFF1B8E4B)

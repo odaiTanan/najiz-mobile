@@ -29,7 +29,7 @@ class MyOrdersController extends GetxController {
       errorMessage.value = e.message;
       orders.clear();
     } catch (_) {
-      errorMessage.value = 'تعذر تحميل الطلبات';
+      errorMessage.value = 'orders.loadFailed'.tr;
       orders.clear();
     } finally {
       isLoading.value = false;
@@ -47,7 +47,7 @@ class MyOrdersController extends GetxController {
     } on HomeApiException {
       rethrow;
     } catch (_) {
-      throw HomeApiException('تعذر إلغاء الطلب');
+      throw HomeApiException('orders.cancelFailed'.tr);
     }
   }
 }

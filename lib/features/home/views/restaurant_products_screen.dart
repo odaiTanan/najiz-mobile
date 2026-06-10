@@ -389,7 +389,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'عنوان التوصيل',
+                    'address.deliveryLabel'.tr,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -398,7 +398,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   _AddressOptionTile(
-                    title: 'الموقع الحالي',
+                    title: 'address.currentLocation'.tr,
                     subtitle: controller.currentDeliveryAddress.value,
                     icon: Icons.near_me_outlined,
                     selected: controller.selectedAddressId.value == null,
@@ -444,9 +444,9 @@ class RestaurantProductsScreen extends StatelessWidget {
                         ),
                         minimumSize: const Size.fromHeight(50),
                       ),
-                      child: const Text(
-                        'إضافة عنوان جديد',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                      child: Text(
+                        'address.addNew'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),

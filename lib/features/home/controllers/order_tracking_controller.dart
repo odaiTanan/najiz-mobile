@@ -55,7 +55,7 @@ class OrderTrackingController extends GetxController {
       isLiveConnected.value = true;
     } catch (e) {
       isLiveConnected.value = false;
-      errorMessage.value = 'تعذر الاتصال بالتتبع اللحظي: $e';
+      errorMessage.value = 'tracking.liveConnectFailed'.trParams({'error': e.toString()});
     }
   }
 
@@ -86,8 +86,8 @@ class OrderTrackingController extends GetxController {
     if (!_didNotifyNearAddress && isDriverNearAddress) {
       _didNotifyNearAddress = true;
       _pushService.pushLocalInAppNotification(
-        title: 'تنبيه التوصيل',
-        body: 'السائق أصبح على مقربة من عنوانك',
+        title: 'tracking.deliveryAlert'.tr,
+        body: 'tracking.driverNearby'.tr,
         dedupeKey: 'order-$orderId-near-address',
         data: {'order_id': orderId, 'event': 'driver_near_address'},
       );
@@ -96,8 +96,8 @@ class OrderTrackingController extends GetxController {
     if (!_didNotifyArrivedWaiting && isDriverArrivedWaiting) {
       _didNotifyArrivedWaiting = true;
       _pushService.pushLocalInAppNotification(
-        title: 'تنبيه التوصيل',
-        body: 'السائق وصل وهو في الانتظار',
+        title: 'tracking.deliveryAlert'.tr,
+        body: 'tracking.driverWaiting'.tr,
         dedupeKey: 'order-$orderId-arrived-waiting',
         data: {'order_id': orderId, 'event': 'driver_arrived_waiting'},
       );
@@ -150,7 +150,7 @@ class OrderTrackingController extends GetxController {
     } on HomeApiException catch (e) {
       throw e.message;
     } catch (_) {
-      throw 'تعذر إرسال التقييم حاليا';
+      throw 'tracking.rateFailed'.tr;
     } finally {
       isSubmittingRating.value = false;
     }

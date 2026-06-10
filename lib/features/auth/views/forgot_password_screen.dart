@@ -31,14 +31,13 @@ class ForgotPasswordScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 AuthHeader(
-                  title: 'إعادة تعيين كلمة المرور',
-                  subtitle:
-                      'أدخل رقم الجوال المرتبط بحسابك وسنرسل لك رمز تحقق (OTP) لإعادة تعيين كلمة المرور.',
+                  title: 'auth.resetPasswordTitle'.tr,
+                  subtitle: 'auth.resetPasswordSubtitle'.tr,
                 ),
                 const SizedBox(height: 18),
                 AuthTextField(
-                  label: 'رقم الجوال',
-                  hintText: 'مثال: 0991234567',
+                  label: 'auth.phoneLabel'.tr,
+                  hintText: 'auth.phoneHint'.tr,
                   controller: controller.phoneController,
                   keyboardType: TextInputType.phone,
                   validator: Validators.phone,
@@ -46,7 +45,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 Obx(
                   () => AuthButton(
-                    text: 'إرسال رمز التحقق',
+                    text: 'auth.sendOtpBtn'.tr,
                     isLoading: controller.isLoading.value,
                     onPressed: controller.sendCode,
                   ),
@@ -55,9 +54,9 @@ class ForgotPasswordScreen extends StatelessWidget {
                 Center(
                   child: TextButton(
                     onPressed: () => Get.back(),
-                    child: const Text(
-                      'تذكرت كلمة المرور',
-                      style: TextStyle(color: AppColors.primary),
+                    child: Text(
+                      'auth.rememberPassword'.tr,
+                      style: const TextStyle(color: AppColors.primary),
                     ),
                   ),
                 ),
@@ -69,11 +68,11 @@ class ForgotPasswordScreen extends StatelessWidget {
                         color: cs.onSurfaceVariant,
                         fontSize: 16,
                       ),
-                      children: const [
-                        TextSpan(text: 'هل تواجه مشكلة؟ '),
+                      children: [
+                        TextSpan(text: 'auth.troubleQuestion'.tr),
                         TextSpan(
-                          text: 'تواصل مع الدعم',
-                          style: TextStyle(color: AppColors.primary),
+                          text: 'auth.contactSupport'.tr,
+                          style: const TextStyle(color: AppColors.primary),
                         ),
                       ],
                     ),
@@ -98,4 +97,3 @@ class ForgotPasswordScreen extends StatelessWidget {
     );
   }
 }
-

@@ -1,114 +1,112 @@
+import 'package:get/get.dart';
+
 class Validators {
   static String? requiredField(String? value, {String? message}) {
     if (value == null || value.trim().isEmpty) {
-      return message ?? 'هذا الحقل مطلوب';
+      return message ?? 'validation.required'.tr;
     }
     return null;
   }
 
   static String? emailOrPhone(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'يرجى إدخال رقم الهاتف أو البريد الإلكتروني';
+      return 'validation.phoneOrEmailRequired'.tr;
     }
-    // يمكن تحسين التحقق لاحقاً
     return null;
   }
 
   static String? fullName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'يرجى إدخال الاسم';
+      return 'validation.enterName'.tr;
     }
     if (value.trim().length < 2) {
-      return 'الاسم قصير جدًا';
+      return 'validation.nameTooShort'.tr;
     }
     return null;
   }
 
   static String? email(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'يرجى إدخال عنوان البريد الإلكتروني';
+      return 'validation.enterEmail'.tr;
     }
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!regex.hasMatch(value.trim())) {
-      return 'صيغة البريد الإلكتروني غير صحيحة';
+      return 'validation.emailInvalid'.tr;
     }
     return null;
   }
 
   static String? phone(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'يرجى إدخال رقم الهاتف';
+      return 'validation.enterPhone'.tr;
     }
     final trimmed = value.trim();
     if (!RegExp(r'^\d+$').hasMatch(trimmed)) {
-      return 'رقم الهاتف يجب أن يحتوي أرقامًا فقط';
+      return 'validation.phoneDigitsOnly'.tr;
     }
     if (!trimmed.startsWith('09')) {
-      return 'رقم الهاتف يجب أن يبدأ بـ 09';
+      return 'validation.phoneStart09'.tr;
     }
     if (trimmed.length != 10) {
-      return 'رقم الهاتف يجب أن يكون 10 أرقام';
+      return 'validation.phone10Digits'.tr;
     }
     return null;
   }
 
   static String? syrianMobileLocal(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'يرجى إدخال رقم الجوال';
+      return 'validation.enterMobile'.tr;
     }
-
     final trimmed = value.trim();
     if (!RegExp(r'^\d+$').hasMatch(trimmed)) {
-      return 'رقم الجوال يجب أن يحتوي أرقامًا فقط';
+      return 'validation.mobileDigitsOnly'.tr;
     }
     if (!trimmed.startsWith('9')) {
-      return 'رقم الجوال يجب أن يبدأ بـ 9 (بدون 0 وبدون +963)';
+      return 'validation.mobileStart9'.tr;
     }
     if (trimmed.length != 9) {
-      return 'رقم الجوال يجب أن يكون 9 أرقام';
+      return 'validation.mobile9Digits'.tr;
     }
-
     return null;
   }
 
   static String? otpCode(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'الرمز مطلوب';
+      return 'validation.otpRequired'.tr;
     }
     final trimmed = value.trim();
     if (!RegExp(r'^\d{6}$').hasMatch(trimmed)) {
-      return 'الرمز يجب أن يكون من 6 أرقام';
+      return 'validation.otp6Digits'.tr;
     }
     return null;
   }
 
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
-      return 'يرجى إدخال كلمة المرور';
+      return 'validation.enterPassword'.tr;
     }
     if (value.length < 6) {
-      return 'كلمة المرور يجب أن تكون على الأقل 6 أحرف';
+      return 'validation.password6Min'.tr;
     }
     return null;
   }
 
   static String? password8(String? value) {
     if (value == null || value.isEmpty) {
-      return 'يرجى إدخال كلمة المرور';
+      return 'validation.enterPassword'.tr;
     }
     if (value.length < 8) {
-      return 'كلمة المرور يجب أن تكون على الأقل 8 أحرف';
+      return 'validation.password8Min'.tr;
     }
     if (!RegExp(r'[a-z]').hasMatch(value)) {
-      return 'كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل';
+      return 'validation.passwordNeedsLower'.tr;
     }
     if (!RegExp(r'[A-Z]').hasMatch(value)) {
-      return 'كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل';
+      return 'validation.passwordNeedsUpper'.tr;
     }
     if (!RegExp(r'\d').hasMatch(value)) {
-      return 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل';
+      return 'validation.passwordNeedsDigit'.tr;
     }
     return null;
   }
 }
-

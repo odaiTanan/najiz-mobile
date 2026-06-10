@@ -12,7 +12,7 @@ class AuthGuardService {
 
   static Future<void> runOrRequestLogin({
     required Future<void> Function(String token) onAuthenticated,
-    String message = 'يرجى تسجيل الدخول لإكمال الطلب',
+    String? message,
   }) async {
     final auth = Get.find<AuthStateManager>();
     if (auth.isAuthenticated) {
@@ -38,7 +38,7 @@ class AuthGuardService {
                   const _AnimatedAuthIcon(),
                   const SizedBox(height: 10),
                   Text(
-                    'تسجيل الدخول مطلوب',
+                    'guard.loginRequiredTitle'.tr,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
@@ -48,7 +48,7 @@ class AuthGuardService {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    message,
+                    message ?? 'guard.loginRequired'.tr,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 17,
@@ -72,9 +72,9 @@ class AuthGuardService {
                           borderRadius: BorderRadius.circular(22),
                         ),
                       ),
-                      child: const Text(
-                        'تسجيل الدخول',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                      child: Text(
+                        'guard.loginBtn'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                       ),
                     ),
                   ),
@@ -95,9 +95,9 @@ class AuthGuardService {
                           borderRadius: BorderRadius.circular(22),
                         ),
                       ),
-                      child: const Text(
-                        'إنشاء حساب',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                      child: Text(
+                        'guard.createAccountBtn'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                       ),
                     ),
                   ),
@@ -107,9 +107,9 @@ class AuthGuardService {
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
                     ),
-                    child: const Text(
-                      'إلغاء',
-                      style: TextStyle(
+                    child: Text(
+                      'guard.cancel'.tr,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),

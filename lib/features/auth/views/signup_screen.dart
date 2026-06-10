@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
-import 'package:najiz_go_express/core/constants/app_strings.dart';
 import 'package:najiz_go_express/core/utils/validators.dart';
 import 'package:najiz_go_express/features/auth/controllers/signup_controller.dart';
 import 'package:najiz_go_express/features/auth/widgets/auth_button.dart';
@@ -33,22 +32,21 @@ class SignupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 AuthHeader(
-                  title: 'انضم إلى NajizGo Express',
-                  subtitle:
-                      'أدخل بياناتك للبدء. سنرسل رمز OTP إلى رقم جوالك للتحقق.',
+                  title: 'auth.joinTitle'.tr,
+                  subtitle: 'auth.joinSubtitle'.tr,
                 ),
                 const SizedBox(height: 18),
                 AuthTextField(
-                  label: 'الاسم الكامل',
-                  hintText: 'الاسم الكامل',
+                  label: 'auth.fullNameLabel'.tr,
+                  hintText: 'auth.fullNameLabel'.tr,
                   controller: controller.nameController,
                   validator: Validators.fullName,
                   prefixIcon: const Icon(Icons.person_outline),
                 ),
                 const SizedBox(height: 14),
                 AuthTextField(
-                  label: 'عنوان البريد الإلكتروني',
-                  hintText: 'مثال: name@example.com',
+                  label: 'auth.emailLabel'.tr,
+                  hintText: 'auth.emailHint'.tr,
                   controller: controller.emailController,
                   keyboardType: TextInputType.emailAddress,
                   validator: Validators.email,
@@ -56,7 +54,7 @@ class SignupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'رقم الجوال',
+                  'auth.phoneLabel'.tr,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -123,8 +121,8 @@ class SignupScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 Obx(
                   () => AuthTextField(
-                    label: AppStrings.password,
-                    hintText: 'أدخل كلمة المرور',
+                    label: 'login.passwordLabel'.tr,
+                    hintText: 'auth.enterPasswordHint'.tr,
                     controller: controller.passwordController,
                     obscureText: controller.isPasswordHidden.value,
                     validator: Validators.password8,
@@ -161,17 +159,17 @@ class SignupScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 Obx(
                   () => AuthTextField(
-                    label: AppStrings.confirmPassword,
-                    hintText: 'أعد إدخال كلمة المرور',
+                    label: 'auth.confirmNewPasswordLabel'.tr,
+                    hintText: 'auth.reenterPasswordHint'.tr,
                     controller: controller.confirmPasswordController,
                     obscureText: controller.isConfirmPasswordHidden.value,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'يرجى تأكيد كلمة المرور';
+                        return 'validation.confirmPassword'.tr;
                       }
                       if (value != controller.passwordController.text) {
-                        return 'كلمتا المرور غير متطابقتين';
+                        return 'validation.passwordsMismatch'.tr;
                       }
                       return null;
                     },
@@ -188,8 +186,8 @@ class SignupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 AuthTextField(
-                  label: 'كود الإحالة (اختياري)',
-                  hintText: 'مثال: ABC123',
+                  label: 'auth.referralCodeLabel'.tr,
+                  hintText: 'auth.referralCodeHint'.tr,
                   controller: controller.referralCodeController,
                   textCapitalization: TextCapitalization.characters,
                   prefixIcon: const Icon(Icons.card_giftcard_outlined),
@@ -197,7 +195,7 @@ class SignupScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 Obx(
                   () => AuthButton(
-                    text: 'إنشاء حساب',
+                    text: 'auth.createAccountBtn'.tr,
                     isLoading: controller.isLoading.value,
                     onPressed: controller.signUp,
                   ),
@@ -208,14 +206,14 @@ class SignupScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'لديك حساب بالفعل؟ ',
+                        'auth.alreadyHaveAccount'.tr,
                         style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                       InkWell(
                         onTap: () => Get.back(),
-                        child: const Text(
-                          'سجّل الدخول هنا',
-                          style: TextStyle(
+                        child: Text(
+                          'auth.loginHere'.tr,
+                          style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
                           ),
@@ -243,4 +241,3 @@ class SignupScreen extends StatelessWidget {
     );
   }
 }
-

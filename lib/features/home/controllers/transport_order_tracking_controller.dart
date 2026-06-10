@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
+import 'package:najiz_go_express/core/widgets/disconnect_dialog.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:najiz_go_express/core/services/order_websocket_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
@@ -119,7 +118,7 @@ class TransportOrderTrackingController extends GetxController {
       isLiveConnected.value = true;
     } catch (_) {
       isLiveConnected.value = false;
-      errorMessage.value = 'تعذر الاتصال بالتتبع اللحظي. حاول لاحقاً.';
+      errorMessage.value = 'tracking.connectFailed'.tr;
     }
   }
 
@@ -322,28 +321,7 @@ class TransportOrderTrackingController extends GetxController {
 
     final ctx = Get.context;
     if (ctx == null) return;
-    AppPopupDialog.show<void>(
-      context: ctx,
-      builder: (c) => AlertDialog(
-        backgroundColor: Theme.of(c).colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('انقطاع الاتصال'),
-        content: const Text('انقطعت مهلة الاتصال بالخادم، أعد المحاولة'),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.of(c).pop(),
-            child: const Text('إغلاق'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(c).pop();
-              _pollOrderState(force: true);
-            },
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
-    );
+    showDisconnectDialog(ctx, onRetry: () => _pollOrderState(force: true));
   }
 
   int get stageIndex {
@@ -380,8 +358,8 @@ class TransportOrderTrackingController extends GetxController {
     if (!didNotifyTripStarted.value && isTripInProgress) {
       didNotifyTripStarted.value = true;
       AppSnackbar.show(
-        'بدأت الرحلة',
-        'تم الانطلاق، يمكنك متابعة المسار حتى الوجهة',
+        'tracking.tripStarted'.tr,
+        'tracking.tripStartedSubtitle'.tr,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),
       );
@@ -399,14 +377,14 @@ class TransportOrderTrackingController extends GetxController {
         if (meters <= 80) {
           didNotifyDriverArrived.value = true;
           AppSnackbar.show(
-            'وصل السائق',
-            'السائق وصل إلى نقطة الالتقاط',
+            'tracking.driverArrived'.tr,
+            'tracking.driverArrivedSubtitle'.tr,
             snackPosition: SnackPosition.BOTTOM,
             duration: const Duration(seconds: 3),
           );
           _pushService.pushLocalInAppNotification(
-            title: 'تنبيه الرحلة',
-            body: 'السائق وصل وهو في الانتظار',
+            title: 'tracking.tripAlert'.tr,
+            body: 'tracking.driverWaiting'.tr,
             dedupeKey: 'order-$orderId-driver-arrived-pickup',
             data: {'order_id': orderId, 'event': 'driver_arrived_waiting'},
           );
@@ -440,8 +418,8 @@ class TransportOrderTrackingController extends GetxController {
     if (!_didNotifyNearDestination && (isNearByDistance || isNearByStatus)) {
       _didNotifyNearDestination = true;
       _pushService.pushLocalInAppNotification(
-        title: 'تنبيه التوصيل',
-        body: 'السائق أصبح على مقربة من عنوانك',
+        title: 'tracking.deliveryAlert'.tr,
+        body: 'tracking.driverNearby'.tr,
         dedupeKey: 'order-$orderId-near-destination',
         data: {'order_id': orderId, 'event': 'driver_near_address'},
       );
@@ -456,8 +434,8 @@ class TransportOrderTrackingController extends GetxController {
         (arrivedByDistance || arrivedByStatus)) {
       _didNotifyArrivedWaitingAtDestination = true;
       _pushService.pushLocalInAppNotification(
-        title: 'تنبيه التوصيل',
-        body: 'السائق وصل وهو في الانتظار',
+        title: 'tracking.deliveryAlert'.tr,
+        body: 'tracking.driverWaiting'.tr,
         dedupeKey: 'order-$orderId-arrived-destination',
         data: {'order_id': orderId, 'event': 'driver_arrived_waiting'},
       );
@@ -505,7 +483,7 @@ class TransportOrderTrackingController extends GetxController {
     } on HomeApiException {
       rethrow;
     } catch (_) {
-      throw HomeApiException('تعذر إرسال التقييم حالياً');
+      throw HomeApiException('tracking.rateFailed'.tr);
     } finally {
       isSubmittingRating.value = false;
     }

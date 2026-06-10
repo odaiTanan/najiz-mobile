@@ -1,4 +1,4 @@
-import 'package:get/get.dart';
+﻿import 'package:get/get.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -31,7 +31,7 @@ class TaxiBookingController extends GetxController {
   final pickupLng = 36.2765.obs;
   final dropoffLat = RxnDouble();
   final dropoffLng = RxnDouble();
-  final pickupAddress = 'جاري تحديد موقعك...'.obs;
+  late final pickupAddress = ''.obs;
   final dropoffAddress = RxnString();
   final selectingPickupOnMap = true.obs;
 
@@ -75,7 +75,7 @@ class TaxiBookingController extends GetxController {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        pickupAddress.value = 'لم يتم منح صلاحية الموقع';
+        pickupAddress.value = 'location.permissionDenied'.tr;
         return;
       }
 
@@ -88,13 +88,13 @@ class TaxiBookingController extends GetxController {
         isPickup: true,
       );
     } catch (_) {
-      pickupAddress.value = 'تعذر تحديد الموقع الحالي';
+      pickupAddress.value = 'location.geoFailed'.tr;
     }
   }
 
   Future<void> calculatePrices() async {
     if (dropoffLat.value == null || dropoffLng.value == null) {
-      errorMessage.value = 'يرجى تحديد الوجهة من الخريطة';
+      errorMessage.value = 'taxi.selectDestination'.tr;
       pricing.value = null;
       return;
     }
@@ -122,7 +122,7 @@ class TaxiBookingController extends GetxController {
     } on HomeApiException catch (e) {
       errorMessage.value = e.message;
     } catch (_) {
-      errorMessage.value = 'فشل حساب أسعار التاكسي';
+      errorMessage.value = 'taxi.priceFailed'.tr;
     } finally {
       isLoading.value = false;
     }
@@ -157,7 +157,7 @@ class TaxiBookingController extends GetxController {
     required double lng,
   }) {
     if (!_isWithinSyria(lat: lat, lng: lng)) {
-      errorMessage.value = 'الاختيار خارج حدود سوريا';
+      errorMessage.value = 'location.outsideSyriaBound'.tr;
       return;
     }
     if (selectingPickupOnMap.value) {
@@ -176,7 +176,7 @@ class TaxiBookingController extends GetxController {
     try {
       final suggestions = await fetchLocationSuggestions(query: q);
       if (suggestions.isEmpty) {
-        errorMessage.value = 'لا توجد نتائج داخل سوريا';
+        errorMessage.value = 'location.noResultsInSyria'.tr;
         return false;
       }
       return await selectSuggestion(
@@ -184,7 +184,7 @@ class TaxiBookingController extends GetxController {
         asPickup: asPickup,
       );
     } catch (_) {
-      errorMessage.value = 'فشل البحث عن الموقع';
+      errorMessage.value = 'location.searchFailed'.tr;
       return false;
     }
   }
@@ -339,17 +339,17 @@ class TaxiBookingController extends GetxController {
         headers: const {'Accept': 'application/json'},
       );
       if (response.statusCode != 200) {
-        errorMessage.value = 'تعذر تحميل تفاصيل الموقع';
+        errorMessage.value = 'location.detailsLoadFailed'.tr;
         return false;
       }
       final body = jsonDecode(response.body);
       if (body is! Map<String, dynamic>) {
-        errorMessage.value = 'استجابة غير صالحة من خدمة المواقع';
+        errorMessage.value = 'location.invalidResponse'.tr;
         return false;
       }
       final status = (body['status'] ?? '').toString();
       if (status != 'OK') {
-        errorMessage.value = 'تعذر تحميل تفاصيل الموقع';
+        errorMessage.value = 'location.detailsLoadFailed'.tr;
         return false;
       }
       final result = _asMap(body['result']);
@@ -358,7 +358,7 @@ class TaxiBookingController extends GetxController {
       final lat = _asDouble(location?['lat']);
       final lng = _asDouble(location?['lng']);
       if (lat == null || lng == null || !_isWithinSyria(lat: lat, lng: lng)) {
-        errorMessage.value = 'النتيجة خارج سوريا';
+        errorMessage.value = 'location.resultOutsideSyria'.tr;
         return false;
       }
       final label =
@@ -378,7 +378,7 @@ class TaxiBookingController extends GetxController {
       }
       return true;
     } catch (_) {
-      errorMessage.value = 'فشل تحديد الموقع';
+      errorMessage.value = 'location.locationFailed'.tr;
       return false;
     }
   }
@@ -521,17 +521,17 @@ class TaxiBookingController extends GetxController {
   Future<LiveOrderInfo> confirmTaxiOrder() async {
     final selected = selectedCategory;
     if (selected == null) {
-      throw HomeApiException('يرجى اختيار فئة تاكسي');
+      throw HomeApiException('taxi.selectCategory'.tr);
     }
     if (dropoffLat.value == null || dropoffLng.value == null) {
-      throw HomeApiException('يرجى تحديد الوجهة من الخريطة');
+      throw HomeApiException('taxi.selectDestination'.tr);
     }
 
     isPlacingOrder.value = true;
     try {
       final authToken = token.value;
       if (authToken == null || authToken.trim().isEmpty) {
-        throw HomeApiException('يرجى تسجيل الدخول لإكمال الطلب');
+        throw HomeApiException('taxi.loginRequired'.tr);
       }
       final response = await _repository.createTaxiOrder(
         token: authToken,
@@ -549,7 +549,7 @@ class TaxiBookingController extends GetxController {
       final taxiOrder = _asMap(data['taxi_order'] ?? data['taxiOrder']);
       final orderId = _asInt(data['id']);
       if (orderId == null) {
-        throw HomeApiException('لم يتم استلام رقم طلب التاكسي');
+        throw HomeApiException('taxi.noOrderId'.tr);
       }
       return LiveOrderInfo(
         orderId: orderId,
@@ -591,10 +591,10 @@ class TaxiBookingController extends GetxController {
     final authToken = token.value;
     final normalized = code.trim();
     if (selected == null) {
-      throw HomeApiException('يرجى اختيار فئة تاكسي أولاً');
+      throw HomeApiException('taxi.selectCategoryFirst'.tr);
     }
     if (authToken == null || authToken.trim().isEmpty) {
-      throw HomeApiException('يرجى تسجيل الدخول لتطبيق الكوبون');
+      throw HomeApiException('taxi.loginForCoupon'.tr);
     }
     if (normalized.isEmpty) return;
     final response = await _repository.validateCoupon(
@@ -607,8 +607,7 @@ class TaxiBookingController extends GetxController {
     appliedCouponCode.value = normalized;
     if (couponDiscount.value <= 0) {
       AppSnackbar.show(
-        'تنبيه',
-        'تم التحقق من الكوبون لكنه غير صالح لهذا الطلب أو لا يطابق الشروط',
+        'common.warning'.tr, 'checkout.couponInvalid'.tr,
       );
     }
   }

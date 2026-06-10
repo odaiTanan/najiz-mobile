@@ -1,31 +1,31 @@
+import 'package:get/get.dart';
+
 class AppStrings {
   AppStrings._();
 
   static const String appName = 'NajizGo';
-  static const String welcomeBack = 'مرحباً بعودتك';
-  static const String loginSubtitle = 'سجّل الدخول إلى حسابك للمتابعة';
 
-  static const String createAccount = 'إنشاء حساب';
-  static const String signupSubtitle = 'قم بإعداد حسابك للمتابعة';
-  static const String name = 'الاسم';
-  static const String phone = 'الهاتف';
-  static const String confirmPassword = 'تأكيد كلمة المرور';
-
-  static const String mobileOrEmail = 'رقم الجوال أو البريد الإلكتروني';
-  static const String password = 'كلمة المرور';
-  static const String forgotPassword = 'هل نسيت كلمة المرور؟';
-  static const String login = 'تسجيل الدخول';
-  static const String sendCode = 'إرسال الرمز';
-  static const String enterCode = 'أدخل رمز التحقق المكوّن من 6 أرقام';
-  static const String verifyCode = 'تحقق';
-  static const String continueText = 'متابعة';
-
-  static const String updatePassword = 'تحديث كلمة المرور';
-  static const String resetSubtitle = 'أنشئ كلمة مرور قوية جديدة';
-  static const String orContinueWith = 'أو تابع باستخدام';
-  static const String google = 'جوجل';
-  static const String apple = 'آبل';
-  static const String dontHaveAccount = 'لا تملك حساباً؟';
-  static const String signUp = 'إنشاء حساب';
+  // These are used in a few legacy places — redirected to i18n for proper translation.
+  static String get welcomeBack => 'login.title'.tr;
+  static String get loginSubtitle => 'login.subtitle'.tr;
+  static String get createAccount => 'auth.createAccountBtn'.tr;
+  static String get signupSubtitle => 'auth.joinSubtitle'.tr;
+  static String get name => 'auth.fullNameLabel'.tr;
+  static String get phone => 'auth.phoneLabel'.tr;
+  static String get confirmPassword => 'auth.confirmNewPasswordLabel'.tr;
+  static String get mobileOrEmail => 'auth.enterPhoneHint'.tr;
+  static String get password => 'login.passwordLabel'.tr;
+  static String get forgotPassword => 'login.forgotPassword'.tr;
+  static String get login => 'login.loginBtn'.tr;
+  static String get sendCode => 'auth.sendOtpBtn'.tr;
+  static String get enterCode => 'auth.verificationSubtitle'.tr;
+  static String get verifyCode => 'auth.verificationTitle'.tr;
+  static String get continueText => 'common.confirm'.tr;
+  static String get updatePassword => 'auth.updatePasswordBtn'.tr;
+  static String get resetSubtitle => 'auth.newPasswordHint'.tr;
+  static String get orContinueWith => 'login.orContinueWith'.tr;
+  static String get google => 'login.google'.tr;
+  static String get apple => 'login.apple'.tr;
+  static String get dontHaveAccount => 'auth.alreadyHaveAccount'.tr;
+  static String get signUp => 'auth.createAccountBtn'.tr;
 }
-

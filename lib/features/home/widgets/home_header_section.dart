@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/theme/theme_context.dart';
 
@@ -22,11 +23,10 @@ class HomeHeaderSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final normalizedName = displayName?.trim() ?? '';
-    final fallbackName = 'عميلنا';
-    final shownName = normalizedName.isEmpty ? fallbackName : normalizedName;
+    final shownName = normalizedName.isEmpty ? 'home.greetingDefault'.tr : normalizedName;
     final subtitle = isGuest
-        ? 'أهلاً بك في ناجز غو اكسبرس'
-        : 'مرحباً، $shownName';
+        ? 'home.guestWelcome'.tr
+        : 'home.greeting'.trParams({'name': shownName});
 
     return Row(
       children: [
@@ -50,7 +50,7 @@ class HomeHeaderSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isGuest ? 'مرحباً بك' : 'أهلاً بعودتك',
+                isGuest ? 'home.guestHello'.tr : 'home.welcomeBack'.tr,
                 style: TextStyle(
                   color: context.uiSubtext,
                   fontSize: 10,
@@ -58,7 +58,7 @@ class HomeHeaderSection extends StatelessWidget {
                   letterSpacing: .8,
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: TextStyle(

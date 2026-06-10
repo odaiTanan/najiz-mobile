@@ -42,7 +42,7 @@ class RestaurantProductsController extends GetxController {
   final savedAddresses = <UserAddress>[].obs;
   final selectedAddressId = RxnInt();
   final selectedVendorId = RxnInt();
-  final currentDeliveryAddress = 'جاري تحديد موقعك...'.obs;
+  late final currentDeliveryAddress = ''.obs;
   final isResolvingAddress = false.obs;
   static const String _mapsApiKey = String.fromEnvironment(
     'MAPS_API_KEY',
@@ -107,7 +107,7 @@ class RestaurantProductsController extends GetxController {
   Future<void> addAddress(CreateAddressPayload payload) async {
     final authToken = token?.trim() ?? '';
     if (authToken.isEmpty) {
-      throw HomeApiException('يرجى تسجيل الدخول لإضافة عنوان جديد');
+      throw HomeApiException('location.loginForAddress'.tr);
     }
     await _repository.addUserAddress(token: authToken, payload: payload.toJson());
     await loadDeliveryAddress();
@@ -150,7 +150,7 @@ class RestaurantProductsController extends GetxController {
       if (gateRetry) {
         rethrow;
       }
-      errorMessage.value = 'فشل تحميل المطاعم';
+      errorMessage.value = 'location.restaurantsFailed'.tr;
       classifications.clear();
       allVendors.clear();
       vendors.clear();
@@ -240,7 +240,7 @@ class RestaurantProductsController extends GetxController {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        currentDeliveryAddress.value = 'فعّل خدمة الموقع لعرض العنوان الحالي';
+        currentDeliveryAddress.value = 'location.enableService'.tr;
         return;
       }
 
@@ -249,11 +249,11 @@ class RestaurantProductsController extends GetxController {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied) {
-        currentDeliveryAddress.value = 'يلزم السماح بالموقع لعرض العنوان';
+        currentDeliveryAddress.value = 'location.allowPermission'.tr;
         return;
       }
       if (permission == LocationPermission.deniedForever) {
-        currentDeliveryAddress.value = 'صلاحية الموقع مرفوضة نهائيا';
+        currentDeliveryAddress.value = 'location.permissionDeniedForever'.tr;
         return;
       }
 
@@ -279,7 +279,7 @@ class RestaurantProductsController extends GetxController {
           fallback ??
           '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
     } catch (_) {
-      currentDeliveryAddress.value = 'تعذر تحديد الموقع الحالي';
+      currentDeliveryAddress.value = 'location.geoFailed'.tr;
     } finally {
       isResolvingAddress.value = false;
     }

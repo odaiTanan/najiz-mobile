@@ -171,8 +171,7 @@ class HomeController extends GetxController {
           break;
         } catch (_) {
           homeWaitingNetwork.value = false;
-          errorMessage.value =
-              'حدث خطأ غير متوقع أثناء تحميل بيانات الصفحة الرئيسية';
+          errorMessage.value = 'home_ctrl.loadFailed'.tr;
           break;
         }
       }
@@ -198,9 +197,9 @@ class HomeController extends GetxController {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           backgroundColor: Colors.white,
-          content: const Text(
-            'لديك سلة محفوظة',
-            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+          content: Text(
+            'home_ctrl.savedCart'.tr,
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
           ),
           duration: const Duration(milliseconds: 500),
           action: SnackBarAction(
@@ -279,7 +278,7 @@ class HomeController extends GetxController {
         errorMessage.value = e.message;
       }
     } catch (_) {
-      errorMessage.value = 'فشل تحميل المطاعم';
+      errorMessage.value = 'home_ctrl.restaurantsFailed'.tr;
       vendors.clear();
     }
   }
@@ -364,7 +363,7 @@ class HomeController extends GetxController {
       onAuthenticated: (token) async {
         Get.to(() => SupportChatScreen(token: token));
       },
-      message: 'يرجى تسجيل الدخول لمراسلة الدعم الفني',
+      message: 'home_ctrl.loginForSupport'.tr,
     );
   }
 

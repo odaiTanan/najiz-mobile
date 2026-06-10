@@ -20,6 +20,7 @@ class ProfileController extends GetxController {
   final HomeRepository _homeRepository;
   final isLoading = false.obs;
   final isLoggingOut = false.obs;
+  final isDeletingAccount = false.obs;
   final profile = Rxn<UserProfileModel>();
   final referralInfo = Rxn<ReferralCodeInfo>();
   final isUpdatingAvatar = false.obs;
@@ -83,7 +84,7 @@ class ProfileController extends GetxController {
   Future<void> saveAddress(CreateAddressPayload payload) async {
     final token = _authState.token.value;
     if (token == null || token.trim().isEmpty) {
-      throw HomeApiException('يرجى تسجيل الدخول لإضافة عنوان جديد');
+      throw HomeApiException('checkout.loginForAddress'.tr);
     }
 
     await _homeRepository.addUserAddress(token: token, payload: payload.toJson());
@@ -110,9 +111,9 @@ class ProfileController extends GetxController {
       );
       if (picked == null) return;
       await _saveAvatarPath(picked.path);
-      AppSnackbar.show('تم', 'تم تحديث الصورة الشخصية');
+      AppSnackbar.show('common.done'.tr, 'profile.photoUpdated'.tr);
     } catch (_) {
-      AppSnackbar.show('تعذر تغيير الصورة', 'تأكد من السماح بالوصول للصور');
+      AppSnackbar.show('profile.photoUpdateFailed'.tr, 'profile.photoAccessDenied'.tr);
     } finally {
       isUpdatingAvatar.value = false;
     }
@@ -123,9 +124,9 @@ class ProfileController extends GetxController {
     try {
       isUpdatingAvatar.value = true;
       await _saveAvatarPath(null);
-      AppSnackbar.show('تم', 'تم حذف الصورة الشخصية');
+      AppSnackbar.show('common.done'.tr, 'profile.photoDeleted'.tr);
     } catch (_) {
-      AppSnackbar.show('تعذر حذف الصورة', 'حاول مرة أخرى');
+      AppSnackbar.show('profile.photoDeleteFailed'.tr, 'common.retry'.tr);
     } finally {
       isUpdatingAvatar.value = false;
     }
@@ -161,6 +162,30 @@ class ProfileController extends GetxController {
       );
     } finally {
       isLoggingOut.value = false;
+    }
+  }
+
+  Future<void> deleteAccount(String password) async {
+    if (isDeletingAccount.value) return;
+    final token = _authState.token.value;
+    if (token == null || token.trim().isEmpty) {
+      throw AuthApiException('guard.loginRequired'.tr);
+    }
+
+    isDeletingAccount.value = true;
+    try {
+      await _authRepository.deleteAccount(token: token, password: password);
+      if (Get.isRegistered<AppCartService>()) {
+        Get.find<AppCartService>().clear();
+      }
+      await _authState.markGuest();
+      referralInfo.value = null;
+      profile.value = UserProfileModel.fromBackend(
+        null,
+        fallback: await SessionService.getUserIdentity(),
+      );
+    } finally {
+      isDeletingAccount.value = false;
     }
   }
 
