@@ -16,6 +16,9 @@
             android:name="com.onesignal.NotificationIcon"
             android:resource="@drawable/ic_launcher_foreground" />
         <meta-data
+            android:name="com.onesignal.NotificationServiceExtension"
+            android:value="com.najizgo.app.OrderStatusNotificationExtension" />
+        <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
         <activity

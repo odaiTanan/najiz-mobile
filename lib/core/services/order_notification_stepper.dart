@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/services/shipping_order_state.dart';
+import 'package:najiz_go_express/core/services/taxi_order_state.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 /// OneSignal often nests Laravel `data` under [rawPayload] (`custom`, `custom.a`, …).
@@ -46,28 +48,57 @@ Map<String, dynamic> mergeOneSignalNotificationData(OSNotification notification)
   final data = raw['data'];
   if (data is Map) mergeIn(data.cast<String, dynamic>());
 
+  final notificationTitle = notification.title?.trim();
+  if (notificationTitle != null && notificationTitle.isNotEmpty) {
+    out.putIfAbsent('title', () => notificationTitle);
+  }
+  final notificationBody = notification.body?.trim();
+  if (notificationBody != null && notificationBody.isNotEmpty) {
+    out.putIfAbsent('body', () => notificationBody);
+  }
+
   return out;
 }
 
-List<String> stepperLabelsForOrderType(String orderType) {
+List<String> stepperLabelsForOrderType(
+  String orderType, {
+  bool isStore = false,
+}) {
   switch (orderType) {
     case 'taxi':
-      return ['orders.stepPlaced'.tr, 'orders.stepAccepted'.tr, 'orders.stepOnWay'.tr, 'orders.stepTrip'.tr];
+      return [
+        'orders.stepPlaced'.tr,
+        'orders.stepAccepted'.tr,
+        'orders.stepOnWay'.tr,
+        'orders.stepTrip'.tr,
+        'orders.stepDelivered'.tr,
+      ];
     case 'shipping':
-      return ['orders.stepPlaced'.tr, 'orders.stepAccepted'.tr, 'orders.stepPickup'.tr, 'orders.stepOnWayDelivery'.tr, 'orders.stepDelivered'.tr];
+      return ShippingOrderState.timelineLabelKeys.map((key) => key.tr).toList();
     default:
+      if (isStore) {
+        return [
+          'orders.stepPlaced'.tr,
+          'orders.stepAccepted'.tr,
+          'orders.stepPickup'.tr,
+          'orders.stepOnWayDelivery'.tr,
+        ];
+      }
       return ['orders.stepPlaced'.tr, 'orders.stepAccepted'.tr, 'orders.stepPreparing'.tr, 'orders.stepPickup'.tr, 'orders.stepOnWayDelivery'.tr];
   }
 }
 
-int defaultStepTotalForOrderType(String orderType) {
+int defaultStepTotalForOrderType(
+  String orderType, {
+  bool isStore = false,
+}) {
   switch (orderType) {
     case 'taxi':
-      return 4;
+      return TaxiOrderState.stepTotal;
     case 'shipping':
-      return 5;
+      return ShippingOrderState.stepTotal;
     default:
-      return 5;
+      return isStore ? 4 : 5;
   }
 }
 
@@ -96,9 +127,9 @@ List<IconData> _notificationStepperIcons(String orderType, bool isStore) {
       ];
     case _StepperServiceStyle.shipping:
       return const [
-        Icons.inventory_2_outlined,
         Icons.task_alt_outlined,
         Icons.local_shipping_outlined,
+        Icons.inventory_2_outlined,
         Icons.route_outlined,
         Icons.home_outlined,
       ];
@@ -107,7 +138,6 @@ List<IconData> _notificationStepperIcons(String orderType, bool isStore) {
         Icons.storefront_outlined,
         Icons.shopping_bag_outlined,
         Icons.inventory_2_outlined,
-        Icons.takeout_dining_outlined,
         Icons.flag_outlined,
       ];
     case _StepperServiceStyle.restaurant:
@@ -152,7 +182,10 @@ void _drawMaterialGlyph(
   );
 }
 
-/// RTL stepper: first step on the right. [activeIndex] 0..[stepCount]-1.
+/// RTL stepper: first step on the right.
+/// [activeIndex] is the highest reached step (inclusive): at
+/// `on_the_way_to_pickup` (index 2) steps 0..2 are all marked active because
+/// taxi/shipping may skip a standalone `accepted` update.
 Future<Uint8List?> renderOrderStepperPng({
   required List<String> labels,
   required int activeIndex,
@@ -165,18 +198,18 @@ Future<Uint8List?> renderOrderStepperPng({
   final safeActive = activeIndex.clamp(0, stepCount - 1);
 
   const width = 1080.0;
-  const height = 248.0;
+  const height = 280.0;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   canvas.drawRect(
     const Rect.fromLTWH(0, 0, width, height),
-    Paint()..color = const Color(0xFFF1F3F7),
+    Paint()..color = const Color(0xFFEEF2F7),
   );
 
-  const margin = 40.0;
-  const nodeY = 68.0;
-  const nodeRadius = 42.0;
-  const lineThickness = 11.0;
+  const margin = 36.0;
+  const nodeY = 72.0;
+  const nodeRadius = 46.0;
+  const lineThickness = 12.0;
   final usable = width - 2 * margin;
   final gap = stepCount <= 1 ? 0.0 : usable / (stepCount - 1);
 
@@ -194,6 +227,7 @@ Future<Uint8List?> renderOrderStepperPng({
     final xRight = width - margin - i * gap;
     final xLeft = width - margin - (i + 1) * gap;
     final segmentDone = allComplete || i < safeActive;
+    // Line segment i sits before node (i + 1); fill it when that node is reached.
     canvas.drawLine(
       Offset(xLeft, lineY),
       Offset(xRight, lineY),
@@ -215,19 +249,14 @@ Future<Uint8List?> renderOrderStepperPng({
   for (int i = 0; i < stepCount; i++) {
     final cx = width - margin - i * gap;
     final r = nodeRadius;
-    final done = allComplete || i < safeActive;
-    final current = !allComplete && i == safeActive;
+    final done = allComplete || i <= safeActive;
+    final isLatest = !allComplete && i == safeActive;
     final stepIcon = stepGlyph(i);
 
     if (done) {
       canvas.drawCircle(Offset(cx, nodeY), r + 3, Paint()..color = brand.withValues(alpha: 0.2));
       canvas.drawCircle(Offset(cx, nodeY), r, Paint()..color = brand);
-      _drawMaterialGlyph(canvas, Offset(cx, nodeY), stepIcon, 40, Colors.white);
-    } else if (current) {
-      canvas.drawCircle(Offset(cx, nodeY), r + 4, Paint()..color = brand.withValues(alpha: 0.32));
-      canvas.drawCircle(Offset(cx, nodeY), r + 1.5, Paint()..color = brand);
-      canvas.drawCircle(Offset(cx, nodeY), r - 1.5, Paint()..color = ink);
-      _drawMaterialGlyph(canvas, Offset(cx, nodeY), stepIcon, 42, Colors.white);
+      _drawMaterialGlyph(canvas, Offset(cx, nodeY), stepIcon, 44, Colors.white);
     } else {
       canvas.drawCircle(Offset(cx, nodeY), r + 2, Paint()..color = const Color(0xFFE2E8F0));
       canvas.drawCircle(Offset(cx, nodeY), r, Paint()..color = Colors.white);
@@ -239,7 +268,7 @@ Future<Uint8List?> renderOrderStepperPng({
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3,
       );
-      _drawMaterialGlyph(canvas, Offset(cx, nodeY), stepIcon, 36, muted);
+      _drawMaterialGlyph(canvas, Offset(cx, nodeY), stepIcon, 40, muted);
     }
 
     final label = i < labels.length ? labels[i] : '';
@@ -250,11 +279,11 @@ Future<Uint8List?> renderOrderStepperPng({
         textAlign: TextAlign.center,
         textDirection: TextDirection.rtl,
         maxLines: 2,
-        fontWeight: current ? FontWeight.w800 : FontWeight.w600,
+        fontWeight: isLatest ? FontWeight.w800 : FontWeight.w600,
       ),
     )
       ..pushStyle(ui.TextStyle(
-        color: current ? ink : const Color(0xFF334155),
+        color: isLatest ? ink : const Color(0xFF334155),
       ))
       ..addText(label);
     final paragraph = pb.build()

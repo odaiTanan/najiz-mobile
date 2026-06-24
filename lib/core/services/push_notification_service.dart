@@ -3,14 +3,19 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'package:najiz_go_express/core/constants/api_config.dart';
+import 'package:najiz_go_express/core/constants/app_strings.dart';
+import 'package:najiz_go_express/core/di/network_dependencies.dart';
+import 'package:najiz_go_express/data/api/api_client.dart';
 import 'package:najiz_go_express/core/services/order_notification_stepper.dart';
-import 'package:najiz_go_express/features/home/models/app_notification_item.dart';
+import 'package:najiz_go_express/core/services/order_progress_notification_mapper.dart';
+import 'package:najiz_go_express/core/services/order_progress_notification_presenter.dart';
+import 'package:najiz_go_express/core/services/order_status_native_bridge.dart';
+import 'package:najiz_go_express/core/services/auth_state_manager.dart';
+import 'package:najiz_go_express/core/services/taxi_order_state.dart';
+import 'package:najiz_go_express/features/notifications/models/app_notification_item.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,17 +27,19 @@ class PushNotificationService extends GetxService {
   static const String _ordersChannelId = 'orders_progress_channel';
   static const String _chatChannelId = 'chat_updates_channel';
 
-  final _http = http.Client();
+  ApiClient get _api => resolveApiClient();
   final Map<String, DateTime> _recentLocalKeys = <String, DateTime>{};
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final Map<String, int> _orderNotificationIds = <String, int>{};
   final Map<String, int> _chatNotificationIds = <String, int>{};
+  OrderProgressNotificationPresenter? _orderProgressPresenter;
 
   final notifications = <AppNotificationItem>[].obs;
   final unreadCount = 0.obs;
   bool _initialized = false;
   bool _localInitialized = false;
+  String? _pendingSubscribeToken;
 
   Future<void> initialize({String? token}) async {
     if (_initialized) return;
@@ -44,15 +51,31 @@ class PushNotificationService extends GetxService {
     OneSignal.initialize(_oneSignalAppId);
     await OneSignal.Notifications.requestPermission(true);
 
+    OneSignal.User.pushSubscription.addObserver((state) {
+      final playerId = state.current.id;
+      if (playerId == null || playerId.trim().isEmpty) return;
+      final authToken = _pendingSubscribeToken ??
+          (Get.isRegistered<AuthStateManager>()
+              ? Get.find<AuthStateManager>().token.value
+              : null);
+      if (authToken == null || authToken.trim().isEmpty) return;
+      unawaited(subscribeDevice(authToken));
+    });
+
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
       final notification = event.notification;
       final merged = mergeOneSignalNotificationData(notification);
       final type = merged['type']?.toString().trim().toLowerCase();
 
-      // One notification in the tray: we draw progress locally; suppress OS duplicate.
       if (type == 'order_status') {
         event.preventDefault();
-        unawaited(_handleOrderStatusForeground(notification, merged));
+        unawaited(
+          _handleOrderStatusPayload(
+            merged,
+            title: notification.title,
+            body: notification.body,
+          ),
+        );
         return;
       }
 
@@ -69,21 +92,39 @@ class PushNotificationService extends GetxService {
     OneSignal.Notifications.addClickListener((event) {
       final notification = event.notification;
       final merged = mergeOneSignalNotificationData(notification);
+      final type = merged['type']?.toString().trim().toLowerCase();
+
+      if (type == 'order_status') {
+        unawaited(
+          _handleOrderStatusPayload(
+            merged,
+            title: notification.title,
+            body: notification.body,
+          ),
+        );
+        return;
+      }
+
       _handleLocalProgressNotification(merged);
       _handleOrderStatusMilestones(merged);
-      final type = merged['type']?.toString().trim().toLowerCase();
-      final inAppId = type == 'order_status'
-          ? _orderStatusInAppId(merged)
-          : notification.notificationId;
       _appendNotification(
         title: notification.title ?? 'notifications.newNotification'.tr,
         body: notification.body ?? '',
-        externalId: inAppId,
+        externalId: notification.notificationId,
         data: merged,
       );
     });
 
+    OrderStatusNativeBridge.register((payload, {title, body}) async {
+      await _handleOrderStatusPayload(
+        payload,
+        title: title,
+        body: body,
+      );
+    });
+
     if (token != null && token.trim().isNotEmpty) {
+      _pendingSubscribeToken = token.trim();
       await subscribeDevice(token);
     }
   }
@@ -106,13 +147,18 @@ class PushNotificationService extends GetxService {
           'notifications.trackOrders'.tr,
           description: 'notifications.orderStatusProgress'.tr,
           importance: Importance.low,
-          playSound: true,
+          playSound: false,
           enableVibration: false,
         ),
       );
     }
 
     _localInitialized = true;
+    _orderProgressPresenter = OrderProgressNotificationPresenter(
+      plugin: _localNotifications,
+      channelId: _ordersChannelId,
+      stableInt: _stableInt,
+    );
   }
 
   Future<void> _loadNotificationIdMappings() async {
@@ -176,32 +222,75 @@ class PushNotificationService extends GetxService {
     }
   }
 
-  Future<void> _handleOrderStatusForeground(
-    OSNotification notification,
-    Map<String, dynamic> merged,
-  ) async {
+  Future<void> _handleOrderStatusPayload(
+    Map<String, dynamic> merged, {
+    String? title,
+    String? body,
+  }) async {
+    if (TaxiOrderState.shouldIgnorePayload(merged, bodyOverride: body)) return;
+
     await _upsertOrderProgressNotification(
       merged,
-      titleOverride: notification.title,
-      bodyOverride: notification.body,
+      titleOverride: title,
+      bodyOverride: body,
     );
-    _handleOrderStatusMilestones(merged);
-    await _appendNotification(
-      title: notification.title ?? 'notifications.newNotification'.tr,
-      body: notification.body ?? '',
-      externalId: _orderStatusInAppId(merged),
+    await _upsertOrderInAppCenter(
+      merged,
+      title: title,
+      body: body,
+    );
+  }
+
+  Future<void> _upsertOrderInAppCenter(
+    Map<String, dynamic> merged, {
+    String? title,
+    String? body,
+  }) async {
+    final id = _orderStatusInAppId(merged);
+    final resolvedTitle = OrderProgressNotificationMapper.resolveDisplayTitle(
+      merged,
+      titleOverride: title,
+      defaultAppTitle: AppStrings.appName,
+    );
+    final resolvedBody = OrderProgressNotificationMapper.resolveDisplayBody(
+      merged,
+      bodyOverride: body,
+      orderType: merged['order_type']?.toString() ??
+          merged['service_type']?.toString(),
+    );
+    if (TaxiOrderState.isTaxiOrderType(
+          (merged['order_type'] ?? merged['service_type'] ?? '').toString(),
+        ) &&
+        resolvedBody.trim().isEmpty &&
+        !TaxiOrderState.isNotificationAllowed(
+          TaxiOrderState.resolveNotificationStatus(merged, bodyOverride: body),
+        )) {
+      return;
+    }
+
+    final index = notifications.indexWhere((item) => item.id == id);
+    final item = AppNotificationItem(
+      id: id,
+      title: resolvedTitle,
+      body: resolvedBody,
+      createdAt: DateTime.now(),
       data: merged,
+      isRead: index >= 0 ? notifications[index].isRead : false,
     );
+    if (index >= 0) {
+      notifications[index] = item;
+    } else {
+      notifications.insert(0, item);
+    }
+    _recalculateUnread();
+    await _saveToStorage();
   }
 
   String _orderStatusInAppId(Map<String, dynamic>? data) {
     if (data == null) return 'order_status_unknown';
     final oid = data['order_id']?.toString().trim() ?? '';
-    final st = _normalizeStatus(
-      data['status']?.toString() ?? data['order_status']?.toString() ?? '',
-    );
-    if (oid.isEmpty) return 'order_status_$st';
-    return 'order_status_${oid}_$st';
+    if (oid.isEmpty) return 'order_status_unknown';
+    return 'order_status_$oid';
   }
 
   Future<void> _upsertOrderProgressNotification(
@@ -209,102 +298,31 @@ class PushNotificationService extends GetxService {
     String? titleOverride,
     String? bodyOverride,
   }) async {
+    if (!_localInitialized || _orderProgressPresenter == null) return;
+
     final rawOrderId = data['order_id'];
     final orderId = rawOrderId?.toString().trim();
     if (orderId == null || orderId.isEmpty || orderId == 'null') return;
 
     final collapseId = data['collapse_id']?.toString().trim();
-    final orderKey =
-        collapseId != null && collapseId.isNotEmpty
-            ? collapseId
-            : data['notification_key']?.toString().trim().isNotEmpty == true
-            ? data['notification_key']!.toString().trim()
-            : 'order_$orderId';
-    final androidGroup = data['android_group']?.toString().trim();
-    final groupKey = androidGroup != null && androidGroup.isNotEmpty
-        ? androidGroup
+    final orderKey = collapseId != null && collapseId.isNotEmpty
+        ? collapseId
         : 'order_$orderId';
     final explicitNotificationId =
         _asInt(data['android_notification_id']) ?? _asInt(data['order_id']);
-    final notificationId = _safeAndroidNotifyId(
-      explicitNotificationId ??
-          _resolveNotificationId(
-            key: orderKey,
-            store: _orderNotificationIds,
-          ),
-    );
     if (explicitNotificationId == null) {
+      _resolveNotificationId(
+        key: orderKey,
+        store: _orderNotificationIds,
+      );
       await _saveNotificationIdMappings();
     }
 
-    final orderType = (data['order_type'] ?? data['service_type'] ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
-    final resolvedStepTotal =
-        _asInt(data['step_total']) ?? defaultStepTotalForOrderType(orderType);
-    final effectiveStatus = _effectiveStatusForProgress(data);
-    final serviceName = data['service_name']?.toString().trim().toLowerCase();
-    final resolvedStepIndex = _asInt(data['step_index']) ??
-        _statusToStepIndex(
-          effectiveStatus,
-          resolvedStepTotal,
-          orderType: orderType,
-          serviceName: serviceName,
-        );
-
-    final int clampedTotal = resolvedStepTotal <= 0
-        ? defaultStepTotalForOrderType(orderType)
-        : resolvedStepTotal;
-    final int clampedStep =
-        resolvedStepIndex.clamp(0, clampedTotal).toInt();
-    final orderNumber = data['order_number']?.toString().trim();
-    final statusText = data['status_label']?.toString().trim().isNotEmpty == true
-        ? data['status_label'].toString().trim()
-        : _defaultStatusLabel(effectiveStatus);
-    final title = (titleOverride != null && titleOverride.trim().isNotEmpty)
-        ? titleOverride.trim()
-        : (orderNumber != null && orderNumber.isNotEmpty
-            ? 'notifications.orderNumber'.trParams({'number': orderNumber})
-            : 'notifications.orderStatusUpdate'.tr);
-    final bodyFromRemote =
-        bodyOverride != null && bodyOverride.trim().isNotEmpty
-            ? bodyOverride.trim()
-            : null;
-    final body = bodyFromRemote ??
-        '$statusText ($clampedStep/$clampedTotal)';
-    final isFinished = _isTerminalOrderStatus(effectiveStatus);
-
-    // Keep Android native progress line visible and stable across devices.
-    final styleInfo = BigTextStyleInformation(body);
-
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _ordersChannelId,
-        'notifications.trackOrders'.tr,
-        channelDescription: 'notifications.orderStatusProgress'.tr,
-        color: const Color(0xFFFF8A00),
-        importance: Importance.low,
-        priority: Priority.low,
-        showProgress: !isFinished,
-        maxProgress: clampedTotal,
-        progress: isFinished ? clampedTotal : clampedStep,
-        groupKey: groupKey,
-        onlyAlertOnce: true,
-        playSound: true,
-        enableVibration: false,
-        enableLights: false,
-        ongoing: !isFinished,
-        autoCancel: isFinished,
-        styleInformation: styleInfo,
-      ),
+    await _orderProgressPresenter!.showOrUpdate(
+      data,
+      titleOverride: titleOverride,
+      bodyOverride: bodyOverride,
     );
-    await _localNotifications.show(notificationId, title, body, details);
-  }
-
-  int _safeAndroidNotifyId(int id) {
-    if (id == 0) return _stableInt('order_notify_zero');
-    return id & 0x7fffffff;
   }
 
   Future<void> _upsertChatNotification(Map<String, dynamic> data) async {
@@ -365,287 +383,36 @@ class PushNotificationService extends GetxService {
     return int.tryParse(value?.toString() ?? '');
   }
 
-  static const Set<String> _arrivalProgressStatuses = {
-    'arrived',
-    'waiting',
-    'arrived_waiting',
-    'driver_arrived',
-    'at_destination',
-    'at_pickup',
-    'waiting_at_destination',
-    'waiting_at_pickup',
-  };
-
-  static const Set<String> _dispatchPreferredStatuses = {
-    'accepted',
-    'assigned',
-    'on_the_way_to_pickup',
-    'picked_up',
-    'on_way',
-    'arrived',
-    'waiting',
-    'arrived_waiting',
-    'driver_arrived',
-    'at_destination',
-    'at_pickup',
-    'waiting_at_destination',
-    'waiting_at_pickup',
-    'delivered',
-    'completed',
-  };
-
-  String _effectiveStatusForProgress(Map<String, dynamic> data) {
-    final main = _canonicalStatus(
-      data['status']?.toString() ?? data['order_status']?.toString() ?? '',
-    );
-    final dispatch = _canonicalStatus(
-      data['dispatch_status']?.toString() ??
-          data['driver_status']?.toString() ??
-          '',
-    );
-    if (_arrivalProgressStatuses.contains(main)) return main;
-    if (_arrivalProgressStatuses.contains(dispatch)) return dispatch;
-    if (dispatch.isNotEmpty &&
-        _dispatchPreferredStatuses.contains(dispatch) &&
-        (main.isEmpty || main == 'pending' || main == 'accepted')) {
-      return dispatch;
-    }
-    if (main.isNotEmpty) return main;
-    return dispatch;
-  }
-
-  int _statusToStepIndex(
-    String status,
-    int stepTotal, {
-    String orderType = '',
-    String? serviceName,
-  }) {
-    final normalizedStatus = _canonicalStatus(status);
-    final max = stepTotal <= 0 ? 5 : stepTotal;
-    final isStore = serviceName == 'store';
-    final type = orderType == 'shipping'
-        ? 'shipping'
-        : orderType == 'taxi'
-            ? 'taxi'
-            : 'food';
-
-    int mapFood(String s) {
-      switch (s) {
-        case 'pending':
-        case 'no_driver':
-          return 0;
-        case 'accepted':
-        case 'assigned':
-          return 1;
-        case 'preparing':
-        case 'ready':
-          return 2;
-        case 'on_the_way_to_pickup':
-          return isStore ? 2 : 3;
-        case 'picked_up':
-          return 3;
-        case 'on_way':
-          return max > 4 ? 4 : (max - 1).clamp(1, max);
-        case 'arrived':
-        case 'waiting':
-        case 'arrived_waiting':
-        case 'driver_arrived':
-        case 'at_destination':
-        case 'at_pickup':
-        case 'waiting_at_destination':
-        case 'waiting_at_pickup':
-          return max > 4 ? 4 : (max - 1).clamp(1, max);
-        case 'delivered':
-        case 'completed':
-        case 'cancelled':
-        case 'canceled':
-          return max;
-        default:
-          return 1;
-      }
-    }
-
-    int mapShipping(String s) {
-      switch (s) {
-        case 'pending':
-        case 'no_driver':
-          return 0;
-        case 'accepted':
-        case 'assigned':
-          return 1;
-        case 'preparing':
-          return 1;
-        case 'on_the_way_to_pickup':
-          return 2;
-        case 'picked_up':
-          return 3;
-        case 'on_way':
-          return 4;
-        case 'arrived':
-        case 'waiting':
-        case 'arrived_waiting':
-        case 'driver_arrived':
-        case 'at_destination':
-        case 'at_pickup':
-        case 'waiting_at_destination':
-        case 'waiting_at_pickup':
-          return 4;
-        case 'delivered':
-        case 'completed':
-        case 'cancelled':
-        case 'canceled':
-          return max;
-        default:
-          return 1;
-      }
-    }
-
-    int mapTaxi(String s) {
-      switch (s) {
-        case 'pending':
-        case 'no_driver':
-          return 0;
-        case 'accepted':
-        case 'assigned':
-          return 1;
-        case 'preparing':
-          return 2;
-        case 'on_the_way_to_pickup':
-        case 'on_way':
-          return 2;
-        case 'picked_up':
-          return 3;
-        case 'arrived':
-        case 'waiting':
-        case 'arrived_waiting':
-        case 'driver_arrived':
-        case 'at_destination':
-        case 'at_pickup':
-        case 'waiting_at_destination':
-        case 'waiting_at_pickup':
-          return 3;
-        case 'delivered':
-        case 'completed':
-        case 'cancelled':
-        case 'canceled':
-          return max;
-        default:
-          return 1;
-      }
-    }
-
-    switch (type) {
-      case 'shipping':
-        return mapShipping(normalizedStatus).clamp(0, max);
-      case 'taxi':
-        return mapTaxi(normalizedStatus).clamp(0, max);
-      default:
-        return mapFood(normalizedStatus).clamp(0, max);
-    }
-  }
-
-  String _defaultStatusLabel(String statusRaw) {
-    final status = _canonicalStatus(statusRaw);
-    switch (status) {
-      case 'pending':
-        return 'notifications.statusPending'.tr;
-      case 'accepted':
-        return 'notifications.statusAccepted'.tr;
-      case 'on_the_way_to_pickup':
-        return 'notifications.statusOnWayToPickup'.tr;
-      case 'picked_up':
-        return 'notifications.statusPickedUp'.tr;
-      case 'on_way':
-        return 'notifications.statusOnWay'.tr;
-      case 'preparing':
-        return 'notifications.statusPreparing'.tr;
-      case 'ready':
-        return 'notifications.statusReady'.tr;
-      case 'arrived':
-      case 'waiting':
-      case 'arrived_waiting':
-      case 'driver_arrived':
-      case 'at_destination':
-      case 'at_pickup':
-      case 'waiting_at_destination':
-      case 'waiting_at_pickup':
-        return 'notifications.statusDriverWaiting'.tr;
-      case 'no_driver':
-        return 'notifications.statusNoDriver'.tr;
-      case 'delivered':
-      case 'completed':
-        return 'notifications.statusDelivered'.tr;
-      case 'cancelled':
-      case 'canceled':
-        return 'notifications.statusCancelled'.tr;
-      default:
-        return 'notifications.statusGenericUpdate'.tr;
-    }
-  }
-
-  bool _isTerminalOrderStatus(String statusRaw) {
-    final status = _canonicalStatus(statusRaw);
-    return status == 'delivered' ||
-        status == 'completed' ||
-        status == 'cancelled' ||
-        status == 'canceled';
-  }
-
-  String _canonicalStatus(String raw) {
-    var s = _normalizeStatus(raw);
-    if (s.isEmpty) return s;
-
-    // Backend payloads may prefix values, e.g. food_preparing / order_delivered.
-    if (s.startsWith('food_')) s = s.substring(5);
-    if (s.startsWith('order_')) s = s.substring(6);
-
-    switch (s) {
-      case 'driver_assigned':
-      case 'accepted_by_driver':
-      case 'dispatching':
-        return 'assigned';
-      case 'preparing_food':
-      case 'being_prepared':
-        return 'preparing';
-      case 'pickup':
-      case 'pickedup':
-        return 'picked_up';
-      case 'on_the_way':
-      case 'on_the_way_to_customer':
-      case 'on_the_way_to_dropoff':
-      case 'out_for_delivery':
-      case 'in_transit':
-      case 'heading_to_customer':
-        return 'on_way';
-      case 'delivered_to_customer':
-        return 'delivered';
-      case 'complete':
-        return 'completed';
-      default:
-        return s;
-    }
-  }
-
   Future<void> _handleOrderStatusMilestones(Map<String, dynamic>? data) async {
     if (data == null) return;
     final type = data['type']?.toString().trim().toLowerCase();
-    if (type != 'order_status') return;
+    if (type == 'order_status') return;
+
+    final orderType =
+        (data['order_type'] ?? data['service_type'] ?? '').toString();
+    if (TaxiOrderState.isTaxiOrderType(orderType)) return;
 
     final orderId = data['order_id']?.toString();
     if (orderId == null || orderId.trim().isEmpty) return;
 
-    final status = _canonicalStatus(
+    final status = OrderProgressNotificationMapper.canonicalStatus(
       data['status']?.toString() ?? data['order_status']?.toString() ?? '',
     );
-    final dispatchStatus = _canonicalStatus(
+    final dispatchStatus = OrderProgressNotificationMapper.canonicalStatus(
       data['dispatch_status']?.toString() ??
           data['driver_status']?.toString() ??
           '',
     );
-    final isNearAddress = _nearAddressStatuses.contains(status) ||
-        _nearAddressStatuses.contains(dispatchStatus);
-    final isArrivedWaiting = _arrivedWaitingStatuses.contains(status) ||
-        _arrivedWaitingStatuses.contains(dispatchStatus);
+    final isPrePickupAssignment =
+        _prePickupAssignmentStatuses.contains(status) ||
+        _prePickupAssignmentStatuses.contains(dispatchStatus);
+
+    final isNearAddress = !isPrePickupAssignment &&
+        (_nearAddressStatuses.contains(status) ||
+            _nearAddressStatuses.contains(dispatchStatus));
+    final isArrivedWaiting = !isPrePickupAssignment &&
+        (_arrivedWaitingStatuses.contains(status) ||
+            _arrivedWaitingStatuses.contains(dispatchStatus));
 
     if (isNearAddress) {
       await pushLocalInAppNotification(
@@ -672,9 +439,15 @@ class PushNotificationService extends GetxService {
     }
   }
 
-  String _normalizeStatus(String raw) {
-    return raw.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
-  }
+  static const Set<String> _prePickupAssignmentStatuses = {
+    'pending',
+    'searching',
+    'dispatching',
+    'assigned',
+    'accepted',
+    'driver_assigned',
+    'accepted_by_driver',
+  };
 
   static const Set<String> _nearAddressStatuses = {
     'on_way',
@@ -696,22 +469,21 @@ class PushNotificationService extends GetxService {
   };
 
   Future<void> subscribeDevice(String userToken) async {
+    final normalizedToken = userToken.trim();
+    if (normalizedToken.isEmpty) return;
+    _pendingSubscribeToken = normalizedToken;
+
     final playerId = OneSignal.User.pushSubscription.id;
     if (playerId == null || playerId.trim().isEmpty) return;
 
-    final uri = Uri.parse('${ApiConfig.baseUrl}/onesignal/subscribe');
     try {
-      await _http
-          .post(
-            uri,
-            headers: {
-              'Authorization': 'Bearer $userToken',
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({'player_id': playerId}),
-          )
-          .timeout(ApiConfig.timeout);
+      await _api.request(
+        method: 'POST',
+        path: Endpoints.onesignalSubscribe,
+        token: normalizedToken,
+        body: {'player_id': playerId},
+        retries: 0,
+      );
     } catch (_) {
       // Keep app flow intact even if notification subscription fails.
     }
@@ -721,19 +493,14 @@ class PushNotificationService extends GetxService {
     final playerId = OneSignal.User.pushSubscription.id;
     if (playerId == null || playerId.trim().isEmpty) return;
 
-    final uri = Uri.parse('${ApiConfig.baseUrl}/onesignal/unsubscribe');
     try {
-      await _http
-          .post(
-            uri,
-            headers: {
-              'Authorization': 'Bearer $userToken',
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({'player_id': playerId}),
-          )
-          .timeout(ApiConfig.timeout);
+      await _api.request(
+        method: 'POST',
+        path: Endpoints.onesignalUnsubscribe,
+        token: userToken,
+        body: {'player_id': playerId},
+        retries: 0,
+      );
     } catch (_) {
       // Keep app flow intact even if notification unsubscription fails.
     }

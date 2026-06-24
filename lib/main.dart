@@ -12,26 +12,38 @@ import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/no_internet_gate_controller.dart';
 import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
-import 'package:najiz_go_express/core/services/favorites_controller.dart';
+import 'package:najiz_go_express/core/di/app_dependencies.dart';
+import 'package:najiz_go_express/features/favorites/controllers/favorites_controller.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/features/auth/controllers/login_controller.dart';
+import 'package:najiz_go_express/core/peak_hour/controllers/peak_hour_controller.dart';
+import 'package:najiz_go_express/features/home/services/home_bootstrap_cache.dart';
+import 'package:najiz_go_express/features/support/services/support_dependencies.dart';
 import 'package:najiz_go_express/features/splash/views/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   installGlobalErrorHandling();
-  await AppTranslations.init();
-  final token = await SessionService.getToken();
-  final savedLocale = await SessionService.getLocaleCode();
+  final startup = await Future.wait<dynamic>([
+    AppTranslations.init(),
+    SessionService.getToken(),
+    SessionService.getLocaleCode(),
+    HomeBootstrapCache.warmMemory(),
+  ]);
+  final token = startup[1] as String?;
+  final savedLocale = startup[2] as String?;
   final authStateManager = Get.put(AuthStateManager(), permanent: true);
   await authStateManager.initialize(initialToken: token);
+  registerAppDependencies();
+  resolveSupportChatPresenceService();
   Get.put(FavoritesController(), permanent: true);
   Get.put(AppCartService(), permanent: true);
   Get.put(ThemeController(), permanent: true);
   await Get.find<ThemeController>().hydrate();
   Get.put(NoInternetGateController(), permanent: true);
   Get.put(PushNotificationService(), permanent: true);
+  Get.put(PeakHourController(), permanent: true);
   Get.put(LoginController());
   runApp(MyApp(initialLocaleCode: savedLocale));
   unawaited(Get.find<PushNotificationService>().initialize(token: token));

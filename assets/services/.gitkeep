@@ -1,0 +1,2 @@
+# Drop service PNGs here (taxi.png, restaurant.png, store.png, supermarket.png, shipping.png)
+# and register paths in lib/features/home/config/local_service_catalog.dart

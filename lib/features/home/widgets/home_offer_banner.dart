@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/data/models/offer_model.dart';
-import 'package:najiz_go_express/features/home/widgets/network_image_with_fallback.dart';
+import 'package:najiz_go_express/features/home/models/offer_model.dart';
+import 'package:najiz_go_express/core/widgets/network_image_with_fallback.dart';
 
 class HomeOfferBanner extends StatefulWidget {
   final List<OfferModel> offers;

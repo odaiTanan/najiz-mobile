@@ -3,8 +3,9 @@ import 'package:get/get.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
 import 'package:najiz_go_express/core/errors/error_sanitizer.dart';
+import 'package:najiz_go_express/core/errors/feature_api_exception.dart';
 import 'package:najiz_go_express/core/errors/home_api_exception.dart';
-import 'package:najiz_go_express/data/repositories/auth_repository.dart';
+import 'package:najiz_go_express/features/auth/errors/auth_api_exception.dart';
 
 /// Central snackbars for errors — never shows raw stack traces or HTTP dumps.
 class UserFeedback {
@@ -12,6 +13,7 @@ class UserFeedback {
 
   static String _messageFor(Object error) {
     if (error is String) return error;
+    if (error is FeatureApiException) return error.message;
     if (error is HomeApiException) return error.message;
     if (error is AuthApiException) {
       return ErrorSanitizer.serverToUser(error.message, error.statusCode);

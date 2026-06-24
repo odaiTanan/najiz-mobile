@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+3
+version: 1.0.1+4
 
 environment:
   sdk: ^3.10.7
@@ -31,9 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   flutter_localizations:
     sdk: flutter
 
@@ -41,13 +38,13 @@ dependencies:
   http: ^1.2.2
   internet_connection_checker: ^3.0.1
   shared_preferences: ^2.3.2
-  flutter_map: ^8.2.2
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   geocoding: ^4.0.0
   lottie: ^3.3.1
   onesignal_flutter: ^5.3.4
   flutter_local_notifications: ^17.2.3
+  path_provider: ^2.1.5
   pusher_client:
     path: third_party/pusher_client_fixed
   shimmer: ^3.0.0
@@ -55,7 +52,7 @@ dependencies:
   url_launcher: ^6.3.1
   image_picker: ^1.1.2
   flutter_svg: ^2.2.0
-  video_player: ^2.10.0
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
@@ -89,15 +86,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/logo.png
     - assets/logo_light.png
     - assets/logo_dark.png
+    - assets/image_loading_pattern.png
     - assets/lottie/yellow_delivery_guy.json
-    - assets/google_logo.png
-    - assets/apple_logo.png
-    - assets/videos/splash.mp4.mp4
     - assets/i18n/ar.json
     - assets/i18n/en.json
+    - assets/services/
   fonts:
     - family: Cairo
       fonts:

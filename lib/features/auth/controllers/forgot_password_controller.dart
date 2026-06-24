@@ -1,13 +1,14 @@
-﻿import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/data/repositories/auth_repository.dart';
+import 'package:najiz_go_express/features/auth/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
+import 'package:najiz_go_express/features/auth/services/auth_dependencies.dart';
+import 'package:najiz_go_express/features/auth/services/auth_request_runner.dart';
 import 'package:najiz_go_express/features/auth/views/otp_verification_screen.dart';
 
 class ForgotPasswordController extends GetxController {
   ForgotPasswordController({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+      : _authRepository = resolveAuthRepository(authRepository);
 
   final AuthRepository _authRepository;
 
@@ -24,24 +25,28 @@ class ForgotPasswordController extends GetxController {
 
     isLoading.value = true;
     try {
-      final result =
-          await _authRepository.forgotPassword(phone: phoneController.text.trim());
-
-      Get.to(
-        () => OtpVerificationScreen(
-          purpose: OtpPurpose.forgotPassword,
-          phone: result.phone ?? phoneController.text.trim(),
-        ),
+      await runAuthRequest(
+        isLoading: isLoading,
+        attempt: _sendCodeAttempt,
+        mapError: (raw) => raw,
+        setError: (message) => errorMessage.value = message,
       );
-    } on AuthApiException catch (e) {
-      errorMessage.value = e.message;
-      AppSnackbar.show('errors.generic'.tr, e.message);
-    } catch (_) {
-      errorMessage.value = 'auth.networkError'.tr;
-      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _sendCodeAttempt() async {
+    final result = await _authRepository.forgotPassword(
+      phone: phoneController.text.trim(),
+    );
+
+    Get.to(
+      () => OtpVerificationScreen(
+        purpose: OtpPurpose.forgotPassword,
+        phone: result.phone ?? phoneController.text.trim(),
+      ),
+    );
   }
 
   @override
@@ -50,4 +55,3 @@ class ForgotPasswordController extends GetxController {
     super.onClose();
   }
 }
-

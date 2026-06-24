@@ -24,6 +24,9 @@
     "close": "إغلاق",
     "retry": "إعادة المحاولة"
   },
+  "peakHour": {
+    "priceNotice": "وقت الذروة الآن"
+  },
   "login": {
     "title": "مرحباً بعودتك",
     "subtitle": "سجّل الدخول إلى حسابك للمتابعة",
@@ -73,6 +76,8 @@
     "guest": "ضيف",
     "user": "مستخدم",
     "premiumMember": "عضو مميز",
+    "userType": "نوع المستخدم: @type",
+    "loyaltyPoints": "@points نقطة",
     "noEmail": "لا يوجد بريد إلكتروني",
     "noPhone": "لا يوجد رقم هاتف",
     "createAccount": "إنشاء حساب",
@@ -154,7 +159,7 @@
     "shippingStepOnWay": "في الطريق للتوصيل",
     "shippingStepDelivered": "تم التوصيل والتسليم",
     "taxiStepAccepted": "تم قبول الطلب",
-    "taxiStepDriverToPickup": "السائق متجه للاستلام",
+    "taxiStepDriverToPickup": "تم قبول الطلب والسائق متجه إليك",
     "taxiStepStarted": "تم بدء الرحلة",
     "taxiStepOnWay": "في الطريق للوجهة",
     "taxiStepFinished": "تم إنهاء الرحلة",
@@ -176,6 +181,14 @@
     "orderStep2": "في الطريق",
     "orderStep3": "قريباً",
     "orderStep4": "تم الوصول"
+  },
+  "homeServices": {
+    "taxi": "تاكسي",
+    "restaurant": "مطاعم",
+    "store": "متجر",
+    "supermarket": "سوبرماركت",
+    "shipping": "شحن",
+    "unknown": "خدمة"
   },
   "services": {
     "stores": "متاجر",
@@ -269,6 +282,9 @@
     "cancelled": "ملغي",
     "loadFailed": "تعذر تحميل الطلبات",
     "cancelFailed": "تعذر إلغاء الطلب",
+    "cancellationLimitTitle": "تم تقييد حسابك",
+    "cancellationLimitMessage": "لقد تجاوزت الحد المسموح لإلغاء الطلبات. يرجى تسجيل الدخول مرة أخرى للمتابعة.",
+    "cancellationLimitOk": "موافق",
     "all": "الكل",
     "taxi": "تكسي",
     "shipping": "شحن",
@@ -340,7 +356,10 @@
     "invoiceFailed": "فشل حساب الفاتورة",
     "loginForOrder": "يرجى تسجيل الدخول لإكمال الطلب",
     "noOrderIdFromServer": "لم يتم استلام رقم الطلب من الخادم",
-    "loginForAddress": "يرجى تسجيل الدخول لإضافة عنوان جديد"
+    "loginForAddress": "يرجى تسجيل الدخول لإضافة عنوان جديد",
+    "tapToUseCurrentLocation": "اضغط لاستخدام موقعك الحالي",
+    "savedAddressMissingCoords": "هذا العنوان لا يحتوي على إحداثيات، اختر موقعاً من الخريطة",
+    "loginForSavedAddresses": "سجّل الدخول لاختيار عنوان محفوظ"
   },
   "shipping": {
     "couponStep": "الخطوة 4: كوبون الخصم",
@@ -404,7 +423,20 @@
     "customerService": "خدمة العملاء",
     "loadFailed": "تعذر تحميل محادثة الدعم الفني",
     "sendFailed": "تعذر إرسال الرسالة",
-    "agentTitle": "الدعم الفني"
+    "agentTitle": "الدعم الفني",
+    "floatingActive": "محادثة الدعم نشطة",
+    "floatingUnread": "رسالة جديدة من الدعم",
+    "hideFloatingChat": "إخفاء أيقونة الدردشة",
+    "hideFloatingChatMessage": "يمكنك إخفاء الأيقونة من الشاشة الرئيسية. ستظهر مجدداً عند وصول رد جديد من الدعم.",
+    "hide": "إخفاء",
+    "cancel": "إلغاء",
+    "dragToHide": "اسحب هنا للإخفاء"
+  },
+  "dispatch": {
+    "noDriverTitle": "لم يتم تعيين سائق",
+    "noDriverMessage": "لم يتم تعيين سائق، أعد المحاولة مرة أخرى",
+    "returnToOrder": "العودة لصفحة الطلب",
+    "noDriverCancelReason": "لم يتم تعيين سائق خلال المهلة المحددة"
   },
   "tracking": {
     "title": "تتبع الطلب",
@@ -442,6 +474,9 @@
     "foodOnWay": "في الطريق",
     "foodDelivered": "تم التوصيل",
     "cancelled": "ملغي",
+    "vendorRejectedMessage": "عذراً، تم رفض طلبك من المطعم",
+    "storeRejectedMessage": "عذراً، تم رفض طلبك من المتجر",
+    "returnHome": "العودة للصفحة الرئيسية",
     "dispatching": "جاري التعيين",
     "driverAccepted": "تم قبول السائق",
     "driverOnWay": "السائق بالطريق",
@@ -451,10 +486,15 @@
     "deliveredAndHandedOver": "تم التوصيل والتسليم",
     "driverOnWayToDelivery": "السائق في الطريق للتوصيل",
     "driverHeadingToPickup": "السائق متجه للاستلام",
+    "shippingStepAccepted": "تم القبول",
+    "shippingStepHeadingToPickup": "في الطريق للاستلام",
+    "shippingStepPickedUp": "تم الاستلام",
+    "shippingStepOnWayToDelivery": "في الطريق للتوصيل",
+    "shippingStepDelivered": "تم التوصيل",
     "driverAcceptedOrder": "تم قبول الطلب من السائق",
     "tripFinished": "تم إنهاء الرحلة",
     "headingToDestination": "في الطريق إلى الوجهة",
-    "driverHeadingToYou": "السائق في الطريق إليك",
+    "driverHeadingToYou": "تم قبول الطلب والسائق متجه إليك",
     "orderAcceptedByDriver": "تم قبول طلبك",
     "thankYouForTrip": "شكرًا لاستخدامك خدمة النقل",
     "followDriverLive": "يمكنك متابعة مسار السائق لحظيًا",
@@ -492,8 +532,20 @@
     "shareRoute": "المسار المباشر: @link",
     "followLiveTripLabel": "متابعة الرحلة لحظيًا",
     "etaDistanceLeft": "@distance كم متبقي",
+    "estimatedDeliveryTime": "الوقت المتوقع للتوصيل",
+    "estimatedDeliveryAt": "متوقع الساعة @time",
     "waitingDistanceUpdate": "بانتظار تحديث المسافة",
     "shareTrip": "مشاركة الرحلة",
+    "sosButton": "طوارئ SOS",
+    "sosDialogTitle": "طلب مساعدة طارئة",
+    "sosDialogMessage": "سيتم إبلاغ فريق الدعم فوراً بموقع رحلتك الحالية. يمكنك إضافة سبب اختياري.",
+    "sosReasonLabel": "السبب (اختياري)",
+    "sosReasonHint": "صف الموقف باختصار...",
+    "sosConfirm": "إرسال SOS",
+    "sosSent": "تم إرسال SOS",
+    "sosSentTitle": "تم إرسال طلب المساعدة",
+    "sosSentMessage": "تم إبلاغ فريق الدعم وسيتواصل معك في أقرب وقت",
+    "sosFailed": "تعذر إرسال طلب SOS",
     "tripEndedLabel": "انتهت الرحلة",
     "rateOrder": "قيّم طلبك",
     "rateTrip": "قيّم رحلتك",
@@ -511,6 +563,7 @@
     "ratingLabel": "التقييم",
     "notAvailable": "غير متاح",
     "deliveryCode": "كود التسليم",
+    "deliveryCodeCopied": "تم نسخ كود التسليم",
     "shareDeliveryCode": "شارك هذا الكود مع المستلم لتأكيد تسليم طلب الشحن",
     "thankYou": "شكراً لك",
     "ratingSentSuccess": "تم إرسال تقييم الرحلة بنجاح",
@@ -702,7 +755,14 @@
     "required": "هذا الحقل مطلوب",
     "deliveryLabel": "عنوان التوصيل",
     "currentLocation": "الموقع الحالي",
-    "addNew": "إضافة عنوان جديد"
+    "useCurrentLocationTitle": "استخدم موقعي الحالي",
+    "useCurrentLocationHint": "بنوصل طلبك لموقعك الحالي بدون حفظ العنوان",
+    "addNew": "إضافة عنوان جديد",
+    "addNewHint": "احفظ عنواناً لاستخدامه لاحقاً",
+    "pickFromMapTitle": "حدد من الخريطة",
+    "pickFromMapHint": "ابحث بالاسم أو اختر الموقع مباشرة على الخريطة",
+    "savedAddressesTitle": "العناوين المحفوظة",
+    "savedFallbackTitle": "عنوان محفوظ"
   },
   "location": {
     "determining": "جاري تحديد موقعك...",

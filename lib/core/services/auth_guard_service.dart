@@ -4,8 +4,7 @@ import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/theme/theme_context.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
-import 'package:najiz_go_express/features/auth/views/login_screen.dart';
-import 'package:najiz_go_express/features/auth/views/signup_screen.dart';
+import 'package:najiz_go_express/core/routes/app_routes.dart';
 
 class AuthGuardService {
   AuthGuardService._();
@@ -62,7 +61,7 @@ class AuthGuardService {
                     child: FilledButton(
                       onPressed: () {
                         Get.back();
-                        Get.to(() => const LoginScreen());
+                        AppRoutes.openLogin();
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -84,7 +83,7 @@ class AuthGuardService {
                     child: OutlinedButton(
                       onPressed: () {
                         Get.back();
-                        Get.to(() => const SignupScreen());
+                        AppRoutes.openSignup();
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,

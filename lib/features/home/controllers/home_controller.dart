@@ -1,44 +1,79 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:najiz_go_express/features/restaurant/errors/restaurant_api_exception.dart';
+import 'package:najiz_go_express/features/home/errors/home_api_exception.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
 import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
+import 'package:najiz_go_express/core/utils/remote_image_cache_warmer.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
-import 'package:najiz_go_express/data/models/offer_model.dart';
-import 'package:najiz_go_express/data/models/service_model.dart';
-import 'package:najiz_go_express/data/models/vendor_model.dart';
-import 'package:najiz_go_express/data/repositories/auth_repository.dart';
-import 'package:najiz_go_express/data/repositories/home_repository.dart';
-import 'package:najiz_go_express/features/home/models/user_order.dart';
-import 'package:najiz_go_express/features/home/views/notifications_screen.dart';
-import 'package:najiz_go_express/features/home/views/order_tracking_screen.dart';
-import 'package:najiz_go_express/features/home/views/cart_screen.dart';
-import 'package:najiz_go_express/features/home/views/restaurant_products_screen.dart';
-import 'package:najiz_go_express/features/home/views/restaurant_vendor_products_screen.dart';
-import 'package:najiz_go_express/features/home/views/shipping_screen.dart';
-import 'package:najiz_go_express/features/home/views/taxi_booking_screen.dart';
-import 'package:najiz_go_express/features/home/views/my_orders_screen.dart';
-import 'package:najiz_go_express/features/home/views/transport_order_tracking_screen.dart';
-import 'package:najiz_go_express/features/support/views/support_chat_screen.dart';
+import 'package:najiz_go_express/features/home/models/offer_model.dart';
+import 'package:najiz_go_express/features/home/models/service_kind.dart';
+import 'package:najiz_go_express/features/home/models/service_model.dart';
+import 'package:najiz_go_express/features/restaurant/models/vendor_model.dart';
+import 'package:najiz_go_express/features/auth/repositories/auth_repository.dart';
+import 'package:najiz_go_express/features/auth/services/auth_dependencies.dart';
+import 'package:najiz_go_express/features/home/repositories/home_repository.dart';
+import 'package:najiz_go_express/features/home/services/home_bootstrap_cache.dart';
+import 'package:najiz_go_express/features/home/services/home_dependencies.dart';
+import 'package:najiz_go_express/features/home/services/offer_navigation_coordinator.dart';
+import 'package:najiz_go_express/features/home/services/service_catalog_service.dart';
+import 'package:najiz_go_express/features/orders/repositories/orders_repository.dart';
+import 'package:najiz_go_express/features/orders/services/orders_dependencies.dart';
+import 'package:najiz_go_express/features/restaurant/repositories/restaurant_repository.dart';
+import 'package:najiz_go_express/features/restaurant/services/restaurant_dependencies.dart';
+import 'package:najiz_go_express/features/orders/models/user_order.dart';
+import 'package:najiz_go_express/core/routes/app_routes.dart';
+import 'package:najiz_go_express/features/orders/views/order_tracking_screen.dart';
+import 'package:najiz_go_express/features/orders/views/cart_screen.dart';
+import 'package:najiz_go_express/features/restaurant/views/restaurant_products_screen.dart';
+import 'package:najiz_go_express/features/restaurant/views/restaurant_vendor_products_screen.dart';
+import 'package:najiz_go_express/features/shipping/views/shipping_screen.dart';
+import 'package:najiz_go_express/features/taxi/views/taxi_booking_screen.dart';
+import 'package:najiz_go_express/features/orders/views/my_orders_screen.dart';
+import 'package:najiz_go_express/features/orders/views/transport_order_tracking_screen.dart';
 
 class HomeController extends GetxController {
-  HomeController({this.token, HomeRepository? repository})
-    : _repository = repository ?? HomeRepository();
+  HomeController({
+    this.token,
+    HomeRepository? repository,
+    RestaurantRepository? restaurantRepository,
+    OrdersRepository? ordersRepository,
+    AuthRepository? authRepository,
+    OfferNavigationCoordinator? offerNavigationCoordinator,
+    ServiceCatalogService? serviceCatalogService,
+  })  : _repository = repository ?? resolveHomeRepository(),
+        _restaurantRepository =
+            restaurantRepository ?? resolveRestaurantRepository(),
+        _ordersRepository = ordersRepository ?? resolveOrdersRepository(),
+        _authRepository = authRepository ?? resolveAuthRepository(),
+        _offerNavigationCoordinator =
+            offerNavigationCoordinator ?? resolveOfferNavigationCoordinator(),
+        _serviceCatalogService =
+            serviceCatalogService ?? resolveServiceCatalogService();
 
   final String? token;
   final HomeRepository _repository;
-  final AuthRepository _authRepository = AuthRepository();
+  final RestaurantRepository _restaurantRepository;
+  final OrdersRepository _ordersRepository;
+  final AuthRepository _authRepository;
+  final OfferNavigationCoordinator _offerNavigationCoordinator;
+  final ServiceCatalogService _serviceCatalogService;
   late final AuthStateManager _authStateManager;
   late final PushNotificationService _pushNotificationService;
 
   final isLoading = false.obs;
+  final isVendorsLoading = false.obs;
+  final isLoadingMoreVendors = false.obs;
+  final vendorCurrentPage = 1.obs;
+  final vendorLastPage = 1.obs;
   /// أثناء إعادة المحاولة بسبب الشبكة على الصفحة الرئيسية (شيمر + شريط تنبيه).
   final homeWaitingNetwork = false.obs;
   final offers = <OfferModel>[].obs;
@@ -53,6 +88,7 @@ class HomeController extends GetxController {
   final errorMessage = RxnString();
 
   bool _homeOfflineSnackShown = false;
+  Future<void>? _homeLoadFuture;
 
   bool get isGuest => _authStateManager.isGuest;
   String? get activeToken => _authStateManager.token.value ?? token;
@@ -60,6 +96,7 @@ class HomeController extends GetxController {
   UserOrder? get primaryActiveOrder =>
       activeOrders.isEmpty ? null : activeOrders.first;
   bool get hasMoreActiveOrders => activeOrders.length > 1;
+  bool get hasMoreVendors => vendorCurrentPage.value < vendorLastPage.value;
   List<VendorModel> get filteredVendors {
     return vendors.where((vendor) {
       final activeOk = vendorActiveFilter.value == null
@@ -78,16 +115,57 @@ class HomeController extends GetxController {
     super.onInit();
     _authStateManager = Get.find<AuthStateManager>();
     _pushNotificationService = Get.find<PushNotificationService>();
-    _loadIdentity();
+    primeInstantShell();
+    unawaited(_applyCachedDisplayName());
     _initSavedCartIfAny();
-    loadHomeData();
+    unawaited(loadHomeData());
+    unawaited(_deferIdentitySync());
+  }
+
+  /// Instant paint: disk cache, else local service catalog (no network wait).
+  void primeInstantShell() {
+    final snapshot = HomeBootstrapCache.memory;
+    if (snapshot != null) {
+      _applySnapshot(snapshot);
+      isLoading.value = false;
+      return;
+    }
+
+    if (services.isEmpty) {
+      services.assignAll(_serviceCatalogService.buildCatalogServices());
+    }
+    isLoading.value = false;
+  }
+
+  void _applySnapshot(HomeBootstrapSnapshot snapshot) {
+    offers.assignAll(snapshot.offers);
+    services.assignAll(
+      _serviceCatalogService.applyAll(snapshot.services),
+    );
+    if (snapshot.vendors.isNotEmpty) {
+      vendors.assignAll(snapshot.vendors);
+    }
+    if (snapshot.vendorServiceId != null) {
+      restaurantServiceId.value = snapshot.vendorServiceId;
+      selectedServiceId.value = snapshot.vendorServiceId;
+    }
+  }
+
+  Future<void> _deferIdentitySync() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (isClosed) return;
+    await _loadIdentity();
+  }
+
+  Future<void> _applyCachedDisplayName() async {
+    final identity = await SessionService.getUserIdentity();
+    final resolved = (identity['name'] ?? identity['phone'] ?? '').trim();
+    if (resolved.isNotEmpty) {
+      displayName.value = resolved;
+    }
   }
 
   Future<void> _loadIdentity() async {
-    final identity = await SessionService.getUserIdentity();
-    final resolved = (identity['name'] ?? identity['phone'] ?? '').trim();
-    displayName.value = resolved;
-
     final authToken = activeToken;
     if (authToken == null || authToken.trim().isEmpty) return;
     try {
@@ -107,53 +185,153 @@ class HomeController extends GetxController {
     }
   }
 
-  Future<void> _fetchHomePayload({required bool propagateConnectivity}) async {
-    final results = await Future.wait<dynamic>([
-      _repository.getOffers(token: activeToken),
-      _repository.getServices(token: activeToken),
-    ]);
-    final loadedOffers = (results[0] as List<OfferModel>);
-    final loadedServices = (results[1] as List<ServiceModel>);
+  Future<void> _fetchHomePayload({
+    required bool propagateConnectivity,
+    bool forceRefresh = false,
+  }) async {
+    final token = activeToken;
+
+    if (services.isEmpty) {
+      services.assignAll(_serviceCatalogService.buildCatalogServices());
+    }
+    final currentServices = services.toList(growable: false);
+    final vendorServiceId = currentServices.isNotEmpty
+        ? _pickDefaultRestaurantServiceId(currentServices)
+        : null;
+
+    if (vendorServiceId != null) {
+      restaurantServiceId.value = vendorServiceId;
+      selectedServiceId.value = vendorServiceId;
+    } else {
+      restaurantServiceId.value = null;
+    }
+
+    final loadedOffers = await _repository.getOffers(
+      token: token,
+      forceRefresh: forceRefresh,
+    );
 
     offers.assignAll(loadedOffers);
-    services.assignAll(loadedServices);
+    isLoading.value = false;
+    unawaited(
+      RemoteImageCacheWarmer.warmUrls(
+        loadedOffers.map((offer) => offer.image),
+        maxCount: 8,
+      ),
+    );
 
-    if (loadedServices.isNotEmpty) {
-      final initialServiceId = _pickDefaultRestaurantServiceId(
-        loadedServices,
-      );
-      restaurantServiceId.value = initialServiceId;
-      selectedServiceId.value = initialServiceId;
+    unawaited(
+      HomeBootstrapCache.save(
+        offers: loadedOffers,
+        services: currentServices,
+        vendors: vendors.toList(growable: false),
+        vendorServiceId: vendorServiceId,
+      ),
+    );
+
+    if (vendorServiceId != null) {
       unawaited(
-        loadVendorsByService(
-          initialServiceId,
+        _refreshVendorsInBackground(
+          vendorServiceId,
           propagateConnectivity: propagateConnectivity,
+          forceRefresh: forceRefresh,
         ),
       );
     } else {
-      restaurantServiceId.value = null;
       vendors.clear();
     }
-    unawaited(_loadActiveOrders());
+
+    unawaited(_syncServicesInBackground(forceRefresh: forceRefresh));
+    unawaited(_deferActiveOrders());
   }
 
-  Future<void> loadHomeData() async {
+  Future<void> _syncServicesInBackground({bool forceRefresh = false}) async {
+    try {
+      final loadedServices = await _repository.getServices(
+        token: activeToken,
+        forceRefresh: forceRefresh,
+      );
+      if (isClosed || loadedServices.isEmpty) return;
+
+      services.assignAll(loadedServices);
+      final vendorServiceId = _pickDefaultRestaurantServiceId(loadedServices);
+      final previousVendorServiceId = restaurantServiceId.value;
+      restaurantServiceId.value = vendorServiceId;
+      selectedServiceId.value = vendorServiceId;
+
+      unawaited(
+        HomeBootstrapCache.save(
+          offers: offers.toList(growable: false),
+          services: loadedServices,
+          vendors: vendors.toList(growable: false),
+          vendorServiceId: vendorServiceId,
+        ),
+      );
+
+      if (previousVendorServiceId != vendorServiceId) {
+        unawaited(
+          loadVendorsByService(
+            vendorServiceId,
+            propagateConnectivity: false,
+            persistCache: true,
+            forceRefresh: forceRefresh,
+          ),
+        );
+      }
+    } catch (_) {
+      // Catalog is already visible; ignore background sync failures.
+    }
+  }
+
+  Future<void> _deferActiveOrders() async {
+    await Future<void>.delayed(const Duration(seconds: 5));
+    if (isClosed) return;
+    await _loadActiveOrders();
+  }
+
+  Future<void> _refreshVendorsInBackground(
+    int serviceId, {
+    required bool propagateConnectivity,
+    bool forceRefresh = false,
+  }) {
+    return loadVendorsByService(
+      serviceId,
+      propagateConnectivity: propagateConnectivity,
+      persistCache: true,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  Future<void> loadHomeData({bool forceRefresh = false}) {
+    if (forceRefresh) {
+      return _loadHomeDataImpl(forceRefresh: true);
+    }
+    return _homeLoadFuture ??= _loadHomeDataImpl(forceRefresh: false).whenComplete(() {
+      _homeLoadFuture = null;
+    });
+  }
+
+  Future<void> refreshHomeData() => loadHomeData(forceRefresh: true);
+
+  Future<void> _loadHomeDataImpl({bool forceRefresh = false}) async {
     errorMessage.value = null;
-    isLoading.value = true;
     homeWaitingNetwork.value = false;
 
     try {
       while (!isClosed) {
         try {
-          await _fetchHomePayload(propagateConnectivity: true);
+          await _fetchHomePayload(
+            propagateConnectivity: true,
+            forceRefresh: forceRefresh,
+          );
           errorMessage.value = null;
           _homeOfflineSnackShown = false;
           homeWaitingNetwork.value = false;
           break;
-        } on HomeApiException catch (e) {
+        } on HomeFeatureApiException catch (e) {
           if (e.isConnectivityIssue) {
             homeWaitingNetwork.value = true;
-            if (!_homeOfflineSnackShown) {
+            if (!_homeOfflineSnackShown && !isClosed) {
               _homeOfflineSnackShown = true;
               AppSnackbar.show(
                 'offline.title'.tr,
@@ -227,8 +405,8 @@ class HomeController extends GetxController {
       return;
     }
     try {
-      final all = await _repository.getMyOrders(token: authToken);
-      final active = all.where(_isActiveOrder).toList(growable: false);
+      final page = await _ordersRepository.getMyOrdersPage(token: authToken);
+      final active = page.items.where(_isActiveOrder).toList(growable: false);
       active.sort((a, b) {
         final ad = DateTime.tryParse(a.createdAt);
         final bd = DateTime.tryParse(b.createdAt);
@@ -251,58 +429,131 @@ class HomeController extends GetxController {
   Future<void> loadVendorsByService(
     int serviceId, {
     bool propagateConnectivity = false,
+    bool persistCache = false,
+    bool forceRefresh = false,
+    bool showConnectivitySnackbar = true,
   }) async {
     selectedServiceId.value = serviceId;
+    final hadVendors = vendors.isNotEmpty;
+    if (!hadVendors) {
+      isVendorsLoading.value = true;
+    }
     try {
-      final loadedVendors = await _repository.getVendorsByService(
+      final result = await _restaurantRepository.getVendorsByService(
         token: activeToken,
         serviceId: serviceId,
+        forceRefresh: forceRefresh,
       );
-      vendors.assignAll(loadedVendors);
+      vendors.assignAll(result.items);
+      vendorCurrentPage.value = result.currentPage;
+      vendorLastPage.value = result.lastPage;
       vendorActiveFilter.value = null;
       vendorCuisineFilter.value = null;
-    } on HomeApiException catch (e) {
-      vendors.clear();
+      unawaited(
+        RemoteImageCacheWarmer.warmUrls(
+          result.items.map((vendor) => vendor.image ?? vendor.logo),
+          maxCount: 12,
+        ),
+      );
+      if (persistCache) {
+        unawaited(
+          HomeBootstrapCache.save(
+            offers: offers.toList(growable: false),
+            services: services.toList(growable: false),
+            vendors: result.items,
+            vendorServiceId: serviceId,
+          ),
+        );
+      }
+    } on RestaurantApiException catch (e) {
+      if (!hadVendors) vendors.clear();
       if (propagateConnectivity && e.isConnectivityIssue) {
         rethrow;
       }
       if (e.isConnectivityIssue) {
         errorMessage.value = AppErrorMessages.noInternet;
-        AppSnackbar.show(
-          'offline.title'.tr,
-          'home.waitingForNetworkHint'.tr,
-          duration: const Duration(seconds: 3),
-          icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
-        );
+        if (showConnectivitySnackbar && !isClosed) {
+          AppSnackbar.show(
+            'offline.title'.tr,
+            'home.waitingForNetworkHint'.tr,
+            duration: const Duration(seconds: 3),
+            icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
+          );
+        }
       } else {
         errorMessage.value = e.message;
       }
     } catch (_) {
-      errorMessage.value = 'home_ctrl.restaurantsFailed'.tr;
-      vendors.clear();
+      if (!hadVendors) {
+        errorMessage.value = 'home_ctrl.restaurantsFailed'.tr;
+        vendors.clear();
+      }
+    } finally {
+      isVendorsLoading.value = false;
+    }
+  }
+
+  Future<void> loadMoreVendorsIfNeeded() async {
+    if (isLoadingMoreVendors.value || !hasMoreVendors) return;
+    final serviceId =
+        restaurantServiceId.value ?? selectedServiceId.value;
+    if (serviceId == null) return;
+
+    isLoadingMoreVendors.value = true;
+    try {
+      final result = await _restaurantRepository.getVendorsByService(
+        token: activeToken,
+        serviceId: serviceId,
+        page: vendorCurrentPage.value + 1,
+      );
+      vendors.addAll(result.items);
+      vendorCurrentPage.value = result.currentPage;
+      vendorLastPage.value = result.lastPage;
+    } catch (_) {
+      // Keep already loaded vendors visible.
+    } finally {
+      isLoadingMoreVendors.value = false;
     }
   }
 
   void onServiceTap(ServiceModel service) {
-    if (service.id == 2) {
-      Get.to(() => ShippingScreen(token: activeToken));
-      return;
-    }
-    if (service.id == 3) {
-      Get.to(() => RestaurantProductsScreen(token: activeToken, serviceId: 3));
-      return;
-    }
-    if (service.id == 5) {
-      Get.to(() => TaxiBookingScreen(token: activeToken));
-      return;
-    }
-    if (_isRestaurantService(service)) {
-      selectedServiceId.value = service.id;
-      loadVendorsByService(service.id);
-      Get.to(
-        () =>
-            RestaurantProductsScreen(token: activeToken, serviceId: service.id),
-      );
+    switch (service.kind) {
+      case ServiceKind.shipping:
+        Get.to(() => ShippingScreen(token: activeToken));
+        return;
+      case ServiceKind.taxi:
+        Get.to(() => TaxiBookingScreen(token: activeToken));
+        return;
+      case ServiceKind.restaurant:
+      case ServiceKind.store:
+        selectedServiceId.value = service.id;
+        Get.to(
+          () => RestaurantProductsScreen(
+            token: activeToken,
+            serviceId: service.id,
+          ),
+        );
+        return;
+      case ServiceKind.supermarket:
+        return;
+      case ServiceKind.unknown:
+        if (service.id == 2) {
+          Get.to(() => ShippingScreen(token: activeToken));
+          return;
+        }
+        if (service.id == 5) {
+          Get.to(() => TaxiBookingScreen(token: activeToken));
+          return;
+        }
+        if (_serviceCatalogService.isRestaurant(service)) {
+          selectedServiceId.value = service.id;
+          Get.to(
+            () => RestaurantProductsScreen(
+              token: activeToken,
+              serviceId: service.id,
+            ),
+          );
+        }
     }
   }
 
@@ -317,51 +568,20 @@ class HomeController extends GetxController {
   }
 
   void onOfferTap(OfferModel offer) {
-    final serviceId = _resolveOfferServiceId(offer);
-    final vendorId = offer.vendor?.id ?? offer.vendorId;
-
-    if (serviceId == 5) {
-      Get.to(() => TaxiBookingScreen(token: activeToken));
-      return;
-    }
-
-    if (vendorId != null && vendorId > 0 && serviceId != 5) {
-      Get.to(
-        () => RestaurantVendorProductsScreen(
-          token: activeToken,
-          vendorId: vendorId,
-          serviceId: serviceId,
-        ),
-      );
-      return;
-    }
-
-    if (serviceId == 3) {
-      Get.to(() => RestaurantProductsScreen(token: activeToken, serviceId: 3));
-      return;
-    }
-
-    if (serviceId != null) {
-      Get.to(
-        () => RestaurantProductsScreen(token: activeToken, serviceId: serviceId),
-      );
-      return;
-    }
-
-    final orderedServices = services.toList(growable: false);
-    if (orderedServices.isNotEmpty) {
-      onServiceTap(orderedServices.first);
-    }
+    _offerNavigationCoordinator.openOffer(
+      offer: offer,
+      token: activeToken,
+    );
   }
 
   void openNotifications() {
-    Get.to(() => const NotificationsScreen());
+    AppRoutes.openNotifications();
   }
 
   void openSupportChat() {
     AuthGuardService.runOrRequestLogin(
       onAuthenticated: (token) async {
-        Get.to(() => SupportChatScreen(token: token));
+        AppRoutes.openSupportChat(token: token);
       },
       message: 'home_ctrl.loginForSupport'.tr,
     );
@@ -404,63 +624,34 @@ class HomeController extends GetxController {
         orderNumber: order.orderNumber,
         initialStatus: order.status,
         initialDispatchStatus: order.dispatchStatus,
+        isStoreOrder: _isStoreOrder(order),
       ),
     );
   }
 
-  int _pickDefaultRestaurantServiceId(List<ServiceModel> loadedServices) {
-    final restaurantService = loadedServices.firstWhereOrNull((service) {
-      final name = service.name.trim().toLowerCase();
-      return name.contains('restaurant') ||
-          name.contains('food') ||
-          name.contains('مطاعم');
-    });
+  bool _isStoreOrder(UserOrder order) {
+    final type = order.type.trim().toLowerCase();
+    if (type == 'store' || type == 'stores') return true;
+    return order.vendor?.serviceId == 3;
+  }
 
+  int _pickDefaultRestaurantServiceId(List<ServiceModel> loadedServices) {
+    final restaurantService = loadedServices.firstWhereOrNull(
+      (service) => service.kind == ServiceKind.restaurant,
+    );
     if (restaurantService != null) return restaurantService.id;
 
-    // Backend docs use /services/1/vendors for restaurants.
     final serviceOne = loadedServices.firstWhereOrNull(
       (service) => service.id == 1,
     );
     if (serviceOne != null) return serviceOne.id;
 
+    final catalogRestaurant = loadedServices.firstWhereOrNull(
+      (service) => _serviceCatalogService.isRestaurant(service),
+    );
+    if (catalogRestaurant != null) return catalogRestaurant.id;
+
     return loadedServices.first.id;
-  }
-
-  bool _isRestaurantService(ServiceModel service) {
-    final name = service.name.trim().toLowerCase();
-    return name.contains('restaurant') ||
-        name.contains('food') ||
-        name.contains('مطاعم') ||
-        service.id == 1;
-  }
-
-  int? _resolveOfferServiceId(OfferModel offer) {
-    final explicit = offer.serviceId ?? offer.vendor?.serviceId;
-    if (explicit != null) return explicit;
-
-    final hint = [
-      offer.serviceType,
-      offer.vendor?.type,
-      offer.name,
-      offer.vendor?.name,
-    ].whereType<String>().join(' ').toLowerCase();
-
-    if (hint.contains('taxi') || hint.contains('تكسي')) return 5;
-    if (hint.contains('store') ||
-        hint.contains('shop') ||
-        hint.contains('market') ||
-        hint.contains('متجر')) {
-      return 3;
-    }
-    if (hint.contains('restaurant') ||
-        hint.contains('food') ||
-        hint.contains('مطعم') ||
-        hint.contains('مطاعم')) {
-      return 1;
-    }
-
-    return null;
   }
 
   void toggleVendorActiveFilter(bool active) {

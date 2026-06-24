@@ -1,21 +1,19 @@
-﻿import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/core/services/auth_state_manager.dart';
-import 'package:najiz_go_express/core/utils/error_mappers.dart';
-import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
-import 'package:najiz_go_express/data/repositories/auth_repository.dart';
+import 'package:najiz_go_express/core/utils/error_mappers.dart';
+import 'package:najiz_go_express/features/auth/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
+import 'package:najiz_go_express/features/auth/services/auth_dependencies.dart';
+import 'package:najiz_go_express/features/auth/services/auth_identity_sync.dart';
+import 'package:najiz_go_express/features/auth/services/auth_request_runner.dart';
 import 'package:najiz_go_express/features/auth/views/otp_verification_screen.dart';
-import 'package:najiz_go_express/features/home/views/home_screen.dart';
+import 'package:najiz_go_express/core/routes/app_routes.dart';
 
 class LoginController extends GetxController {
   LoginController({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+      : _authRepository = resolveAuthRepository(authRepository);
 
   final AuthRepository _authRepository;
 
@@ -31,27 +29,6 @@ class LoginController extends GetxController {
 
   String? token;
 
-  Future<void> _syncIdentityFromBackend({
-    required String authToken,
-    required String fallbackPhone,
-  }) async {
-    try {
-      final user = await _authRepository.getCurrentUser(token: authToken);
-      final name = (user?['name'] ?? user?['full_name'] ?? '')
-          .toString()
-          .trim();
-      final phone = (user?['phone'] ?? fallbackPhone).toString().trim();
-      final email = (user?['email'] ?? '').toString().trim();
-      await SessionService.saveUserIdentity(
-        name: name.isEmpty ? null : name,
-        phone: phone.isEmpty ? fallbackPhone : phone,
-        email: email.isEmpty ? null : email,
-      );
-    } catch (_) {
-      await SessionService.saveUserIdentity(phone: fallbackPhone);
-    }
-  }
-
   void togglePasswordVisibility() {
     isPasswordHidden.value = !isPasswordHidden.value;
   }
@@ -63,83 +40,13 @@ class LoginController extends GetxController {
 
     isLoading.value = true;
     try {
-      await _performLoginAttempt();
-    } on AuthApiException catch (e) {
-      if (ErrorMappers.isNoInternetErrorMessage(e.message)) {
-        // Stop button loading and show full-screen offline retry.
-        isLoading.value = false;
-        await Get.dialog(
-          NoInternetScreen(
-            onRetry: _performLoginAttempt,
-            onError: (err) {
-              if (err is AuthApiException) {
-                final raw = err.message;
-                if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
-                  final mapped = ErrorMappers.mapLoginErrorMessage(raw);
-                  errorMessage.value = mapped;
-                  AppSnackbar.show('errors.generic'.tr, mapped);
-                  Get.back();
-                }
-              }
-            },
-          ),
-          barrierDismissible: false,
-        );
-        return;
-      }
-
-      final mapped = ErrorMappers.mapLoginErrorMessage(e.message);
-      errorMessage.value = mapped;
-      debugPrint(
-        'Login API error: status=${e.statusCode}, message=${e.message}',
+      await runAuthRequest(
+        isLoading: isLoading,
+        attempt: _performLoginAttempt,
+        mapError: ErrorMappers.mapLoginErrorMessage,
+        setError: (message) => errorMessage.value = message,
+        onUnexpectedError: (e) => logAuthDebug('Login unexpected error: $e'),
       );
-      AppSnackbar.show('errors.generic'.tr, mapped);
-    } on TimeoutException catch (e) {
-      debugPrint('Login timeout: $e');
-      isLoading.value = false;
-      await Get.dialog(
-        NoInternetScreen(
-          onRetry: _performLoginAttempt,
-          onError: (err) {
-            if (err is AuthApiException) {
-              final raw = err.message;
-              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
-                final mapped = ErrorMappers.mapLoginErrorMessage(raw);
-                errorMessage.value = mapped;
-                AppSnackbar.show('errors.generic'.tr, mapped);
-                Get.back();
-              }
-            }
-          },
-        ),
-        barrierDismissible: false,
-      );
-      return;
-    } on SocketException catch (e) {
-      debugPrint('Login socket error: $e');
-      isLoading.value = false;
-      await Get.dialog(
-        NoInternetScreen(
-          onRetry: _performLoginAttempt,
-          onError: (err) {
-            if (err is AuthApiException) {
-              final raw = err.message;
-              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
-                final mapped = ErrorMappers.mapLoginErrorMessage(raw);
-                errorMessage.value = mapped;
-                AppSnackbar.show('errors.generic'.tr, mapped);
-                Get.back();
-              }
-            }
-          },
-        ),
-        barrierDismissible: false,
-      );
-      return;
-    } catch (e) {
-      errorMessage.value = 'auth.networkError'.tr;
-      debugPrint('Login unexpected error: $e');
-      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -166,16 +73,16 @@ class LoginController extends GetxController {
     token = result.token;
     final fallbackPhone = phoneOrEmailController.text.trim();
     if (token != null && token!.isNotEmpty) {
-      await _syncIdentityFromBackend(
-        authToken: token!,
+      await completeAuthenticatedSession(
+        repository: _authRepository,
+        token: token!,
         fallbackPhone: fallbackPhone,
       );
-      await Get.find<AuthStateManager>().markAuthenticated(token!);
     } else {
       await SessionService.saveUserIdentity(phone: fallbackPhone);
     }
     AppSnackbar.show('errors.success'.tr, result.message);
-    Get.offAll(() => HomeScreen(token: token));
+    AppRoutes.openHome(token: token);
   }
 
   @override
@@ -185,4 +92,3 @@ class LoginController extends GetxController {
     super.onClose();
   }
 }
-

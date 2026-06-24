@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:najiz_go_express/core/navigation/tab_session_cleanup.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 
@@ -31,11 +32,19 @@ class AuthStateManager extends GetxService {
   }
 
   Future<void> markAuthenticated(String newToken) async {
-    await SessionService.saveToken(newToken);
-    token.value = newToken;
+    final previousToken = token.value?.trim();
+    final normalized = newToken.trim();
+    final sessionChanged = previousToken == null ||
+        previousToken.isEmpty ||
+        previousToken != normalized;
+    if (sessionChanged) {
+      TabSessionCleanup.resetAfterAuthChange();
+    }
+    await SessionService.saveToken(normalized);
+    token.value = normalized;
     status.value = AuthStatus.authenticated;
     if (Get.isRegistered<PushNotificationService>()) {
-      await Get.find<PushNotificationService>().subscribeDevice(newToken);
+      await Get.find<PushNotificationService>().subscribeDevice(normalized);
     }
     await consumePendingIntentIfAny();
   }
@@ -49,6 +58,7 @@ class AuthStateManager extends GetxService {
         previousToken,
       );
     }
+    TabSessionCleanup.resetAfterAuthChange();
     await SessionService.clearSession();
     token.value = null;
     status.value = AuthStatus.guest;

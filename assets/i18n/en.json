@@ -24,6 +24,9 @@
     "close": "Close",
     "retry": "Retry"
   },
+  "peakHour": {
+    "priceNotice": "Peak hour is active"
+  },
   "login": {
     "title": "Welcome back",
     "subtitle": "Sign in to your account to continue",
@@ -73,6 +76,8 @@
     "guest": "Guest",
     "user": "User",
     "premiumMember": "Premium member",
+    "userType": "User type: @type",
+    "loyaltyPoints": "@points points",
     "noEmail": "No email available",
     "noPhone": "No phone available",
     "createAccount": "Create account",
@@ -177,6 +182,14 @@
     "orderStep3": "Nearby",
     "orderStep4": "Arrived"
   },
+  "homeServices": {
+    "taxi": "Taxi",
+    "restaurant": "Restaurants",
+    "store": "Store",
+    "supermarket": "Supermarket",
+    "shipping": "Shipping",
+    "unknown": "Service"
+  },
   "services": {
     "stores": "Stores",
     "restaurants": "Restaurants",
@@ -269,6 +282,9 @@
     "cancelled": "Cancelled",
     "loadFailed": "Failed to load orders",
     "cancelFailed": "Failed to cancel order",
+    "cancellationLimitTitle": "Account restricted",
+    "cancellationLimitMessage": "You have exceeded the allowed order cancellation limit. Please sign in again to continue.",
+    "cancellationLimitOk": "OK",
     "all": "All",
     "taxi": "Taxi",
     "shipping": "Shipping",
@@ -340,7 +356,10 @@
     "invoiceFailed": "Failed to calculate invoice",
     "loginForOrder": "Please sign in to complete the order",
     "noOrderIdFromServer": "Order number not received from server",
-    "loginForAddress": "Please sign in to add a new address"
+    "loginForAddress": "Please sign in to add a new address",
+    "tapToUseCurrentLocation": "Tap to use your current location",
+    "savedAddressMissingCoords": "This address has no coordinates, pick a location on the map",
+    "loginForSavedAddresses": "Sign in to choose a saved address"
   },
   "shipping": {
     "couponStep": "Step 4: discount coupon",
@@ -404,7 +423,20 @@
     "customerService": "Customer service",
     "loadFailed": "Failed to load support chat",
     "sendFailed": "Failed to send message",
-    "agentTitle": "Technical support"
+    "agentTitle": "Technical support",
+    "floatingActive": "Support chat is active",
+    "floatingUnread": "New message from support",
+    "hideFloatingChat": "Hide chat icon",
+    "hideFloatingChatMessage": "Hide the chat shortcut from the home screen. It will reappear when support sends a new reply.",
+    "hide": "Hide",
+    "cancel": "Cancel",
+    "dragToHide": "Drop here to hide"
+  },
+  "dispatch": {
+    "noDriverTitle": "No driver assigned",
+    "noDriverMessage": "No driver was assigned. Please try again.",
+    "returnToOrder": "Back to order",
+    "noDriverCancelReason": "No driver assigned within the dispatch window"
   },
   "tracking": {
     "title": "Order tracking",
@@ -442,6 +474,9 @@
     "foodOnWay": "On the way",
     "foodDelivered": "Delivered",
     "cancelled": "Cancelled",
+    "vendorRejectedMessage": "Sorry, your order was rejected by the restaurant",
+    "storeRejectedMessage": "Sorry, your order was rejected by the store",
+    "returnHome": "Return to home",
     "dispatching": "Assigning driver",
     "driverAccepted": "Driver accepted",
     "driverOnWay": "Driver on the way",
@@ -451,6 +486,11 @@
     "deliveredAndHandedOver": "Delivered and handed over",
     "driverOnWayToDelivery": "Driver on the way to delivery",
     "driverHeadingToPickup": "Driver heading to pickup",
+    "shippingStepAccepted": "Accepted",
+    "shippingStepHeadingToPickup": "Heading to pickup",
+    "shippingStepPickedUp": "Picked up",
+    "shippingStepOnWayToDelivery": "On the way to delivery",
+    "shippingStepDelivered": "Delivered",
     "driverAcceptedOrder": "Order accepted by driver",
     "tripFinished": "Trip finished",
     "headingToDestination": "Heading to destination",
@@ -492,8 +532,20 @@
     "shareRoute": "Live route: @link",
     "followLiveTripLabel": "Follow trip live",
     "etaDistanceLeft": "@distance km remaining",
+    "estimatedDeliveryTime": "Estimated delivery time",
+    "estimatedDeliveryAt": "Expected at @time",
     "waitingDistanceUpdate": "Waiting for distance update",
     "shareTrip": "Share trip",
+    "sosButton": "Emergency SOS",
+    "sosDialogTitle": "Request emergency help",
+    "sosDialogMessage": "Our support team will be notified immediately with your current trip location. You may add an optional reason.",
+    "sosReasonLabel": "Reason (optional)",
+    "sosReasonHint": "Briefly describe the situation...",
+    "sosConfirm": "Send SOS",
+    "sosSent": "SOS sent",
+    "sosSentTitle": "Help request sent",
+    "sosSentMessage": "Support has been notified and will contact you as soon as possible",
+    "sosFailed": "Failed to send SOS request",
     "tripEndedLabel": "Trip ended",
     "rateOrder": "Rate your order",
     "rateTrip": "Rate your trip",
@@ -511,6 +563,7 @@
     "ratingLabel": "Rating",
     "notAvailable": "Not available",
     "deliveryCode": "Delivery code",
+    "deliveryCodeCopied": "Delivery code copied",
     "shareDeliveryCode": "Share this code with the recipient to confirm delivery",
     "thankYou": "Thank you",
     "ratingSentSuccess": "Trip rating submitted successfully",
@@ -702,7 +755,14 @@
     "required": "This field is required",
     "deliveryLabel": "Delivery address",
     "currentLocation": "Current location",
-    "addNew": "Add new address"
+    "useCurrentLocationTitle": "Use my current location",
+    "useCurrentLocationHint": "We deliver to your current location without saving the address",
+    "addNew": "Add new address",
+    "addNewHint": "Save an address to use later",
+    "pickFromMapTitle": "Pick on map",
+    "pickFromMapHint": "Search by name or tap the map to choose a location",
+    "savedAddressesTitle": "Saved addresses",
+    "savedFallbackTitle": "Saved address"
   },
   "location": {
     "determining": "Locating you...",

@@ -1,19 +1,17 @@
-﻿import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
 import 'package:najiz_go_express/core/utils/validators.dart';
 import 'package:najiz_go_express/core/utils/error_mappers.dart';
-import 'package:najiz_go_express/core/widgets/no_internet_screen.dart';
-import 'package:najiz_go_express/data/repositories/auth_repository.dart';
+import 'package:najiz_go_express/features/auth/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
+import 'package:najiz_go_express/features/auth/services/auth_dependencies.dart';
+import 'package:najiz_go_express/features/auth/services/auth_request_runner.dart';
 import 'package:najiz_go_express/features/auth/views/otp_verification_screen.dart';
 
 class SignupController extends GetxController {
   SignupController({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+      : _authRepository = resolveAuthRepository(authRepository);
 
   final AuthRepository _authRepository;
 
@@ -77,76 +75,12 @@ class SignupController extends GetxController {
 
     isLoading.value = true;
     try {
-      await _performSignUpAttempt();
-    } on AuthApiException catch (e) {
-      if (ErrorMappers.isNoInternetErrorMessage(e.message)) {
-        isLoading.value = false;
-        await Get.dialog(
-          NoInternetScreen(
-            onRetry: _performSignUpAttempt,
-            onError: (err) {
-              if (err is AuthApiException) {
-                final raw = err.message;
-                if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
-                  final mapped = ErrorMappers.mapSignupErrorMessage(raw);
-                  errorMessage.value = mapped;
-                  AppSnackbar.show('errors.generic'.tr, mapped);
-                  Get.back();
-                }
-              }
-            },
-          ),
-          barrierDismissible: false,
-        );
-        return;
-      }
-
-      final mapped = ErrorMappers.mapSignupErrorMessage(e.message);
-      errorMessage.value = mapped;
-      AppSnackbar.show('errors.generic'.tr, mapped);
-    } on TimeoutException catch (_) {
-      isLoading.value = false;
-      await Get.dialog(
-        NoInternetScreen(
-          onRetry: _performSignUpAttempt,
-          onError: (err) {
-            if (err is AuthApiException) {
-              final raw = err.message;
-              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
-                final mapped = ErrorMappers.mapSignupErrorMessage(raw);
-                errorMessage.value = mapped;
-                AppSnackbar.show('errors.generic'.tr, mapped);
-                Get.back();
-              }
-            }
-          },
-        ),
-        barrierDismissible: false,
+      await runAuthRequest(
+        isLoading: isLoading,
+        attempt: _performSignUpAttempt,
+        mapError: ErrorMappers.mapSignupErrorMessage,
+        setError: (message) => errorMessage.value = message,
       );
-      return;
-    } on SocketException catch (_) {
-      isLoading.value = false;
-      await Get.dialog(
-        NoInternetScreen(
-          onRetry: _performSignUpAttempt,
-          onError: (err) {
-            if (err is AuthApiException) {
-              final raw = err.message;
-              if (!ErrorMappers.isNoInternetErrorMessage(raw)) {
-                final mapped = ErrorMappers.mapSignupErrorMessage(raw);
-                errorMessage.value = mapped;
-                AppSnackbar.show('errors.generic'.tr, mapped);
-                Get.back();
-              }
-            }
-          },
-        ),
-        barrierDismissible: false,
-      );
-      return;
-    } catch (_) {
-      errorMessage.value = 'auth.networkError'.tr;
-      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -168,7 +102,6 @@ class SignupController extends GetxController {
       referralCode: referralCodeController.text.trim(),
     );
 
-    // Backend always sends OTP after registration.
     Get.to(
       () => OtpVerificationScreen(
         purpose: OtpPurpose.signup,
@@ -189,4 +122,3 @@ class SignupController extends GetxController {
     super.onClose();
   }
 }
-

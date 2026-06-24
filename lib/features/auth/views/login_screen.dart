@@ -7,8 +7,7 @@ import 'package:najiz_go_express/features/auth/controllers/login_controller.dart
 import 'package:najiz_go_express/features/auth/widgets/auth_button.dart';
 import 'package:najiz_go_express/features/auth/widgets/auth_header.dart';
 import 'package:najiz_go_express/features/auth/widgets/auth_text_field.dart';
-import 'package:najiz_go_express/features/auth/views/forgot_password_screen.dart';
-import 'package:najiz_go_express/features/auth/views/signup_screen.dart';
+import 'package:najiz_go_express/core/routes/app_routes.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -66,7 +65,7 @@ class LoginScreen extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => Get.to(() => const ForgotPasswordScreen()),
+                    onPressed: AppRoutes.openForgotPassword,
                     child: Text(AppStrings.forgotPassword, style: AppTextStyles.link),
                   ),
                 ),
@@ -88,7 +87,7 @@ class LoginScreen extends StatelessWidget {
                         style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                       InkWell(
-                        onTap: () => Get.to(() => const SignupScreen()),
+                        onTap: AppRoutes.openSignup,
                         child: Text(AppStrings.signUp, style: AppTextStyles.link),
                       ),
                     ],

@@ -1,24 +1,27 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/theme/theme_context.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
-import 'package:najiz_go_express/data/models/offer_model.dart';
-import 'package:najiz_go_express/data/models/service_model.dart';
+import 'package:najiz_go_express/features/home/widgets/home_offer_slider.dart';
+import 'package:najiz_go_express/features/home/services/service_catalog_service.dart';
 import 'package:najiz_go_express/features/home/controllers/home_controller.dart';
-import 'package:najiz_go_express/features/home/models/user_order.dart';
-import 'package:najiz_go_express/features/home/widgets/home_bottom_bar.dart';
-import 'package:najiz_go_express/features/home/widgets/home_restaurant_card.dart';
+import 'package:najiz_go_express/core/services/order_progress_notification_mapper.dart';
+import 'package:najiz_go_express/core/services/shipping_order_state.dart';
+import 'package:najiz_go_express/features/orders/models/user_order.dart';
+import 'package:najiz_go_express/core/navigation/home_bottom_bar.dart';
+import 'package:najiz_go_express/features/restaurant/widgets/restaurant_card.dart';
 import 'package:najiz_go_express/features/home/widgets/home_service_grid.dart';
-import 'package:najiz_go_express/features/home/widgets/main_bottom_nav.dart';
+import 'package:najiz_go_express/core/navigation/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/home/views/all_services_screen.dart';
-import 'package:najiz_go_express/features/home/views/restaurant_products_screen.dart';
+import 'package:najiz_go_express/features/restaurant/views/restaurant_products_screen.dart';
+import 'package:najiz_go_express/features/support/widgets/support_chat_floating_bubble.dart';
 import 'package:shimmer/shimmer.dart';
 
+const _serviceCatalog = ServiceCatalogService();
+
 void _openAllServicesPage(HomeController controller) {
-  final orderedServices = _orderedHomeServices(controller.services);
+  final orderedServices = _serviceCatalog.sortForHome(controller.services);
   Get.to(
     () => AllServicesScreen(
       services: orderedServices,
@@ -37,7 +40,9 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(HomeController(token: token));
+    final controller = Get.isRegistered<HomeController>()
+        ? Get.find<HomeController>()
+        : Get.put(HomeController(token: token), permanent: true);
     final authState = Get.find<AuthStateManager>();
     final cs = Theme.of(context).colorScheme;
 
@@ -51,11 +56,16 @@ class HomeScreen extends StatelessWidget {
           token: controller.activeToken,
         ),
       ),
-      body: SafeArea(
-        child: Obx(() {
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          SafeArea(
+            child: Obx(() {
           final loading = controller.isLoading.value;
           final waitingNet = controller.homeWaitingNetwork.value;
-          if (loading) {
+          final showBootstrapShimmer =
+              loading && controller.services.isEmpty;
+          if (showBootstrapShimmer) {
             return Stack(
               clipBehavior: Clip.none,
               children: [
@@ -103,7 +113,7 @@ class HomeScreen extends StatelessWidget {
           }
 
           return RefreshIndicator(
-            onRefresh: controller.loadHomeData,
+            onRefresh: controller.refreshHomeData,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               children: [
@@ -165,7 +175,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 Obx(() {
                   final offers = controller.offers.toList(growable: false);
-                  return _HeroPromoSlider(
+                  return HomeOfferSlider(
                     offers: offers,
                     onTap: controller.onOfferTap,
                   );
@@ -198,7 +208,7 @@ class HomeScreen extends StatelessWidget {
                 else
                   Builder(
                     builder: (_) {
-                      final orderedServices = _orderedHomeServices(
+                      final orderedServices = _serviceCatalog.sortForHome(
                         controller.services,
                       );
                       return HomeServiceGrid(
@@ -226,19 +236,45 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 if (controller.filteredVendors.isEmpty)
-                  Text(
-                    'home.noRestaurants'.tr,
-                    style: TextStyle(color: context.uiSubtext),
-                  )
+                  Obx(() {
+                    if (controller.isVendorsLoading.value) {
+                      return const _ShimmerRestaurantsRow();
+                    }
+                    return Text(
+                      'home.noRestaurants'.tr,
+                      style: TextStyle(color: context.uiSubtext),
+                    );
+                  })
                 else
                   SizedBox(
                     height: 188,
-                    child: ListView.separated(
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification.metrics.pixels >=
+                            notification.metrics.maxScrollExtent - 80) {
+                          controller.loadMoreVendorsIfNeeded();
+                        }
+                        return false;
+                      },
+                      child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: controller.filteredVendors.length,
+                      itemCount: controller.filteredVendors.length +
+                          (controller.isLoadingMoreVendors.value ? 1 : 0),
                       separatorBuilder: (_, unusedIndex) =>
                           const SizedBox(width: 12),
                       itemBuilder: (_, index) {
+                        if (index >= controller.filteredVendors.length) {
+                          return const SizedBox(
+                            width: 48,
+                            child: Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          );
+                        }
                         final vendor = controller.filteredVendors[index];
                         return HomeRestaurantCard(
                           name: vendor.name,
@@ -251,11 +287,15 @@ class HomeScreen extends StatelessWidget {
                         );
                       },
                     ),
+                    ),
                   ),
               ],
             ),
           );
         }),
+          ),
+          const SupportChatFloatingBubble(),
+        ],
       ),
     );
   }
@@ -283,8 +323,8 @@ class _OrderTrackingStepsRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: List.generate(n, (index) {
-          final isActive = index == currentStep;
-          final isDone = index < currentStep;
+          final isActive = currentStep >= 0 && index == currentStep;
+          final isDone = currentStep >= 0 && index < currentStep;
           return Expanded(
             child: Column(
               children: [
@@ -373,11 +413,11 @@ class _OrderTrackingStepsRow extends StatelessWidget {
   }
 }
 
-/// يزيل تسميات قد يرسلها الـ API مع [order_number] فتظهر كـ «رقم الطلب» قبل النص المطلوب.
+/// ظٹط²ظٹظ„ طھط³ظ…ظٹط§طھ ظ‚ط¯ ظٹط±ط³ظ„ظ‡ط§ ط§ظ„ظ€ API ظ…ط¹ [order_number] ظپطھط¸ظ‡ط± ظƒظ€ آ«ط±ظ‚ظ… ط§ظ„ط·ظ„ط¨آ» ظ‚ط¨ظ„ ط§ظ„ظ†طµ ط§ظ„ظ…ط·ظ„ظˆط¨.
 String _stripDecorativeOrderNumberPrefix(String raw) {
   var s = raw.trim();
   s = s.replaceAll(
-    RegExp(r'^(?:رقم\s*الطلب|Order\s*Number)\s*:?\s*', caseSensitive: false),
+    RegExp(r'^(?:ط±ظ‚ظ…\s*ط§ظ„ط·ظ„ط¨|Order\s*Number)\s*:?\s*', caseSensitive: false),
     '',
   );
   return s.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -400,18 +440,29 @@ class _ActiveOrderHomeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final currentStep = _activeStepIndex(order);
-    final labels = [
-      'home.orderStep1'.tr,
-      'home.orderStep2'.tr,
-      'home.orderStep3'.tr,
-      'home.orderStep4'.tr,
-    ];
-    const icons = [
-      Icons.check_rounded,
-      Icons.directions_car_filled_rounded,
-      Icons.location_on_outlined,
-      Icons.outlined_flag_rounded,
-    ];
+    final isShipping = order.type.trim().toLowerCase() == 'shipping';
+    final labels = isShipping
+        ? ShippingOrderState.timelineLabelKeys.map((key) => key.tr).toList()
+        : [
+            'home.orderStep1'.tr,
+            'home.orderStep2'.tr,
+            'home.orderStep3'.tr,
+            'home.orderStep4'.tr,
+          ];
+    final icons = isShipping
+        ? const [
+            Icons.task_alt_outlined,
+            Icons.local_shipping_outlined,
+            Icons.inventory_2_outlined,
+            Icons.route_outlined,
+            Icons.home_outlined,
+          ]
+        : const [
+            Icons.check_rounded,
+            Icons.directions_car_filled_rounded,
+            Icons.location_on_outlined,
+            Icons.outlined_flag_rounded,
+          ];
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -528,13 +579,22 @@ class _ActiveOrderHomeCard extends StatelessWidget {
   }
 
   int _activeStepIndex(UserOrder order) {
+    final type = order.type.trim().toLowerCase();
+    if (type == 'shipping') {
+      return OrderProgressNotificationMapper.shippingTimelineStageIndex(
+        order.status,
+        dispatchStatusRaw: order.dispatchStatus,
+      );
+    }
+
     final status = order.status.toLowerCase();
     final dispatch = order.dispatchStatus.toLowerCase();
     if (status == 'delivered' || status == 'completed') return 3;
     if (status == 'on_way' || status == 'picked_up') return 1;
     if (status == 'on_the_way_to_pickup' || status == 'near_destination') return 2;
-    if (status == 'accepted' || dispatch == 'accepted' || dispatch == 'assigned') return 0;
-    return 0;
+    if (dispatch == 'accepted' || dispatch == 'assigned') return 0;
+    if (status == 'accepted') return 0;
+    return -1;
   }
 
   String _orderTitle(UserOrder order) {
@@ -598,7 +658,7 @@ class _HomeShimmerSkeleton extends StatelessWidget {
   }
 }
 
-/// يطابق [_TopGreetingRow]: أيقونة يسار + عمود نص يمين.
+/// ظٹط·ط§ط¨ظ‚ [_TopGreetingRow]: ط£ظٹظ‚ظˆظ†ط© ظٹط³ط§ط± + ط¹ظ…ظˆط¯ ظ†طµ ظٹظ…ظٹظ†.
 class _ShimmerTopGreetingRow extends StatelessWidget {
   const _ShimmerTopGreetingRow();
 
@@ -637,7 +697,7 @@ class _ShimmerTopGreetingRow extends StatelessWidget {
   }
 }
 
-/// يطابق [_HeroPromoSlider] (ارتفاع 186 + شريط نقاط تقريبي).
+/// ظٹط·ط§ط¨ظ‚ [_HeroPromoSlider] (ط§ط±طھظپط§ط¹ 186 + ط´ط±ظٹط· ظ†ظ‚ط§ط· طھظ‚ط±ظٹط¨ظٹ).
 class _ShimmerHeroBlock extends StatelessWidget {
   const _ShimmerHeroBlock();
 
@@ -674,7 +734,7 @@ class _ShimmerHeroBlock extends StatelessWidget {
   }
 }
 
-/// يطابق [_SectionHeader]: عنوان + "عرض الكل".
+/// ظٹط·ط§ط¨ظ‚ [_SectionHeader]: ط¹ظ†ظˆط§ظ† + "ط¹ط±ط¶ ط§ظ„ظƒظ„".
 class _ShimmerSectionHeaderRow extends StatelessWidget {
   const _ShimmerSectionHeaderRow({required this.shortTitle});
 
@@ -696,7 +756,7 @@ class _ShimmerSectionHeaderRow extends StatelessWidget {
   }
 }
 
-/// يطابق [HomeServiceGrid]: صف أفقي قابل للتمرير، 82×100، فراغ 10.
+/// ظٹط·ط§ط¨ظ‚ [HomeServiceGrid]: طµظپ ط£ظپظ‚ظٹ ظ‚ط§ط¨ظ„ ظ„ظ„طھظ…ط±ظٹط±طŒ 82أ—100طŒ ظپط±ط§ط؛ 10.
 class _ShimmerServiceGridFourCol extends StatelessWidget {
   const _ShimmerServiceGridFourCol();
 
@@ -819,267 +879,6 @@ class _TopGreetingRow extends StatelessWidget {
   }
 }
 
-class _HeroPromoSlider extends StatefulWidget {
-  const _HeroPromoSlider({required this.offers, required this.onTap});
-
-  final List<OfferModel> offers;
-  final ValueChanged<OfferModel> onTap;
-
-  @override
-  State<_HeroPromoSlider> createState() => _HeroPromoSliderState();
-}
-
-class _HeroPromoSliderState extends State<_HeroPromoSlider> {
-  static const _autoAdvanceInterval = Duration(seconds: 3);
-
-  late final PageController _pageController;
-  int _pageIndex = 0;
-  Timer? _autoTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(viewportFraction: 0.88);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _restartAutoPlay());
-  }
-
-  @override
-  void didUpdateWidget(covariant _HeroPromoSlider oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_effectivePageCount(oldWidget.offers) !=
-            _effectivePageCount(widget.offers) ||
-        oldWidget.offers.length != widget.offers.length) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _restartAutoPlay());
-    }
-  }
-
-  int _effectivePageCount(List<OfferModel> offers) {
-    if (offers.isEmpty) return 1;
-    if (offers.length == 1) return 3;
-    return offers.length;
-  }
-
-  @override
-  void dispose() {
-    _autoTimer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _restartAutoPlay() {
-    _autoTimer?.cancel();
-    if (_pageCount < 2) return;
-    _autoTimer = Timer.periodic(_autoAdvanceInterval, (_) => _advanceOnePage());
-  }
-
-  void _advanceOnePage() {
-    if (!mounted || !_pageController.hasClients || _pageCount < 2) return;
-    final next = (_pageIndex + 1) % _pageCount;
-    _pageController.animateToPage(
-      next,
-      duration: const Duration(milliseconds: 560),
-      curve: Curves.easeInOutCubic,
-    );
-  }
-
-  /// PageView length: duplicate a single real offer so the carousel can auto-advance.
-  int get _pageCount {
-    if (widget.offers.isEmpty) return 1;
-    if (widget.offers.length == 1) return 3;
-    return widget.offers.length;
-  }
-
-  bool get _showPageDots => widget.offers.length > 1;
-
-  String? _imageAt(int index) {
-    if (widget.offers.isEmpty) return null;
-    final i = widget.offers.length == 1 ? 0 : index;
-    final url = widget.offers[i].image?.toString().trim();
-    if (url == null || url.isEmpty) return null;
-    return url;
-  }
-
-  OfferModel? _offerAt(int index) {
-    if (widget.offers.isEmpty) return null;
-    final i = widget.offers.length == 1 ? 0 : index;
-    return widget.offers[i];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 186,
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _pageCount,
-              onPageChanged: (i) => setState(() => _pageIndex = i),
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: _HeroPromoSlide(
-                    imageUrl: _imageAt(index),
-                    onTap: () {
-                      final offer = _offerAt(index);
-                      if (offer == null) return;
-                      widget.onTap(offer);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        if (_showPageDots) ...[
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(widget.offers.length, (i) {
-              final active = i == _pageIndex;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: active ? 20 : 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: active
-                      ? AppColors.primary
-                      : Theme.of(context)
-                          .colorScheme
-                          .outlineVariant
-                          .withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: active
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.35),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-              );
-            }),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _HeroPromoSlide extends StatelessWidget {
-  const _HeroPromoSlide({
-    required this.onTap,
-    this.imageUrl,
-  });
-
-  final VoidCallback onTap;
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final bgUrl = imageUrl;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          height: 186,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (bgUrl != null && bgUrl.isNotEmpty)
-                  Image.network(bgUrl, fit: BoxFit.cover),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        cs.scrim.withValues(alpha: 0.82),
-                        cs.scrim.withValues(alpha: 0.34),
-                      ],
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Spacer(),
-                      const Text(
-                        'رحلتك القادمة\nتبدأ براحة تامة',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 19,
-                          height: 1.1,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'taxi.tagline'.tr,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(color: Colors.white70, fontSize: 11),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cs.surface,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Directionality(
-                          textDirection: TextDirection.ltr,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'home.bookNow'.tr,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.onSurface,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.chevron_right_rounded,
-                                size: 18,
-                                color: cs.onSurface,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
@@ -1127,24 +926,6 @@ class _SectionHeader extends StatelessWidget {
       ],
     );
   }
-}
-
-List<ServiceModel> _orderedHomeServices(List<ServiceModel> services) {
-  final ranked = [...services];
-  ranked.sort((a, b) => _serviceSortRank(a).compareTo(_serviceSortRank(b)));
-  return ranked;
-}
-
-int _serviceSortRank(ServiceModel service) {
-  final name = service.name.trim().toLowerCase();
-  final id = service.id;
-
-  if (id == 5 || name.contains('taxi') || name.contains('تكسي')) return 0;
-  if (id == 1 || name.contains('restaurant') || name.contains('مطعم')) return 1;
-  if (id == 3 || name.contains('store') || name.contains('متجر')) return 2;
-  if (id == 2 || name.contains('shipping') || name.contains('شحن')) return 3;
-
-  return 100 + id;
 }
 
 class _ShimmerRestaurantsRow extends StatelessWidget {

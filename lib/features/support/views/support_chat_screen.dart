@@ -42,6 +42,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     _messagesWorker?.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    if (Get.isRegistered<SupportChatController>(tag: 'support-chat')) {
+      Get.delete<SupportChatController>(tag: 'support-chat', force: true);
+    }
     super.dispose();
   }
 

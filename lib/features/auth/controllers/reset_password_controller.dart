@@ -1,15 +1,17 @@
-﻿import 'package:flutter/material.dart';
-import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:najiz_go_express/data/repositories/auth_repository.dart';
-import 'package:najiz_go_express/features/home/views/home_screen.dart';
+import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
+import 'package:najiz_go_express/features/auth/repositories/auth_repository.dart';
+import 'package:najiz_go_express/features/auth/services/auth_dependencies.dart';
+import 'package:najiz_go_express/features/auth/services/auth_request_runner.dart';
+import 'package:najiz_go_express/core/routes/app_routes.dart';
 
 class ResetPasswordController extends GetxController {
   ResetPasswordController({
     required this.phone,
     required this.resetToken,
     AuthRepository? authRepository,
-  }) : _authRepository = authRepository ?? AuthRepository();
+  }) : _authRepository = resolveAuthRepository(authRepository);
 
   final AuthRepository _authRepository;
 
@@ -41,23 +43,26 @@ class ResetPasswordController extends GetxController {
 
     isLoading.value = true;
     try {
-      final result = await _authRepository.resetPassword(
-        phone: phone,
-        resetToken: resetToken,
-        password: passwordController.text,
+      await runAuthRequest(
+        isLoading: isLoading,
+        attempt: _resetPasswordAttempt,
+        mapError: (raw) => raw,
+        setError: (message) => errorMessage.value = message,
       );
-
-      AppSnackbar.show('errors.success'.tr, result.message);
-      Get.offAll(() => const HomeScreen());
-    } on AuthApiException catch (e) {
-      errorMessage.value = e.message;
-      AppSnackbar.show('errors.generic'.tr, e.message);
-    } catch (_) {
-      errorMessage.value = 'auth.networkError'.tr;
-      AppSnackbar.show('errors.generic'.tr, 'errors.networkError'.tr);
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _resetPasswordAttempt() async {
+    final result = await _authRepository.resetPassword(
+      phone: phone,
+      resetToken: resetToken,
+      password: passwordController.text,
+    );
+
+    AppSnackbar.show('errors.success'.tr, result.message);
+    AppRoutes.openHome();
   }
 
   @override
@@ -67,4 +72,3 @@ class ResetPasswordController extends GetxController {
     super.onClose();
   }
 }
-

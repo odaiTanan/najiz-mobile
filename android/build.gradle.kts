@@ -1,12 +1,5 @@
 import com.android.build.gradle.LibraryExtension
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
@@ -19,6 +12,18 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    configurations.configureEach {
+        resolutionStrategy {
+            force("com.onesignal:OneSignal:5.7.7")
+        }
+    }
 }
 
 // Force Java 17 for Android library modules (plugins); :app sets its own compileOptions.

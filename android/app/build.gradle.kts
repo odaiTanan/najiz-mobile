@@ -100,6 +100,9 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Provide an SLF4J binder so R8 doesn't fail on StaticLoggerBinder.
     implementation("org.slf4j:slf4j-simple:2.0.13")
+    // Match onesignal_flutter (5.5.1 → OneSignal 5.7.7). compileOnly avoids
+    // pulling a second SDK copy with Firebase 24 constraints at app level.
+    compileOnly("com.onesignal:OneSignal:5.7.7")
 }
 
 flutter {

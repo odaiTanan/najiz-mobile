@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:najiz_go_express/features/home/models/checkout_cart_item.dart';
+import 'package:najiz_go_express/features/orders/models/checkout_cart_item.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppCartService extends GetxService {
