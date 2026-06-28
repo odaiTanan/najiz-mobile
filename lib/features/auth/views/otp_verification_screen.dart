@@ -26,6 +26,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   late final OtpVerificationController controller;
   final FocusNode _codeFocusNode = FocusNode();
 
+  void _focusCodeFieldAtEnd() {
+    _codeFocusNode.requestFocus();
+    final text = controller.codeController.text;
+    controller.codeController.selection = TextSelection.collapsed(
+      offset: text.length,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +42,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _codeFocusNode.requestFocus();
+      _focusCodeFieldAtEnd();
     });
   }
 
@@ -132,82 +140,85 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       const SizedBox(height: 20),
                       Stack(
                         children: [
-                          Opacity(
-                            // Keep it hit-testable while still invisible.
-                            opacity: 0.01,
-                            child: TextFormField(
-                              controller: controller.codeController,
-                              focusNode: _codeFocusNode,
-                              autofocus: true,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.done,
-                              onChanged: controller.onCodeChanged,
-                              validator: Validators.otpCode,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(6),
-                              ],
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              _codeFocusNode.requestFocus();
-                              // Place cursor at the end for easier editing/deleting.
-                              final text = controller.codeController.text;
-                              controller.codeController.selection =
-                                  TextSelection.collapsed(offset: text.length);
-                            },
-                            child: ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: controller.codeController,
-                              builder: (_, value, unusedValue) {
-                                final code = value.text;
-                                return Row(
-                                  children: List.generate(6, (index) {
-                                    final char = index < code.length
-                                        ? code[index]
-                                        : '';
-                                    final isCurrent = code.length == index;
-                                    return Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 3,
-                                        ),
-                                        child: AspectRatio(
-                                          aspectRatio: 44 / 52,
-                                          child: DecoratedBox(
-                                            decoration: BoxDecoration(
-                                              color: cs.surface,
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                              border: Border.all(
-                                                color: isCurrent
-                                                    ? AppColors.primary
-                                                    : cs.outlineVariant,
-                                                width: isCurrent ? 1.4 : 1,
-                                              ),
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: controller.codeController,
+                            builder: (_, value, unusedValue) {
+                              final code = value.text;
+                              return Row(
+                                children: List.generate(6, (index) {
+                                  final char = index < code.length
+                                      ? code[index]
+                                      : '';
+                                  final isCurrent = code.length == index;
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
+                                      child: AspectRatio(
+                                        aspectRatio: 44 / 52,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: cs.surface,
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: isCurrent
+                                                  ? AppColors.primary
+                                                  : cs.outlineVariant,
+                                              width: isCurrent ? 1.4 : 1,
                                             ),
-                                            child: Center(
-                                              child: Text(
-                                                char,
-                                                style: TextStyle(
-                                                  fontSize: 22,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: cs.onSurface,
-                                                ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              char,
+                                              style: TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.w700,
+                                                color: cs.onSurface,
                                               ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    );
-                                  }),
-                                );
-                              },
+                                    ),
+                                  );
+                                }),
+                              );
+                            },
+                          ),
+                          Positioned.fill(
+                            child: TextFormField(
+                              controller: controller.codeController,
+                              focusNode: _codeFocusNode,
+                              autofocus: true,
+                              showCursor: false,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.done,
+                              onChanged: controller.onCodeChanged,
+                              onTap: _focusCodeFieldAtEnd,
+                              validator: Validators.otpCode,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
+                              style: const TextStyle(
+                                color: Colors.transparent,
+                                fontSize: 1,
+                                height: 1,
+                              ),
+                              cursorColor: Colors.transparent,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                                isCollapsed: true,
+                                filled: false,
+                              ),
                             ),
                           ),
                         ],
