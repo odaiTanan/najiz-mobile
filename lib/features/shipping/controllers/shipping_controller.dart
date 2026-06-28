@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:najiz_go_express/features/shipping/errors/shipping_api_exception.dart';
 
@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:http/http.dart' as http;
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/shipping/repositories/shipping_repository.dart';
 import 'package:najiz_go_express/features/profile/repositories/profile_repository.dart';
 import 'package:najiz_go_express/features/orders/models/live_order_info.dart';
@@ -394,8 +395,12 @@ class ShippingController extends GetxController {
       if (lat == null || lng == null || !_isWithinSyria(lat: lat, lng: lng)) {
         return null;
       }
-      final label =
+      final rawLabel =
           (result['formatted_address'] ?? result['name'])?.toString().trim();
+      final label =
+          rawLabel == null || rawLabel.isEmpty
+              ? null
+              : AddressLabelUtils.format(rawLabel);
       return (lat: lat, lng: lng, label: label);
     } catch (_) {
       return null;
@@ -700,7 +705,7 @@ class ShippingController extends GetxController {
         if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
         if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
       ];
-      if (parts.isNotEmpty) return parts.join('? ');
+      if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
     } catch (_) {}
     return null;
   }
@@ -746,15 +751,17 @@ class ShippingController extends GetxController {
           if (locality != null && locality.isNotEmpty) locality,
           if (route != null && route.isNotEmpty) route,
         ];
-        if (parts.isNotEmpty) return parts.join('? ');
+        if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
       }
 
       final formatted = (map['formatted_address'] ?? '').toString().trim();
       if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
-        return formatted;
+        return AddressLabelUtils.format(formatted);
       }
       final name = (map['name'] ?? '').toString().trim();
-      if (name.isNotEmpty && !_looksLikeCoordinates(name)) return name;
+      if (name.isNotEmpty && !_looksLikeCoordinates(name)) {
+        return AddressLabelUtils.format(name);
+      }
     }
     return null;
   }
@@ -853,12 +860,18 @@ class ShippingPlaceSuggestion {
     final structured = (json['structured_formatting'] is Map)
         ? Map<String, dynamic>.from(json['structured_formatting'] as Map)
         : const <String, dynamic>{};
-    final description = (json['description'] ?? '').toString().trim();
+    final description = AddressLabelUtils.format(
+      (json['description'] ?? '').toString().trim(),
+    );
     return ShippingPlaceSuggestion(
       placeId: (json['place_id'] ?? '').toString().trim(),
       description: description,
-      primaryText: (structured['main_text'] ?? description).toString().trim(),
-      secondaryText: (structured['secondary_text'] ?? '').toString().trim(),
+      primaryText: AddressLabelUtils.format(
+        (structured['main_text'] ?? description).toString().trim(),
+      ),
+      secondaryText: AddressLabelUtils.format(
+        (structured['secondary_text'] ?? '').toString().trim(),
+      ),
       distanceMeters: _asInt(json['distance_meters']),
       types: (json['types'] is List)
           ? (json['types'] as List)

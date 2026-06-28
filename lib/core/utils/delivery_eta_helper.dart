@@ -16,7 +16,7 @@ class DeliveryEtaHelper {
   static const double _citySpeedKmh = 35;
 
   static DeliveryEta? parseFromPayload(Map<String, dynamic> payload) {
-    final minutes = _asInt(
+    final parsedMinutes = _asInt(
       payload['estimated_delivery_minutes'] ??
           payload['estimatedDeliveryMinutes'] ??
           payload['eta_minutes'] ??
@@ -28,13 +28,16 @@ class DeliveryEtaHelper {
           payload['distanceKm'] ??
           payload['delivery_distance_km'],
     );
-    final deliveryTime = _firstNonEmpty([
+    final deliveryTimeRaw = _firstNonEmpty([
       payload['estimated_delivery_time'],
       payload['estimatedDeliveryTime'],
       payload['estimated_time'],
       payload['estimatedTime'],
       payload['delivery_eta_time'],
     ]);
+    final minutesFromTimeField = _asInt(deliveryTimeRaw);
+    final minutes = parsedMinutes ?? minutesFromTimeField;
+    final deliveryTime = _normalizeClockTime(deliveryTimeRaw);
 
     if (minutes == null && distanceKm == null && deliveryTime == null) {
       return null;
@@ -103,8 +106,17 @@ class DeliveryEtaHelper {
   }
 
   static int? _asInt(dynamic value) {
+    if (value == null) return null;
     if (value is int) return value;
-    return int.tryParse(value?.toString() ?? '');
+    if (value is double) return value.round();
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    if (raw.contains(':')) return null;
+    final direct = int.tryParse(raw);
+    if (direct != null) return direct;
+    final match = RegExp(r'\d+').firstMatch(raw);
+    if (match == null) return null;
+    return int.tryParse(match.group(0)!);
   }
 
   static double? _asDouble(dynamic value) {
@@ -120,5 +132,13 @@ class DeliveryEtaHelper {
       }
     }
     return null;
+  }
+
+  static String? _normalizeClockTime(String? raw) {
+    if (raw == null) return null;
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+    if (!value.contains(':')) return null;
+    return value;
   }
 }

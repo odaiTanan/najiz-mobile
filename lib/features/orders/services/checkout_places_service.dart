@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/profile/profile_maps_config.dart';
 
 const Duration _mapsRequestTimeout = Duration(seconds: 5);
@@ -27,12 +28,18 @@ class CheckoutPlaceSuggestion {
     final structured = (json['structured_formatting'] is Map)
         ? Map<String, dynamic>.from(json['structured_formatting'] as Map)
         : const <String, dynamic>{};
-    final description = (json['description'] ?? '').toString().trim();
+    final description = AddressLabelUtils.format(
+      (json['description'] ?? '').toString().trim(),
+    );
     return CheckoutPlaceSuggestion(
       placeId: (json['place_id'] ?? '').toString().trim(),
       description: description,
-      primaryText: (structured['main_text'] ?? description).toString().trim(),
-      secondaryText: (structured['secondary_text'] ?? '').toString().trim(),
+      primaryText: AddressLabelUtils.format(
+        (structured['main_text'] ?? description).toString().trim(),
+      ),
+      secondaryText: AddressLabelUtils.format(
+        (structured['secondary_text'] ?? '').toString().trim(),
+      ),
       distanceMeters: _asInt(json['distance_meters']),
       types: (json['types'] is List)
           ? (json['types'] as List)
@@ -136,14 +143,18 @@ class CheckoutPlacesService {
         return null;
       }
 
-      final label =
+      final rawLabel =
           (result?['formatted_address'] ?? result?['name'])?.toString().trim();
+      final label =
+          rawLabel == null || rawLabel.isEmpty
+              ? null
+              : AddressLabelUtils.format(rawLabel);
       return CheckoutPlaceResult(
         latitude: lat,
         longitude: lng,
         label: (label != null && label.isNotEmpty)
             ? label
-            : suggestion.description,
+            : AddressLabelUtils.format(suggestion.description),
       );
     } on TimeoutException {
       return null;

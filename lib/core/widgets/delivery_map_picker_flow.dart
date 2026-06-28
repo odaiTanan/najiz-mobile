@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/core/widgets/delivery_map_picker_dialog.dart';
 import 'package:najiz_go_express/features/orders/services/checkout_places_service.dart';
 import 'package:najiz_go_express/features/profile/utils/profile_geocoding.dart';
@@ -58,6 +59,6 @@ Future<String> resolveMapPickerLabel({
   String? pickedLabel,
 }) async {
   final trimmed = pickedLabel?.trim() ?? '';
-  if (trimmed.isNotEmpty) return trimmed;
+  if (trimmed.isNotEmpty) return AddressLabelUtils.format(trimmed);
   return ProfileGeocoding.reverseGeocode(point);
 }

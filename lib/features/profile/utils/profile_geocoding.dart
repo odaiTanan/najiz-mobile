@@ -4,6 +4,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/profile/profile_maps_config.dart';
 
 abstract final class ProfileGeocoding {
@@ -27,13 +28,13 @@ abstract final class ProfileGeocoding {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final areaLabel = extractAreaLabelFromGoogle(body);
         if (areaLabel != null && areaLabel.isNotEmpty) {
-          return areaLabel;
+          return AddressLabelUtils.format(areaLabel);
         }
       }
     } catch (_) {}
     final placemarkLabel = await reverseGeocodeByPlacemark(point);
     if (placemarkLabel != null && placemarkLabel.isNotEmpty) {
-      return placemarkLabel;
+      return AddressLabelUtils.format(placemarkLabel);
     }
     return 'address.selectedOnMap'.tr;
   }
@@ -56,7 +57,10 @@ abstract final class ProfileGeocoding {
       );
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
-        return extractAreaLabelFromGoogle(body);
+        final areaLabel = extractAreaLabelFromGoogle(body);
+        if (areaLabel != null && areaLabel.isNotEmpty) {
+          return AddressLabelUtils.format(areaLabel);
+        }
       }
     } catch (_) {}
     return null;
@@ -75,7 +79,7 @@ abstract final class ProfileGeocoding {
         if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
         if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
       ];
-      if (parts.isNotEmpty) return parts.join('، ');
+      if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
     } catch (_) {}
     return null;
   }
@@ -121,12 +125,12 @@ abstract final class ProfileGeocoding {
           if (locality != null && locality.isNotEmpty) locality,
           if (route != null && route.isNotEmpty) route,
         ];
-        if (parts.isNotEmpty) return parts.join('، ');
+        if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
       }
 
       final formatted = (map['formatted_address'] ?? '').toString().trim();
       if (formatted.isNotEmpty && !looksLikeCoordinates(formatted)) {
-        return formatted;
+        return AddressLabelUtils.format(formatted);
       }
     }
     return null;

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:najiz_go_express/features/profile/errors/profile_api_exception.dart';
 
@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:najiz_go_express/core/constants/app_colors.dart';
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/profile/models/create_address_payload.dart';
 
 const String _mapsApiKey = String.fromEnvironment(
@@ -123,7 +124,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
         if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
       ];
-      if (parts.isNotEmpty) return parts.join('، ');
+      if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
     } catch (_) {}
     return null;
   }
@@ -169,12 +170,12 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
           if (locality != null && locality.isNotEmpty) locality,
           if (route != null && route.isNotEmpty) route,
         ];
-        if (parts.isNotEmpty) return parts.join('، ');
+        if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
       }
 
       final formatted = (map['formatted_address'] ?? '').toString().trim();
       if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
-        return formatted;
+        return AddressLabelUtils.format(formatted);
       }
     }
     return null;
@@ -268,7 +269,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         _selectedPoint = point;
         _selectedAddress =
             (result['formatted_address']?.toString().trim().isNotEmpty ?? false)
-            ? result['formatted_address'].toString()
+            ? AddressLabelUtils.format(result['formatted_address'].toString())
             : _selectedAddress;
       });
       _showSnackSuccess('address.locationFound'.tr);
@@ -337,7 +338,9 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
           .map(
             (p) => _PlaceSuggestion(
               placeId: (p['place_id'] ?? '').toString(),
-              description: (p['description'] ?? '').toString(),
+              description: AddressLabelUtils.format(
+                (p['description'] ?? '').toString(),
+              ),
             ),
           )
           .where((p) => p.placeId.isNotEmpty && p.description.isNotEmpty)
@@ -407,7 +410,7 @@ class _ProfileAddressEditorScreenState extends State<ProfileAddressEditorScreen>
         _selectedPoint = point;
         _selectedAddress =
             (result['formatted_address']?.toString().trim().isNotEmpty ?? false)
-            ? result['formatted_address'].toString()
+            ? AddressLabelUtils.format(result['formatted_address'].toString())
             : suggestion.description;
       });
       _showSnackSuccess('address.locationSelected'.tr);
@@ -876,12 +879,12 @@ class _AddressMapPickerScreenState extends State<_AddressMapPickerScreen> {
           if (locality != null && locality.isNotEmpty) locality,
           if (route != null && route.isNotEmpty) route,
         ];
-        if (parts.isNotEmpty) return parts.join('، ');
+        if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
       }
 
       final formatted = (map['formatted_address'] ?? '').toString().trim();
       if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
-        return formatted;
+        return AddressLabelUtils.format(formatted);
       }
     }
     return null;

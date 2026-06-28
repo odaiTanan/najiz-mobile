@@ -1,4 +1,4 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 import 'package:najiz_go_express/features/support/models/support_chat_models.dart';
 import 'package:najiz_go_express/features/support/services/support_chat_presence_service.dart';
 import 'package:najiz_go_express/features/support/services/support_dependencies.dart';

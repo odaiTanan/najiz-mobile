@@ -9,6 +9,7 @@ import 'package:najiz_go_express/features/orders/widgets/order_driver_info_card.
 import 'package:najiz_go_express/core/widgets/no_driver_assigned_dialog.dart';
 import 'package:najiz_go_express/core/widgets/vendor_order_rejected_dialog.dart';
 import 'package:najiz_go_express/core/routes/app_routes.dart';
+import 'package:najiz_go_express/core/services/order_progress_notification_mapper.dart';
 import 'package:najiz_go_express/features/orders/services/orders_dependencies.dart';
 
 class OrderTrackingScreen extends StatelessWidget {
@@ -853,6 +854,7 @@ class _TimelineCard extends StatelessWidget {
         ? const [
             'food_accepted',
             'food_driver_assigned',
+            'food_picked_up',
             'food_on_way',
             'food_delivered',
           ]
@@ -1030,6 +1032,8 @@ String _statusLabel(String status, {bool isStoreOrder = false}) {
       return 'tracking.foodPreparing'.tr;
     case 'food_driver_assigned':
       return 'tracking.foodDriverAssigned'.tr;
+    case 'food_picked_up':
+      return 'tracking.pickedUp'.tr;
     case 'food_on_way':
       return 'tracking.foodOnWay'.tr;
     case 'food_delivered':
@@ -1068,12 +1072,13 @@ int _foodTimelineIndex({
   }
 
   if (isStoreOrder) {
-    if (s == 'delivered') return 3;
-    if (s == 'on_way') return 2;
+    if (s == 'delivered') return 4;
+    if (s == 'on_way') return 3;
+    if (s == 'picked_up' || d == 'picked_up') return 2;
     if (d == 'assigned' ||
         d == 'accepted' ||
         s == 'ready' ||
-        s == 'picked_up') {
+        s == 'on_the_way_to_pickup') {
       return 1;
     }
     if (s == 'preparing' || s == 'accepted') return 0;
@@ -1101,6 +1106,8 @@ IconData _foodStageIcon(String stage) {
       return Icons.local_dining_rounded;
     case 'food_driver_assigned':
       return Icons.moped_rounded;
+    case 'food_picked_up':
+      return Icons.inventory_2_rounded;
     case 'food_on_way':
       return Icons.alt_route_rounded;
     case 'food_delivered':
@@ -1111,16 +1118,45 @@ IconData _foodStageIcon(String stage) {
 }
 
 String _dispatchLabel(String status) {
-  switch (status) {
-    case 'dispatching':
+  final normalized = OrderProgressNotificationMapper.canonicalStatus(status);
+  switch (normalized) {
+    case 'pending':
       return 'tracking.dispatching'.tr;
+    case 'assigned':
     case 'accepted':
+    case 'driver_assigned':
       return 'tracking.driverAccepted'.tr;
+    case 'on_the_way_to_pickup':
+      return 'orders.driverToPickup'.tr;
+    case 'near_destination':
+    case 'nearby':
+    case 'approaching_destination':
+    case 'driver_near':
+      return 'tracking.driverNearby'.tr;
     case 'on_way':
+    case 'in_transit':
+    case 'out_for_delivery':
+    case 'heading_to_customer':
       return 'tracking.driverOnWay'.tr;
+    case 'picked_up':
+      return 'tracking.pickedUp'.tr;
+    case 'arrived':
+    case 'waiting':
+    case 'arrived_waiting':
+    case 'driver_arrived':
+    case 'at_destination':
+    case 'at_pickup':
+    case 'waiting_at_destination':
+    case 'waiting_at_pickup':
     case 'delivered':
       return 'tracking.handoverDelivered'.tr;
+    case 'cancelled':
+    case 'canceled':
+    case 'rejected':
+      return 'tracking.cancelled'.tr;
+    case 'no_driver':
+      return 'dispatch.noDriverTitle'.tr;
     default:
-      return status.isEmpty ? '-' : status;
+      return '-';
   }
 }

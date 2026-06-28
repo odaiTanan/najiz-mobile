@@ -14,7 +14,8 @@ abstract final class VendorOrderStatus {
   }
 
   /// Treats missing/unknown status as accepting orders (legacy APIs).
-  static bool acceptsOrders(String? raw) {
+  static bool acceptsOrders(String? raw, {required bool isOpened}) {
+    if (!isOpened) return false;
     final n = normalized(raw);
     if (n == null) return true;
     if (n == 'busy' || n == 'not_accepting') return false;
@@ -30,7 +31,12 @@ abstract final class VendorOrderStatus {
   static String? blockingBannerMessage(
     String? vendorStatus, {
     required bool isStore,
+    required bool isOpened,
   }) {
+    if (!isOpened) {
+      final unit = isStore ? 'vendor.store'.tr : 'vendor.restaurant'.tr;
+      return '$unit ${'search.statusClosed'.tr}';
+    }
     if (!showsBlockingBanner(vendorStatus)) return null;
     final n = normalized(vendorStatus)!;
     if (isStore) {
@@ -43,7 +49,13 @@ abstract final class VendorOrderStatus {
         : 'vendor.restaurantNotAcceptingBanner'.tr;
   }
 
-  static Color statusDotColor(String? vendorStatus) {
+  static Color statusDotColor(
+    String? vendorStatus, {
+    required bool isOpened,
+  }) {
+    if (!isOpened) {
+      return const Color(0xFFC43D3D);
+    }
     if (showsBlockingBanner(vendorStatus)) {
       return const Color(0xFFC43D3D);
     }
@@ -51,7 +63,15 @@ abstract final class VendorOrderStatus {
   }
 
   /// Short label next to the status dot.
-  static String shortLabel(String? vendorStatus) {
+  static String shortLabel(
+    String? vendorStatus, {
+    required bool isOpened,
+    required bool isStore,
+  }) {
+    if (!isOpened) {
+      final unit = isStore ? 'vendor.store'.tr : 'vendor.restaurant'.tr;
+      return '$unit ${'search.statusClosed'.tr}';
+    }
     final n = normalized(vendorStatus);
     switch (n) {
       case 'busy':
@@ -68,7 +88,13 @@ abstract final class VendorOrderStatus {
   static String cannotAddToCartMessage(
     String? vendorStatus, {
     required bool isStore,
+    required bool isOpened,
   }) {
+    if (!isOpened) {
+      return 'vendor.closedCannotOrder'.trParams({
+        'unit': isStore ? 'vendor.store'.tr : 'vendor.restaurant'.tr,
+      });
+    }
     final n = normalized(vendorStatus);
     if (isStore) {
       return n == 'not_accepting'
@@ -87,17 +113,50 @@ class VendorOrderStatusPill extends StatelessWidget {
     super.key,
     required this.vendorStatus,
     required this.isActive,
+    required this.isOpened,
+    required this.isStore,
   });
 
   final String? vendorStatus;
   final bool isActive;
+  final bool isOpened;
+  final bool isStore;
 
   @override
   Widget build(BuildContext context) {
+    if (!isOpened) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF1F1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          VendorOrderStatus.shortLabel(
+            vendorStatus,
+            isOpened: isOpened,
+            isStore: isStore,
+          ),
+          style: const TextStyle(
+            color: Color(0xFFC43D3D),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
     final n = VendorOrderStatus.normalized(vendorStatus);
     if (n == 'available' || n == 'busy' || n == 'not_accepting') {
-      final dot = VendorOrderStatus.statusDotColor(vendorStatus);
-      final label = VendorOrderStatus.shortLabel(vendorStatus);
+      final dot = VendorOrderStatus.statusDotColor(
+        vendorStatus,
+        isOpened: isOpened,
+      );
+      final label = VendorOrderStatus.shortLabel(
+        vendorStatus,
+        isOpened: isOpened,
+        isStore: isStore,
+      );
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(

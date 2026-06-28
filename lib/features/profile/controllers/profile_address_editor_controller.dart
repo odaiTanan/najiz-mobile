@@ -9,6 +9,7 @@ import 'package:najiz_go_express/features/profile/models/address_picker_result.d
 import 'package:najiz_go_express/features/profile/models/address_place_suggestion.dart';
 import 'package:najiz_go_express/features/profile/models/create_address_payload.dart';
 import 'package:najiz_go_express/features/profile/profile_maps_config.dart';
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/profile/utils/profile_geocoding.dart';
 
 class AddressEditorFeedback {
@@ -124,7 +125,9 @@ class ProfileAddressEditorController extends GetxController {
           .map(
             (p) => PlaceSuggestion(
               placeId: (p['place_id'] ?? '').toString(),
-              description: (p['description'] ?? '').toString(),
+              description: AddressLabelUtils.format(
+                (p['description'] ?? '').toString(),
+              ),
             ),
           )
           .where((p) => p.placeId.isNotEmpty && p.description.isNotEmpty)
@@ -299,7 +302,11 @@ class ProfileAddressEditorController extends GetxController {
     if (lat == null || lng == null) {
       return (error: 'address.locationReadFailed'.tr, point: null, formattedAddress: null);
     }
-    final formattedAddress = result['formatted_address']?.toString().trim();
+    final rawFormattedAddress = result['formatted_address']?.toString().trim();
+    final formattedAddress =
+        rawFormattedAddress == null || rawFormattedAddress.isEmpty
+            ? null
+            : AddressLabelUtils.format(rawFormattedAddress);
     return (
       error: null,
       point: LatLng(lat, lng),

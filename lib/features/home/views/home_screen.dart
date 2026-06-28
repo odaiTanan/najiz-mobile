@@ -283,6 +283,9 @@ class HomeScreen extends StatelessWidget {
                           subtitle: vendor.description,
                           vendorId: vendor.id,
                           vendorStatus: vendor.vendorStatus,
+                          isOpened: vendor.isOpened,
+                          isStore: (vendor.serviceId ?? controller.selectedServiceId.value) == 3,
+                          etaMinutesText: vendor.estimatedDeliveryMinutesText,
                           onTap: () => controller.onRestaurantCardTap(vendor),
                         );
                       },
@@ -896,11 +899,12 @@ class _SectionHeader extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Flexible(
+        Expanded(
           child: Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.start,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,

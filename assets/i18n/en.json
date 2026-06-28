@@ -214,6 +214,8 @@
     "rating": "Rating",
     "topDishes": "Most ordered dishes",
     "dishes": "Dishes",
+    "topProducts": "Most ordered products",
+    "products": "Products",
     "noProducts": "No products",
     "viewCart": "View cart",
     "continueToCheckout": "Continue to checkout",
@@ -819,6 +821,7 @@
     "allTab": "All",
     "orderNow": "Order now",
     "trackOrder": "Track order",
+    "slideToPay": "Slide to pay now",
     "addonsTitle": "Item add-ons",
     "extraNotes": "Additional notes",
     "notesHint": "Write your note here (optional)",
@@ -844,6 +847,9 @@
     "cancel": "Cancel"
   },
   "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications right now",
     "newNotification": "New notification",
     "trackOrders": "Track orders",
     "orderStatusUpdate": "Order status update",
@@ -878,6 +884,7 @@
     "storeBusyCart": "This store is busy. Please try again later.",
     "storeNotAcceptingCart": "This store is not accepting orders right now.",
     "restaurantBusyCart": "The restaurant is busy. Please try again later.",
-    "restaurantNotAcceptingCart": "This restaurant is not accepting orders right now."
+    "restaurantNotAcceptingCart": "This restaurant is not accepting orders right now.",
+    "closedCannotOrder": "Unable to place order: @unit is currently closed."
   }
 }

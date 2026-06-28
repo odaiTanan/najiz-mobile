@@ -8,20 +8,31 @@ import 'package:najiz_go_express/features/restaurant/models/vendor_products_mode
 import 'package:najiz_go_express/features/restaurant/controllers/restaurant_vendor_products_controller.dart';
 import 'package:najiz_go_express/features/orders/models/checkout_cart_item.dart';
 import 'package:najiz_go_express/features/orders/views/cart_screen.dart';
+import 'package:najiz_go_express/features/orders/views/order_checkout_screen.dart';
+import 'package:najiz_go_express/core/widgets/slide_to_confirm_bar.dart';
 import 'package:najiz_go_express/core/widgets/favorite_heart_button.dart';
 import 'package:najiz_go_express/core/widgets/network_image_with_fallback.dart';
 import 'package:najiz_go_express/features/orders/widgets/vendor_order_status.dart';
+import 'package:najiz_go_express/core/utils/currency_utils.dart';
 
 class RestaurantVendorProductsScreen extends StatefulWidget {
   final String? token;
   final int vendorId;
   final int? serviceId;
+  final double? customerLat;
+  final double? customerLng;
+  final double? vendorLatHint;
+  final double? vendorLngHint;
 
   const RestaurantVendorProductsScreen({
     super.key,
     required this.token,
     required this.vendorId,
     this.serviceId,
+    this.customerLat,
+    this.customerLng,
+    this.vendorLatHint,
+    this.vendorLngHint,
   });
 
   @override
@@ -34,22 +45,29 @@ class _RestaurantVendorProductsScreenState
   final Map<int, CheckoutCartItem> _cartItemsByProductId =
       <int, CheckoutCartItem>{};
   List<VendorProductItem> _latestProducts = const [];
+  bool _latestVendorIsOpened = true;
+  String? _latestVendorOrderStatus;
   late final AppCartService _cartService;
+  late final Worker _cartItemsWorker;
+  late final Worker _cartVendorWorker;
   bool _hydratedFromSharedCart = false;
   bool _vendorCartBootstrapDone = false;
 
   bool _hasCartForThisVendor() {
+    if (_cartItemsByProductId.isNotEmpty) return true;
     return _cartService.vendorId.value == widget.vendorId &&
         _cartService.items.isNotEmpty;
   }
 
   Future<bool> _confirmLeaveCartIfNeeded() async {
+    _syncSharedCart();
     if (!_hasCartForThisVendor()) return true;
 
     final shouldSave = await showSaveCartDialog(context);
     if (shouldSave == null) return false;
 
     if (shouldSave) {
+      _syncSharedCart();
       await _cartService.persistCurrentCart();
       // Keep in-memory cart synced so both vendor and service-level cart
       // badges update immediately after leaving this screen.
@@ -68,6 +86,20 @@ class _RestaurantVendorProductsScreenState
   void initState() {
     super.initState();
     _cartService = Get.find<AppCartService>();
+    _cartItemsWorker = ever<List<CheckoutCartItem>>(
+      _cartService.items,
+      (_) {
+        if (!mounted) return;
+        setState(_applyServiceItemsToLocalMap);
+      },
+    );
+    _cartVendorWorker = ever<int?>(
+      _cartService.vendorId,
+      (_) {
+        if (!mounted) return;
+        setState(_applyServiceItemsToLocalMap);
+      },
+    );
     if (_cartService.vendorId.value == widget.vendorId &&
         _cartService.items.isNotEmpty) {
       _vendorCartBootstrapDone = true;
@@ -76,6 +108,13 @@ class _RestaurantVendorProductsScreenState
         _restoreSavedCartOnEnter();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _cartItemsWorker.dispose();
+    _cartVendorWorker.dispose();
+    super.dispose();
   }
 
   Future<void> _restoreSavedCartOnEnter() async {
@@ -103,15 +142,8 @@ class _RestaurantVendorProductsScreenState
   List<CheckoutCartItem> _buildCheckoutItems(
     List<VendorProductItem> allProducts,
   ) {
-    final byId = <int, VendorProductItem>{for (final p in allProducts) p.id: p};
-    final list = <CheckoutCartItem>[];
-
-    _cartItemsByProductId.forEach((productId, cartItem) {
-      if (!byId.containsKey(productId)) return;
-      list.add(cartItem);
-    });
-
-    return list;
+    if (_cartItemsByProductId.isEmpty) return const [];
+    return _cartItemsByProductId.values.toList(growable: false);
   }
 
   void _hydrateFromSharedCartIfNeeded(List<VendorProductItem> allProducts) {
@@ -124,9 +156,7 @@ class _RestaurantVendorProductsScreenState
       return;
     }
 
-    final validProducts = {for (final p in allProducts) p.id: p};
     for (final item in _cartService.items) {
-      if (!validProducts.containsKey(item.productId)) continue;
       _cartItemsByProductId[item.productId] = item;
     }
     _hydratedFromSharedCart = true;
@@ -138,13 +168,18 @@ class _RestaurantVendorProductsScreenState
       _cartService.clear();
       return;
     }
-    _cartService.setCart(vendorId: widget.vendorId, items: items);
+    _cartService.setCart(
+      vendorId: widget.vendorId,
+      items: items,
+      serviceId: widget.serviceId,
+    );
   }
 
   void _tryOpenProductCustomization(
     VendorProductItem product,
     bool canAcceptOrders,
     String? vendorOrderStatus,
+    bool vendorIsOpened,
   ) {
     if (!canAcceptOrders) {
       AppSnackbar.show(
@@ -152,6 +187,7 @@ class _RestaurantVendorProductsScreenState
         VendorOrderStatus.cannotAddToCartMessage(
           vendorOrderStatus,
           isStore: widget.serviceId == 3,
+          isOpened: vendorIsOpened,
         ),
       );
       return;
@@ -202,7 +238,60 @@ class _RestaurantVendorProductsScreenState
     }
   }
 
+  Future<void> _openCheckoutScreen() async {
+    if (!VendorOrderStatus.acceptsOrders(
+      _latestVendorOrderStatus,
+      isOpened: _latestVendorIsOpened,
+    )) {
+      AppSnackbar.show(
+        'restaurant.warning'.tr,
+        VendorOrderStatus.cannotAddToCartMessage(
+          _latestVendorOrderStatus,
+          isStore: widget.serviceId == 3,
+          isOpened: _latestVendorIsOpened,
+        ),
+      );
+      return;
+    }
+
+    _syncSharedCart();
+    if (!_cartService.hasItems ||
+        _cartService.vendorId.value != widget.vendorId) {
+      AppSnackbar.show(
+        'services.cart'.tr,
+        'services.emptyCart'.tr,
+      );
+      return;
+    }
+
+    await Get.to(
+      () => OrderCheckoutScreen(
+        token: widget.token,
+        vendorId: widget.vendorId,
+        items: _cartService.items.toList(growable: false),
+        serviceId: widget.serviceId ?? _cartService.serviceId.value,
+      ),
+    );
+    if (!mounted) return;
+    setState(_applyServiceItemsToLocalMap);
+  }
+
   Future<void> _openCartScreen() async {
+    if (!VendorOrderStatus.acceptsOrders(
+      _latestVendorOrderStatus,
+      isOpened: _latestVendorIsOpened,
+    )) {
+      AppSnackbar.show(
+        'restaurant.warning'.tr,
+        VendorOrderStatus.cannotAddToCartMessage(
+          _latestVendorOrderStatus,
+          isStore: widget.serviceId == 3,
+          isOpened: _latestVendorIsOpened,
+        ),
+      );
+      return;
+    }
+
     _syncSharedCart();
     if (!_cartService.hasItems ||
         _cartService.vendorId.value != widget.vendorId) {
@@ -215,7 +304,7 @@ class _RestaurantVendorProductsScreenState
     await Get.to(
       () => CartScreen(
         token: widget.token,
-        serviceId: widget.serviceId,
+        serviceId: widget.serviceId ?? _cartService.serviceId.value,
       ),
     );
     if (!mounted) return;
@@ -233,6 +322,11 @@ class _RestaurantVendorProductsScreenState
       RestaurantVendorProductsController(
         token: widget.token,
         vendorId: widget.vendorId,
+        serviceId: widget.serviceId,
+        customerLat: widget.customerLat,
+        customerLng: widget.customerLng,
+        vendorLatHint: widget.vendorLatHint,
+        vendorLngHint: widget.vendorLngHint,
       ),
       tag: 'vendor-menu-${widget.vendorId}',
     );
@@ -275,17 +369,29 @@ class _RestaurantVendorProductsScreenState
 
           final regularProducts = controller.filteredRegularProducts;
           final offerProducts = controller.offerProducts;
+          final regularGroups = _regularGroupsForDisplay(
+            categories: controller.regularCategories,
+            selectedCategoryId: controller.selectedCategoryId.value,
+            regularProducts: regularProducts,
+          );
           _latestProducts = data.products;
           final total = _cartTotal(data.products);
           _hydrateFromSharedCartIfNeeded(data.products);
 
           final isStore = widget.serviceId == 3;
           final vendorOrderStatus = data.vendor.vendorStatus;
+          final vendorIsOpened = data.vendor.isOpened;
+          _latestVendorOrderStatus = vendorOrderStatus;
+          _latestVendorIsOpened = vendorIsOpened;
           final canAcceptOrders =
-              VendorOrderStatus.acceptsOrders(vendorOrderStatus);
+              VendorOrderStatus.acceptsOrders(
+            vendorOrderStatus,
+            isOpened: vendorIsOpened,
+          );
           final heroBlockingBanner = VendorOrderStatus.blockingBannerMessage(
             vendorOrderStatus,
             isStore: isStore,
+            isOpened: vendorIsOpened,
           );
 
           return Stack(
@@ -293,11 +399,14 @@ class _RestaurantVendorProductsScreenState
               RefreshIndicator(
                 onRefresh: controller.load,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 180),
                   children: [
                     _TopBarTitle(
                       title: data.vendor.name,
-                      onBack: () => Get.back(),
+                      onBack: () async {
+                        final shouldPop = await _onWillPop();
+                        if (shouldPop) Get.back();
+                      },
                       onCartTap: _openCartScreen,
                     ),
                     const SizedBox(height: 12),
@@ -310,13 +419,16 @@ class _RestaurantVendorProductsScreenState
                       blockingOverlayMessage: heroBlockingBanner,
                     ),
                     if (VendorOrderStatus.normalized(vendorOrderStatus) !=
-                        null) ...[
+                            null ||
+                        !vendorIsOpened) ...[
                       const SizedBox(height: 8),
                       Align(
                         alignment: Alignment.centerRight,
                         child: VendorOrderStatusPill(
                           vendorStatus: vendorOrderStatus,
                           isActive: true,
+                          isOpened: vendorIsOpened,
+                          isStore: isStore,
                         ),
                       ),
                     ],
@@ -336,7 +448,10 @@ class _RestaurantVendorProductsScreenState
                           child: _InfoStatCard(
                             icon: Icons.access_time_rounded,
                             iconColor: AppColors.primary,
-                            value: '20-30',
+                            value: controller.etaMinutesText(
+                              fallbackText:
+                                  data.vendor.estimatedDeliveryMinutesText,
+                            ),
                             label: 'services.minutesDelivery'.tr,
                           ),
                         ),
@@ -372,45 +487,48 @@ class _RestaurantVendorProductsScreenState
                             p,
                             canAcceptOrders,
                             vendorOrderStatus,
+                            vendorIsOpened,
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
                     ],
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        _sectionTitleForSelectedCategory(
-                          categories: controller.regularCategories,
-                          selectedCategoryId:
-                              controller.selectedCategoryId.value,
-                        ),
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: cs.onSurface,
-                          height: 1.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (regularProducts.isEmpty)
+                    if (regularGroups.isEmpty)
                       Text(
                         'services.noProducts'.tr,
                         style: TextStyle(color: cs.onSurfaceVariant),
                       )
                     else
-                      ...regularProducts.map(
-                        (p) => _MenuProductTile(
-                          product: p,
-                          orderingEnabled: canAcceptOrders,
-                          onTap: () => _tryOpenProductCustomization(
-                            p,
-                            canAcceptOrders,
-                            vendorOrderStatus,
+                      ...regularGroups.expand(
+                        (group) => [
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              group.name,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: cs.onSurface,
+                                height: 1.1,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          ...group.products.map(
+                            (p) => _MenuProductTile(
+                              product: p,
+                              orderingEnabled: canAcceptOrders,
+                              onTap: () => _tryOpenProductCustomization(
+                                p,
+                                canAcceptOrders,
+                                vendorOrderStatus,
+                                vendorIsOpened,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
                       ),
                   ],
                 ),
@@ -420,10 +538,26 @@ class _RestaurantVendorProductsScreenState
                   left: 16,
                   right: 16,
                   bottom: 16,
-                  child: _CartBar(
-                    total: total,
-                    onTap: _openCartScreen,
-                  ),
+                  child: widget.serviceId == 3
+                      ? _CartBar(
+                          total: total,
+                          onTap: _openCartScreen,
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SlideToConfirmBar(
+                              label: 'restaurant.slideToPay'.tr,
+                              totalLabel: formatSypAmount(total),
+                              onConfirmed: _openCheckoutScreen,
+                            ),
+                            const SizedBox(height: 10),
+                            _CartBar(
+                              total: total,
+                              onTap: _openCartScreen,
+                            ),
+                          ],
+                        ),
                 ),
             ],
           );
@@ -835,7 +969,7 @@ class _MenuProductTile extends StatelessWidget {
                             product.price != null &&
                             product.originalPrice! > product.price!) ...[
                           Text(
-                            '\$${product.originalPrice!.toStringAsFixed(2)}',
+                            formatSypAmount(product.originalPrice!),
                             textAlign: TextAlign.right,
                             style: TextStyle(
                               color: cs.onSurfaceVariant,
@@ -847,9 +981,7 @@ class _MenuProductTile extends StatelessWidget {
                           const SizedBox(height: 2),
                         ],
                         Text(
-                          product.price == null
-                              ? '-'
-                              : '\$${product.price!.toStringAsFixed(2)}',
+                          product.price == null ? '-' : formatSypAmount(product.price!),
                           textAlign: TextAlign.right,
                           style: const TextStyle(
                             color: AppColors.primary,
@@ -1087,7 +1219,7 @@ class _CartBar extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '\$${total.toStringAsFixed(2)}',
+              formatSypAmount(total),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -1213,7 +1345,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '\$${_total.toStringAsFixed(2)}',
+                      formatSypAmount(_total),
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 18,
@@ -1319,7 +1451,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                             ),
                           ),
                           Text(
-                            '\$${extra.price.toStringAsFixed(2)}',
+                            formatSypAmount(extra.price),
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               color: cs.onSurface,
@@ -1412,7 +1544,7 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
                             const Icon(Icons.shopping_bag_outlined, size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              'restaurant.addToCartPrice'.trParams({'price': ' \$${_total.toStringAsFixed(2)}'}),
+                              'restaurant.addToCartPrice'.trParams({'price': formatSypAmount(_total)}),
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ],
@@ -1430,12 +1562,53 @@ class _ProductCustomizationSheetState extends State<_ProductCustomizationSheet> 
   }
 }
 
-String _sectionTitleForSelectedCategory({
+class _CategoryProductsGroup {
+  final String name;
+  final List<VendorProductItem> products;
+
+  const _CategoryProductsGroup({
+    required this.name,
+    required this.products,
+  });
+}
+
+List<_CategoryProductsGroup> _regularGroupsForDisplay({
   required List<VendorProductsCategory> categories,
   required int? selectedCategoryId,
+  required List<VendorProductItem> regularProducts,
 }) {
-  if (selectedCategoryId == null) return 'services.topDishes'.tr;
-  final match = categories.firstWhereOrNull((c) => c.id == selectedCategoryId);
-  if (match == null) return 'services.dishes'.tr;
-  return match.name;
+  if (categories.isEmpty || regularProducts.isEmpty) return const [];
+
+  final byCategoryId = <int, List<VendorProductItem>>{};
+  for (final product in regularProducts) {
+    final categoryId = product.categoryId;
+    if (categoryId == null) continue;
+    byCategoryId.putIfAbsent(categoryId, () => <VendorProductItem>[]).add(product);
+  }
+
+  if (selectedCategoryId != null) {
+    final selected = categories.firstWhereOrNull((c) => c.id == selectedCategoryId);
+    if (selected == null) return const [];
+    final selectedProducts = byCategoryId[selected.id] ?? const <VendorProductItem>[];
+    if (selectedProducts.isEmpty) return const [];
+    return <_CategoryProductsGroup>[
+      _CategoryProductsGroup(
+        name: selected.name,
+        products: selectedProducts,
+      ),
+    ];
+  }
+
+  final groups = <_CategoryProductsGroup>[];
+  for (final category in categories) {
+    final products = byCategoryId[category.id] ?? const <VendorProductItem>[];
+    if (products.isEmpty) continue;
+    groups.add(
+      _CategoryProductsGroup(
+        name: category.name,
+        products: products,
+      ),
+    );
+  }
+  return groups;
 }

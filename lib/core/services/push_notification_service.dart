@@ -20,7 +20,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PushNotificationService extends GetxService {
-  static const String _oneSignalAppId = '9281c288-37c8-4a61-8a13-72feafc8b32a';
+  static const String _oneSignalAppId = 'dfd556c5-45f5-42f4-b810-bd4e2b7b352e';
   static const String _storageKey = 'app_notifications_history';
   static const String _orderNotificationIdsKey = 'order_progress_notification_ids';
   static const String _chatNotificationIdsKey = 'chat_progress_notification_ids';
@@ -523,6 +523,19 @@ class PushNotificationService extends GetxService {
     notifications[index] = target.copyWith(isRead: true);
     _recalculateUnread();
     await _saveToStorage();
+  }
+
+  Future<void> clearLocalHistory() async {
+    notifications.clear();
+    unreadCount.value = 0;
+    _recentLocalKeys.clear();
+    _orderNotificationIds.clear();
+    _chatNotificationIds.clear();
+    await _saveToStorage();
+    await _saveNotificationIdMappings();
+    if (_localInitialized) {
+      await _localNotifications.cancelAll();
+    }
   }
 
   Future<void> pushLocalInAppNotification({

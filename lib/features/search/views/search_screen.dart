@@ -1013,6 +1013,7 @@ class _VendorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isStore = item.type == 'store' || item.type == 'stores';
     return InkWell(
       onTap: () {
         Get.to(
@@ -1102,6 +1103,7 @@ class _PreSearchVendorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isStore = item.serviceId == 3;
     return InkWell(
       onTap: () {
         Get.to(
@@ -1149,10 +1151,13 @@ class _PreSearchVendorRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  if (VendorOrderStatus.normalized(item.vendorStatus) != null)
+                  if (!item.isOpened ||
+                      VendorOrderStatus.normalized(item.vendorStatus) != null)
                     VendorOrderStatusPill(
                       vendorStatus: item.vendorStatus,
                       isActive: item.isActive,
+                      isOpened: item.isOpened,
+                      isStore: isStore,
                     )
                   else
                     Text(

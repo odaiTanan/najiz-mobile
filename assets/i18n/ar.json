@@ -214,6 +214,8 @@
     "rating": "التقييم",
     "topDishes": "الأطباق الأكثر طلبا",
     "dishes": "الأطباق",
+    "topProducts": "المنتجات الأكثر طلبا",
+    "products": "المنتجات",
     "noProducts": "لا توجد منتجات",
     "viewCart": "عرض السلة",
     "continueToCheckout": "متابعة الطلب",
@@ -819,6 +821,7 @@
     "allTab": "الكل",
     "orderNow": "اطلب الآن",
     "trackOrder": "متابعة الطلب",
+    "slideToPay": "اسحب الآن للدفع",
     "addonsTitle": "إضافات الصنف",
     "extraNotes": "ملاحظات إضافية",
     "notesHint": "اكتب ملاحظتك هنا (اختياري)",
@@ -844,6 +847,9 @@
     "cancel": "إلغاء"
   },
   "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تحديد الكل كمقروء",
+    "empty": "لا توجد إشعارات حاليا",
     "newNotification": "إشعار جديد",
     "trackOrders": "تتبع الطلبات",
     "orderStatusUpdate": "تحديث حالة الطلب",
@@ -878,6 +884,7 @@
     "storeBusyCart": "المتجر مزدحم، حاول لاحقاً.",
     "storeNotAcceptingCart": "المتجر لا يستقبل طلبات حالياً.",
     "restaurantBusyCart": "المطعم مزدحم، حاول لاحقاً.",
-    "restaurantNotAcceptingCart": "المطعم لا يستقبل طلبات حالياً."
+    "restaurantNotAcceptingCart": "المطعم لا يستقبل طلبات حالياً.",
+    "closedCannotOrder": "غير قادر على الطلب، @unit مغلق حالياً."
   }
 }

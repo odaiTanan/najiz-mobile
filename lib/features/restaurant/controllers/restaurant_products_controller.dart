@@ -9,6 +9,7 @@ import 'package:najiz_go_express/core/network/home_api_connectivity.dart';
 import 'package:najiz_go_express/features/profile/models/create_address_payload.dart';
 import 'package:najiz_go_express/features/profile/models/user_address.dart';
 import 'package:najiz_go_express/features/profile/repositories/profile_repository.dart';
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/restaurant/repositories/restaurant_repository.dart';
 import 'package:najiz_go_express/features/restaurant/views/restaurant_vendor_products_screen.dart';
 import 'dart:convert';
@@ -51,6 +52,8 @@ class RestaurantProductsController extends GetxController {
   final selectedAddressId = RxnInt();
   final isMapPickedLocation = false.obs;
   final selectedVendorId = RxnInt();
+  final selectedDeliveryLat = RxnDouble();
+  final selectedDeliveryLng = RxnDouble();
   late final currentDeliveryAddress = ''.obs;
   final isResolvingAddress = false.obs;
   static const String _mapsApiKey = String.fromEnvironment(
@@ -107,6 +110,8 @@ class RestaurantProductsController extends GetxController {
             ),
           );
           selectedAddressId.value = preferred.id;
+          selectedDeliveryLat.value = preferred.lat;
+          selectedDeliveryLng.value = preferred.lng;
           currentDeliveryAddress.value = preferred.toShortLabel();
           return;
         }
@@ -120,12 +125,16 @@ class RestaurantProductsController extends GetxController {
   void selectSavedAddress(UserAddress address) {
     selectedAddressId.value = address.id;
     isMapPickedLocation.value = false;
+    selectedDeliveryLat.value = address.lat;
+    selectedDeliveryLng.value = address.lng;
     currentDeliveryAddress.value = address.toShortLabel();
   }
 
   Future<void> useCurrentLocationAddress() async {
     selectedAddressId.value = null;
     isMapPickedLocation.value = false;
+    selectedDeliveryLat.value = null;
+    selectedDeliveryLng.value = null;
     await loadCurrentDeliveryAddress();
   }
 
@@ -136,6 +145,8 @@ class RestaurantProductsController extends GetxController {
   }) {
     selectedAddressId.value = null;
     isMapPickedLocation.value = true;
+    selectedDeliveryLat.value = lat;
+    selectedDeliveryLng.value = lng;
     final trimmed = label.trim();
     currentDeliveryAddress.value = trimmed.isNotEmpty
         ? trimmed
@@ -255,13 +266,17 @@ class RestaurantProductsController extends GetxController {
     _applyClassificationFilter();
   }
 
-  Future<void> openVendorProducts(int vendorId) async {
-    selectedVendorId.value = vendorId;
+  Future<void> openVendorProducts(VendorModel vendor) async {
+    selectedVendorId.value = vendor.id;
     await Get.to(
       () => RestaurantVendorProductsScreen(
         token: token,
-        vendorId: vendorId,
+        vendorId: vendor.id,
         serviceId: serviceId,
+        customerLat: selectedDeliveryLat.value,
+        customerLng: selectedDeliveryLng.value,
+        vendorLatHint: vendor.latitude,
+        vendorLngHint: vendor.longitude,
       ),
     );
   }
@@ -339,6 +354,8 @@ class RestaurantProductsController extends GetxController {
           accuracy: LocationAccuracy.high,
         ),
       );
+      selectedDeliveryLat.value = position.latitude;
+      selectedDeliveryLng.value = position.longitude;
 
       final resolved = await _resolveAddressFromGoogle(
         position.latitude,
@@ -356,6 +373,8 @@ class RestaurantProductsController extends GetxController {
           fallback ??
           '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
     } catch (_) {
+      selectedDeliveryLat.value = null;
+      selectedDeliveryLng.value = null;
       currentDeliveryAddress.value = 'location.geoFailed'.tr;
     } finally {
       isResolvingAddress.value = false;
@@ -422,12 +441,12 @@ class RestaurantProductsController extends GetxController {
             if (locality != null && locality.isNotEmpty) locality,
             if (route != null && route.isNotEmpty) route,
           ];
-          if (parts.isNotEmpty) return parts.join('، ');
+          if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
         }
 
         final formatted = (map['formatted_address'] ?? '').toString().trim();
         if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
-          return formatted;
+          return AddressLabelUtils.format(formatted);
         }
       }
       return null;
@@ -451,7 +470,7 @@ class RestaurantProductsController extends GetxController {
         if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
         if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
       ];
-      if (parts.isNotEmpty) return parts.join('، ');
+      if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
     } catch (_) {}
     return null;
   }

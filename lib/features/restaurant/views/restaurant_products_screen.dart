@@ -104,10 +104,12 @@ class RestaurantProductsScreen extends StatelessWidget {
                   ),
                   onNotificationsTap: AppRoutes.openNotifications,
                   cartCount: cartService.totalCount.value,
-                  onCartTap: () {
+                  onCartTap: () async {
+                    if (!cartService.hasItems) {
+                      await cartService.ensureCartLoaded();
+                    }
                     final vendorId = cartService.vendorId.value;
-                    final items = cartService.items.toList(growable: false);
-                    if (vendorId == null || items.isEmpty) {
+                    if (vendorId == null || !cartService.hasItems) {
                       AppSnackbar.show(
                         'services.cart'.tr,
                         'services.emptyCart'.tr,
@@ -117,7 +119,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                     Get.to(
                       () => CartScreen(
                         token: token,
-                        serviceId: serviceId,
+                        serviceId: cartService.serviceId.value ?? serviceId,
                       ),
                     );
                   },
@@ -210,13 +212,14 @@ class RestaurantProductsScreen extends StatelessWidget {
                     final statusMsg = VendorOrderStatus.blockingBannerMessage(
                       vendor.vendorStatus,
                       isStore: isStoresService,
+                      isOpened: vendor.isOpened,
                     );
                     final overlayTop = statusMsg != null ? 46.0 : 10.0;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
-                        onTap: () => controller.openVendorProducts(vendor.id),
+                        onTap: () => controller.openVendorProducts(vendor),
                         child: Container(
                           decoration: BoxDecoration(
                             color: cs.surface,
@@ -236,11 +239,25 @@ class RestaurantProductsScreen extends StatelessWidget {
                                   child: Stack(
                                     children: [
                                       Positioned.fill(
-                                        child: NetworkImageWithFallback(
-                                          url: vendor.image ?? vendor.logo,
-                                          fit: BoxFit.cover,
-                                          headers: authHeaders,
-                                        ),
+                                        child: vendor.isOpened
+                                            ? NetworkImageWithFallback(
+                                                url: vendor.image ?? vendor.logo,
+                                                fit: BoxFit.cover,
+                                                headers: authHeaders,
+                                              )
+                                            : ColorFiltered(
+                                                colorFilter: const ColorFilter.matrix(<double>[
+                                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                                  0, 0, 0, 1, 0,
+                                                ]),
+                                                child: NetworkImageWithFallback(
+                                                  url: vendor.image ?? vendor.logo,
+                                                  fit: BoxFit.cover,
+                                                  headers: authHeaders,
+                                                ),
+                                              ),
                                       ),
                                       if (statusMsg != null)
                                         Positioned(
@@ -312,6 +329,8 @@ class RestaurantProductsScreen extends StatelessWidget {
                                   VendorOrderStatusPill(
                                     vendorStatus: vendor.vendorStatus,
                                     isActive: vendor.isActive,
+                                    isOpened: vendor.isOpened,
+                                    isStore: isStoresService,
                                   ),
                                 ],
                               ),
@@ -327,22 +346,7 @@ class RestaurantProductsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '20-30 ${'services.minutesDelivery'.tr}',
-                                    style: TextStyle(
-                                      color: cs.onSurfaceVariant,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Icon(
-                                    Icons.location_on_outlined,
-                                    size: 12,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '1.2 km',
+                                    'يفتح ${vendor.openingTime ?? '--'} • يغلق ${vendor.closingTime ?? '--'}',
                                     style: TextStyle(
                                       color: cs.onSurfaceVariant,
                                       fontSize: 11,

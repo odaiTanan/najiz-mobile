@@ -9,6 +9,11 @@ class VendorModel {
   final bool isOpened;
   final bool isActive;
   final double? rating;
+  final String? openingTime;
+  final String? closingTime;
+  final String? estimatedDeliveryMinutesText;
+  final double? latitude;
+  final double? longitude;
   /// From `/classifications/.../vendors`: `available` | `busy` | `not_accepting`
   final String? vendorStatus;
 
@@ -23,6 +28,11 @@ class VendorModel {
     this.isOpened = false,
     this.isActive = false,
     this.rating,
+    this.openingTime,
+    this.closingTime,
+    this.estimatedDeliveryMinutesText,
+    this.latitude,
+    this.longitude,
     this.vendorStatus,
   });
 
@@ -40,6 +50,15 @@ class VendorModel {
       isOpened: _asBool(json['is_opened']),
       isActive: _asBool(json['is_active']),
       rating: _asNullableDouble(json['rating']),
+      openingTime: _asNullableString(json['opening_time'] ?? json['openingTime']),
+      closingTime: _asNullableString(json['closing_time'] ?? json['closingTime']),
+      estimatedDeliveryMinutesText: _asDeliveryMinutesText(json),
+      latitude: _asNullableCoordinate(
+        json['lat'] ?? json['latitude'] ?? json['vendor_lat'] ?? json['vendor_latitude'],
+      ),
+      longitude: _asNullableCoordinate(
+        json['lng'] ?? json['longitude'] ?? json['vendor_lng'] ?? json['vendor_longitude'],
+      ),
       vendorStatus:
           (statusStr != null && statusStr.isNotEmpty) ? statusStr : null,
     );
@@ -68,4 +87,33 @@ bool _asBool(dynamic value) {
   if (value is num) return value == 1;
   final normalized = value?.toString().toLowerCase();
   return normalized == '1' || normalized == 'true';
+}
+
+String? _asNullableString(dynamic value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+String? _asDeliveryMinutesText(Map<String, dynamic> json) {
+  final raw = json['estimated_delivery_minutes'] ??
+      json['estimatedDeliveryMinutes'] ??
+      json['delivery_eta_minutes'] ??
+      json['eta_minutes'] ??
+      json['etaMinutes'];
+  final value = raw?.toString().trim();
+  if (value == null || value.isEmpty) return null;
+  if (value.contains(':')) return null;
+  final compact = value.replaceAll(RegExp(r'\s+'), '');
+  if (RegExp(r'^\d+-\d+$').hasMatch(compact)) return compact;
+  if (RegExp(r'^\d+$').hasMatch(compact)) return compact;
+  final match = RegExp(r'\d+').firstMatch(value);
+  return match?.group(0);
+}
+
+double? _asNullableCoordinate(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  final parsed = double.tryParse(value.toString());
+  return parsed;
 }

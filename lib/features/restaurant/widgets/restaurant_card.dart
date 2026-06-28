@@ -12,6 +12,9 @@ class HomeRestaurantCard extends StatelessWidget {
   final VoidCallback? onTap;
   final int? vendorId;
   final String? vendorStatus;
+  final bool isOpened;
+  final bool isStore;
+  final String? etaMinutesText;
 
   const HomeRestaurantCard({
     super.key,
@@ -22,6 +25,9 @@ class HomeRestaurantCard extends StatelessWidget {
     this.onTap,
     this.vendorId,
     this.vendorStatus,
+    required this.isOpened,
+    required this.isStore,
+    this.etaMinutesText,
   });
 
   @override
@@ -51,12 +57,27 @@ class HomeRestaurantCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: NetworkImageWithFallback(
-                          url: imageUrl,
-                          fit: BoxFit.cover,
-                          cacheWidth: 280,
-                          cacheHeight: 160,
-                        ),
+                        child: isOpened
+                            ? NetworkImageWithFallback(
+                                url: imageUrl,
+                                fit: BoxFit.cover,
+                                cacheWidth: 280,
+                                cacheHeight: 160,
+                              )
+                            : ColorFiltered(
+                                colorFilter: const ColorFilter.matrix(<double>[
+                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                  0, 0, 0, 1, 0,
+                                ]),
+                                child: NetworkImageWithFallback(
+                                  url: imageUrl,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 280,
+                                  cacheHeight: 160,
+                                ),
+                              ),
                       ),
                       if (vendorId != null)
                         Positioned(
@@ -70,10 +91,10 @@ class HomeRestaurantCard extends StatelessWidget {
                             padding: EdgeInsets.zero,
                           ),
                         ),
-                      const Positioned(
+                      Positioned(
                         left: 8,
                         bottom: 7,
-                        child: _EtaBadge(),
+                        child: _EtaBadge(etaMinutesText: etaMinutesText),
                       ),
                     ],
                   ),
@@ -110,7 +131,7 @@ class HomeRestaurantCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (VendorOrderStatus.normalized(vendorStatus) != null)
+              if (!isOpened || VendorOrderStatus.normalized(vendorStatus) != null)
                 Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 0),
                   child: Row(
@@ -120,14 +141,21 @@ class HomeRestaurantCard extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: VendorOrderStatus.statusDotColor(vendorStatus),
+                          color: VendorOrderStatus.statusDotColor(
+                            vendorStatus,
+                            isOpened: isOpened,
+                          ),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          VendorOrderStatus.shortLabel(vendorStatus),
+                          VendorOrderStatus.shortLabel(
+                            vendorStatus,
+                            isOpened: isOpened,
+                            isStore: isStore,
+                          ),
                           textAlign: TextAlign.right,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -181,10 +209,15 @@ class HomeRestaurantCard extends StatelessWidget {
 }
 
 class _EtaBadge extends StatelessWidget {
-  const _EtaBadge();
+  const _EtaBadge({required this.etaMinutesText});
+
+  final String? etaMinutesText;
 
   @override
   Widget build(BuildContext context) {
+    if (etaMinutesText == null || etaMinutesText!.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -193,7 +226,7 @@ class _EtaBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        '25-35',
+        '${etaMinutesText!.trim()} د',
         style: TextStyle(
           fontSize: 9.5,
           color: cs.onSurface,

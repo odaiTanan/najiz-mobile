@@ -38,6 +38,10 @@ class VendorProductsVendor {
   final String? classificationName;
   /// `available` | `busy` | `not_accepting` (same as list vendors API).
   final String? vendorStatus;
+  final bool isOpened;
+  final String? estimatedDeliveryMinutesText;
+  final double? latitude;
+  final double? longitude;
 
   const VendorProductsVendor({
     required this.id,
@@ -48,6 +52,10 @@ class VendorProductsVendor {
     this.rating,
     this.classificationName,
     this.vendorStatus,
+    this.isOpened = false,
+    this.estimatedDeliveryMinutesText,
+    this.latitude,
+    this.longitude,
   });
 
   factory VendorProductsVendor.fromJson(Map<String, dynamic> json) {
@@ -65,6 +73,26 @@ class VendorProductsVendor {
           : null,
       vendorStatus:
           (statusStr != null && statusStr.isNotEmpty) ? statusStr : null,
+      isOpened: _asBool(json['is_opened']),
+      estimatedDeliveryMinutesText: _asDeliveryMinutesText(
+        json['estimated_delivery_minutes'] ??
+            json['estimatedDeliveryMinutes'] ??
+            json['delivery_eta_minutes'] ??
+            json['eta_minutes'] ??
+            json['etaMinutes'],
+      ),
+      latitude: _asNullableCoordinate(
+        json['lat'] ??
+            json['latitude'] ??
+            json['vendor_lat'] ??
+            json['vendor_latitude'],
+      ),
+      longitude: _asNullableCoordinate(
+        json['lng'] ??
+            json['longitude'] ??
+            json['vendor_lng'] ??
+            json['vendor_longitude'],
+      ),
     );
   }
 }
@@ -194,6 +222,36 @@ int? _asNullableInt(dynamic value) {
 }
 
 double? _asNullableDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}
+
+bool _asBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value == 1;
+  final normalized = value?.toString().toLowerCase();
+  return normalized == '1' || normalized == 'true';
+}
+
+String? _asNullableString(dynamic value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+String? _asDeliveryMinutesText(dynamic value) {
+  final text = _asNullableString(value);
+  if (text == null) return null;
+  if (text.contains(':')) return null;
+  final compact = text.replaceAll(RegExp(r'\s+'), '');
+  if (RegExp(r'^\d+-\d+$').hasMatch(compact)) return compact;
+  if (RegExp(r'^\d+$').hasMatch(compact)) return compact;
+  final match = RegExp(r'\d+').firstMatch(text);
+  return match?.group(0);
+}
+
+double? _asNullableCoordinate(dynamic value) {
   if (value == null) return null;
   if (value is num) return value.toDouble();
   return double.tryParse(value.toString());

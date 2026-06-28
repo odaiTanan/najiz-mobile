@@ -36,7 +36,9 @@ class EstimatedDeliveryEtaCard extends StatelessWidget {
             Text(
               minutes != null
                   ? 'tracking.etaMinutes'.trParams({'minutes': minutes.toString()})
-                  : deliveryTime ?? '--',
+                  : (deliveryTime != null
+                      ? 'tracking.estimatedDeliveryAt'.trParams({'time': deliveryTime})
+                      : '--'),
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
@@ -103,7 +105,7 @@ class EstimatedDeliveryEtaCard extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
-                if (deliveryTime != null)
+                if (deliveryTime != null && minutes == null)
                   Text(
                     'tracking.estimatedDeliveryAt'.trParams({'time': deliveryTime}),
                     style: TextStyle(

@@ -19,6 +19,7 @@ import 'package:najiz_go_express/core/navigation/home_bottom_bar.dart';
 import 'package:najiz_go_express/core/navigation/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/orders/services/orders_dependencies.dart';
 import 'package:najiz_go_express/core/services/order_dispatch_watcher.dart';
+import 'package:najiz_go_express/core/utils/currency_utils.dart';
 import 'package:najiz_go_express/core/utils/order_dispatch_utils.dart';
 import 'package:najiz_go_express/core/widgets/no_driver_assigned_dialog.dart';
 import 'package:najiz_go_express/core/peak_hour/widgets/peak_hour_price_notice.dart';
@@ -51,103 +52,113 @@ class TaxiBookingScreen extends StatelessWidget {
         child: Obx(() {
           final pricing = controller.pricing.value;
 
-          return Column(
+          return Stack(
             children: [
-              Expanded(
-                child: Stack(
+              _OpenStreetMap(
+                pickupLat: controller.pickupLat.value,
+                pickupLng: controller.pickupLng.value,
+                dropoffLat: controller.dropoffLat.value,
+                dropoffLng: controller.dropoffLng.value,
+                selectingPickup: controller.selectingPickupOnMap.value,
+                onMapTap: (lat, lng) =>
+                    controller.applyMapSelection(lat: lat, lng: lng),
+              ),
+              Positioned(
+                top: 10,
+                left: 14,
+                right: 14,
+                child: Row(
                   children: [
-                    _OpenStreetMap(
-                      pickupLat: controller.pickupLat.value,
-                      pickupLng: controller.pickupLng.value,
-                      dropoffLat: controller.dropoffLat.value,
-                      dropoffLng: controller.dropoffLng.value,
-                      selectingPickup: controller.selectingPickupOnMap.value,
-                      onMapTap: (lat, lng) =>
-                          controller.applyMapSelection(lat: lat, lng: lng),
+                    _CircleAction(
+                      icon: Icons.arrow_back,
+                      onTap: () => Get.back(),
                     ),
-                    Positioned(
-                      top: 10,
-                      left: 14,
-                      right: 14,
-                      child: Row(
-                        children: [
-                          _CircleAction(
-                            icon: Icons.arrow_back,
-                            onTap: () => Get.back(),
-                          ),
-                          const SizedBox(width: 10),
-                          const Spacer(),
-                          _CircleAction(
-                            icon: Icons.notifications_none_rounded,
-                            onTap: AppRoutes.openNotifications,
-                          ),
-                        ],
+                    const SizedBox(width: 10),
+                    const Spacer(),
+                    _CircleAction(
+                      icon: Icons.notifications_none_rounded,
+                      onTap: AppRoutes.openNotifications,
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 62,
+                left: 14,
+                right: 14,
+                child: Column(
+                  children: [
+                    _LocationCard(
+                      title: 'taxi.departureLabel'.tr,
+                      subtitle: controller.pickupAddress.value.isEmpty
+                          ? 'location.determining'.tr
+                          : controller.pickupAddress.value,
+                      selected: controller.selectingPickupOnMap.value,
+                      onTap: () => _showLocationActionSheet(
+                        context: context,
+                        controller: controller,
+                        isPickup: true,
                       ),
                     ),
-                    Positioned(
-                      top: 62,
-                      left: 14,
-                      right: 14,
-                      child: Column(
-                        children: [
-                          _LocationCard(
-                            title: 'taxi.departureLabel'.tr,
-                            subtitle: controller.pickupAddress.value.isEmpty ? 'location.determining'.tr : controller.pickupAddress.value,
-                            selected: controller.selectingPickupOnMap.value,
-                            onTap: () => _showLocationActionSheet(
-                              context: context,
-                              controller: controller,
-                              isPickup: true,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _LocationCard(
-                            title: 'taxi.destinationLabel'.tr,
-                            subtitle:
-                                controller.dropoffAddress.value ??
-                                'taxi.destinationHint'.tr,
-                            selected: !controller.selectingPickupOnMap.value,
-                            onTap: () => _showLocationActionSheet(
-                              context: context,
-                              controller: controller,
-                              isPickup: false,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 10),
+                    _LocationCard(
+                      title: 'taxi.destinationLabel'.tr,
+                      subtitle: controller.dropoffAddress.value ??
+                          'taxi.destinationHint'.tr,
+                      selected: !controller.selectingPickupOnMap.value,
+                      onTap: () => _showLocationActionSheet(
+                        context: context,
+                        controller: controller,
+                        isPickup: false,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-                ),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: cs.outlineVariant,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'taxi.chooseTripTitle'.tr,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 24,
-                          color: cs.onSurface,
+              DraggableScrollableSheet(
+                initialChildSize: 0.42,
+                minChildSize: 0.15,
+                maxChildSize: 0.88,
+                snap: true,
+                snapSizes: const [0.15, 0.42, 0.88],
+                builder: (context, scrollController) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: cs.surface,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(26)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, -2),
                         ),
-                      ),
+                      ],
                     ),
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 54,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: cs.outlineVariant,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'taxi.chooseTripTitle'.tr,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 24,
+                            color: cs.onSurface,
+                          ),
+                        ),
                     const SizedBox(height: 12),
                     if (controller.isLoading.value)
                       const Padding(
@@ -171,7 +182,7 @@ class TaxiBookingScreen extends StatelessWidget {
                           constraints: const BoxConstraints(maxHeight: 220),
                           child: ListView.separated(
                             shrinkWrap: true,
-                            physics: const BouncingScrollPhysics(),
+                            physics: const NeverScrollableScrollPhysics(),
                             itemCount: pricing.categories.length,
                             separatorBuilder: (_, _) =>
                                 const SizedBox(height: 12),
@@ -288,10 +299,10 @@ class TaxiBookingScreen extends StatelessWidget {
                       final discountedPrice =
                           selected.pricing.estimatedPrice -
                           controller.couponDiscount.value;
-                      final discountAmount =
-                          controller.couponDiscount.value.toStringAsFixed(2);
-                      final discountedTotal =
-                          discountedPrice.toStringAsFixed(2);
+                      final discountAmount = formatSypAmount(
+                        controller.couponDiscount.value,
+                      );
+                      final discountedTotal = formatSypAmount(discountedPrice);
                       return Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
@@ -417,8 +428,10 @@ class TaxiBookingScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ],
-                ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           );
@@ -1323,7 +1336,7 @@ class _TaxiCategoryCard extends StatelessWidget {
               ),
             ),
             Text(
-              '\$${category.pricing.estimatedPrice.toStringAsFixed(2)}',
+              formatSypAmount(category.pricing.estimatedPrice),
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w900,

@@ -6,10 +6,12 @@ import 'package:najiz_go_express/features/orders/controllers/my_orders_controlle
 import 'package:najiz_go_express/features/orders/models/user_order.dart';
 import 'package:najiz_go_express/features/orders/views/order_tracking_screen.dart';
 import 'package:najiz_go_express/features/orders/views/transport_order_tracking_screen.dart';
+import 'package:najiz_go_express/core/services/order_progress_notification_mapper.dart';
 import 'package:najiz_go_express/core/navigation/home_bottom_bar.dart';
 import 'package:najiz_go_express/core/navigation/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/orders/services/orders_dependencies.dart';
 import 'package:najiz_go_express/core/peak_hour/widgets/peak_hour_price_notice.dart';
+import 'package:najiz_go_express/core/utils/currency_utils.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key, required this.token});
@@ -316,7 +318,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             _detailRow(sheetCs, 'orders.orderNumber'.tr, order.orderNumber),
             _detailRow(sheetCs, 'orders.type'.tr, _selectedTypeLabel(order.type)),
             _detailRow(sheetCs, 'orders.status'.tr, _statusLabel(order.status)),
-            _detailRow(sheetCs, 'orders.dispatchStatus'.tr, order.dispatchStatus),
+            _detailRow(
+              sheetCs,
+              'orders.dispatchStatus'.tr,
+              _dispatchLabel(order.dispatchStatus),
+            ),
             if (_isVendorDeliveryOrder(order.type))
               const PeakHourPriceNotice(
                 visible: true,
@@ -325,17 +331,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             _detailRow(
               sheetCs,
               'orders.subtotal'.tr,
-              '\$${order.subtotal.toStringAsFixed(2)}',
+              formatSypAmount(order.subtotal),
             ),
             _detailRow(
               sheetCs,
               'orders.deliveryFee'.tr,
-              '\$${order.deliveryFee.toStringAsFixed(2)}',
+              formatSypAmount(order.deliveryFee),
             ),
             _detailRow(
               sheetCs,
               'orders.total'.tr,
-              '\$${order.total.toStringAsFixed(2)}',
+              formatSypAmount(order.total),
             ),
             _detailRow(sheetCs, 'orders.time'.tr, _dateHint(order.createdAt)),
             const SizedBox(height: 10),
@@ -794,7 +800,7 @@ class _ActiveOrderCard extends StatelessWidget {
               ),
               Flexible(
                 child: Text(
-                  '\$${order.total.toStringAsFixed(2)}',
+                  formatSypAmount(order.total),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
@@ -922,7 +928,7 @@ class _CompletedOrderCard extends StatelessWidget {
             ),
             Flexible(
               child: Text(
-                '\$${order.total.toStringAsFixed(2)}',
+                formatSypAmount(order.total),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.end,
@@ -1050,6 +1056,50 @@ String _statusLabel(String status) {
       return 'orders.cancelled'.tr;
     default:
       return status;
+  }
+}
+
+String _dispatchLabel(String status) {
+  final normalized = OrderProgressNotificationMapper.canonicalStatus(status);
+  switch (normalized) {
+    case 'pending':
+      return 'tracking.dispatching'.tr;
+    case 'accepted':
+    case 'assigned':
+    case 'driver_assigned':
+      return 'tracking.driverAccepted'.tr;
+    case 'on_the_way_to_pickup':
+      return 'orders.driverToPickup'.tr;
+    case 'picked_up':
+      return 'tracking.pickedUp'.tr;
+    case 'near_destination':
+    case 'nearby':
+    case 'approaching_destination':
+    case 'driver_near':
+      return 'tracking.driverNearby'.tr;
+    case 'on_way':
+    case 'in_transit':
+    case 'out_for_delivery':
+    case 'heading_to_customer':
+      return 'tracking.driverOnWay'.tr;
+    case 'arrived':
+    case 'waiting':
+    case 'arrived_waiting':
+    case 'driver_arrived':
+    case 'at_destination':
+    case 'at_pickup':
+    case 'waiting_at_destination':
+    case 'waiting_at_pickup':
+    case 'delivered':
+      return 'tracking.handoverDelivered'.tr;
+    case 'cancelled':
+    case 'canceled':
+    case 'rejected':
+      return 'tracking.cancelled'.tr;
+    case 'no_driver':
+      return 'dispatch.noDriverTitle'.tr;
+    default:
+      return '-';
   }
 }
 

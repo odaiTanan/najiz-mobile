@@ -5,6 +5,7 @@ import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:najiz_go_express/core/utils/address_label_utils.dart';
 import 'package:najiz_go_express/features/orders/repositories/orders_repository.dart';
 import 'package:najiz_go_express/features/orders/models/checkout_cart_item.dart';
 import 'package:najiz_go_express/features/profile/models/referral_coupon_models.dart';
@@ -381,7 +382,7 @@ class OrderCheckoutController extends GetxController {
     lat.value = latitude.toString();
     lng.value = longitude.toString();
     if (addressLabel != null && addressLabel.trim().isNotEmpty) {
-      customAddressName.value = addressLabel.trim();
+      customAddressName.value = AddressLabelUtils.format(addressLabel);
     } else {
       customAddressName.value = 'checkout.determiningLocation'.tr;
       unawaited(_resolveAddressLabel());
@@ -431,7 +432,7 @@ class OrderCheckoutController extends GetxController {
         if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
         if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
       ];
-      if (parts.isNotEmpty) return parts.join('، ');
+      if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
     } catch (_) {}
     return null;
   }
@@ -472,12 +473,12 @@ class OrderCheckoutController extends GetxController {
           if (sublocality != null && sublocality.isNotEmpty) sublocality,
           if (locality != null && locality.isNotEmpty) locality,
         ];
-        if (parts.isNotEmpty) return parts.join('، ');
+        if (parts.isNotEmpty) return AddressLabelUtils.joinParts(parts);
       }
 
       final formatted = (map['formatted_address'] ?? '').toString().trim();
       if (formatted.isNotEmpty && !_looksLikeCoordinates(formatted)) {
-        return formatted;
+        return AddressLabelUtils.format(formatted);
       }
     }
     return null;

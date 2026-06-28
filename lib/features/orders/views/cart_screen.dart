@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
+import 'package:najiz_go_express/core/utils/currency_utils.dart';
 import 'package:najiz_go_express/features/orders/models/checkout_cart_item.dart';
 import 'package:najiz_go_express/features/orders/views/order_checkout_screen.dart';
 import 'package:najiz_go_express/core/widgets/network_image_with_fallback.dart';
@@ -12,7 +13,7 @@ class CartScreen extends StatelessWidget {
   final String? token;
   final int? serviceId;
 
-  static String _price(double value) => '\$${value.toStringAsFixed(2)}';
+  static String _price(double value) => formatSypAmount(value);
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +183,7 @@ class _CartLineCard extends StatelessWidget {
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
 
-  static String _price(double value) => '\$${value.toStringAsFixed(2)}';
+  static String _price(double value) => formatSypAmount(value);
 
   @override
   Widget build(BuildContext context) {

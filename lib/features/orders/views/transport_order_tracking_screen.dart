@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -1067,6 +1068,7 @@ class _MapCardState extends State<_MapCard> {
   ll.LatLng? _animatedDriverPoint;
   Timer? _driverAnimationTimer;
   BitmapDescriptor? _carMarkerIcon;
+  BitmapDescriptor? _motorMarkerIcon;
   Worker? _driverWorker;
   Worker? _statusWorker;
   Worker? _dispatchWorker;
@@ -1078,7 +1080,7 @@ class _MapCardState extends State<_MapCard> {
   @override
   void initState() {
     super.initState();
-    _prepareCarMarkerIcon();
+    _prepareDriverMarkerIcons();
     final initialDriver = widget.controller.driverPoint.value;
     if (initialDriver != null) {
       _animatedDriverPoint = ll.LatLng(initialDriver.latitude, initialDriver.longitude);
@@ -1109,14 +1111,64 @@ class _MapCardState extends State<_MapCard> {
     super.dispose();
   }
 
-  Future<void> _prepareCarMarkerIcon() async {
+  Future<void> _prepareDriverMarkerIcons() async {
+    final car = await _buildMarkerFromAsset(
+          'assets/services/taxi_driver_top.png',
+          targetWidth: 120,
+        ) ??
+        await _buildMarkerFromAsset(
+          'assets/services/taxi.png',
+          targetWidth: 110,
+        ) ??
+        await _buildVehicleMarkerIcon(
+          icon: Icons.local_taxi_rounded,
+          shellColor: const Color(0xFF111827),
+        );
+    final motor = await _buildMarkerFromAsset(
+          'assets/services/motor_driver_top.png',
+          targetWidth: 100,
+        ) ??
+        await _buildVehicleMarkerIcon(
+          icon: Icons.two_wheeler_rounded,
+          shellColor: const Color(0xFF0F766E),
+        );
+    if (!mounted) return;
+    setState(() {
+      _carMarkerIcon = car;
+      _motorMarkerIcon = motor;
+    });
+  }
+
+  Future<BitmapDescriptor?> _buildMarkerFromAsset(
+    String assetPath, {
+    int targetWidth = 96,
+  }) async {
+    try {
+      final data = await rootBundle.load(assetPath);
+      final codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: targetWidth,
+      );
+      final frame = await codec.getNextFrame();
+      final bytes = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) return null;
+      return BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<BitmapDescriptor?> _buildVehicleMarkerIcon({
+    required IconData icon,
+    required Color shellColor,
+  }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     const size = 168.0;
     const center = Offset(size / 2, size / 2);
 
     final shadowPaint = Paint()..color = Colors.black.withValues(alpha: 0.2);
-    final shellPaint = Paint()..color = const Color(0xFF111827);
+    final shellPaint = Paint()..color = shellColor;
     final glassPaint = Paint()..color = const Color(0xFF7DD3FC);
     canvas.drawCircle(center.translate(0, 4), 50, shadowPaint);
     final halo = Paint()..color = Colors.white.withValues(alpha: 0.95);
@@ -1142,11 +1194,11 @@ class _MapCardState extends State<_MapCard> {
     final iconPainter = TextPainter(
       textDirection: TextDirection.ltr,
       text: TextSpan(
-        text: String.fromCharCode(Icons.directions_car_filled_rounded.codePoint),
+        text: String.fromCharCode(icon.codePoint),
         style: TextStyle(
           fontSize: 32,
-          fontFamily: Icons.directions_car_filled_rounded.fontFamily,
-          package: Icons.directions_car_filled_rounded.fontPackage,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
           color: Colors.white,
         ),
       ),
@@ -1161,11 +1213,8 @@ class _MapCardState extends State<_MapCard> {
 
     final image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (bytes == null) return;
-
-    final descriptor = BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
-    if (!mounted) return;
-    setState(() => _carMarkerIcon = descriptor);
+    if (bytes == null) return null;
+    return BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
   }
 
   void _animateDriverTo(ll.LatLng? nextPoint) {
@@ -1441,6 +1490,11 @@ class _MapCardState extends State<_MapCard> {
     final ll.LatLng? driver = _animatedDriverPoint ?? controller.driverPoint.value;
     final headingToPickup = controller.isHeadingToPickup;
     final tripInProgress = controller.isTripInProgress;
+    final driverMarkerIcon = isTaxiOrder
+        ? (_carMarkerIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen))
+        : (_motorMarkerIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan));
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('pickup'),
@@ -1466,10 +1520,9 @@ class _MapCardState extends State<_MapCard> {
           position: LatLng(driver.latitude, driver.longitude),
           infoWindow: InfoWindow(title: 'tracking.driverMarker'.tr),
           flat: true,
-          anchor: const Offset(0.5, 0.58),
+          anchor: isTaxiOrder ? const Offset(0.5, 0.5) : const Offset(0.5, 0.58),
           zIndexInt: 3,
-          icon: _carMarkerIcon ??
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          icon: driverMarkerIcon,
         ),
       if (isTaxiOrder && controller.isTripInProgress && _userPoint != null)
         Marker(

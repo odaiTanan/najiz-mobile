@@ -58,6 +58,9 @@ class AuthStateManager extends GetxService {
         previousToken,
       );
     }
+    if (Get.isRegistered<PushNotificationService>()) {
+      await Get.find<PushNotificationService>().clearLocalHistory();
+    }
     TabSessionCleanup.resetAfterAuthChange();
     await SessionService.clearSession();
     token.value = null;

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AppCartService extends GetxService {
   final vendorId = RxnInt();
+  final serviceId = RxnInt();
   final items = <CheckoutCartItem>[].obs;
   final totalCount = 0.obs;
 
@@ -14,14 +15,22 @@ class AppCartService extends GetxService {
   static const String _savedCartPayloadKey = 'saved_cart_payload_v1';
   static const String _hasSavedCartKey = 'has_saved_cart_v1';
 
-  void setCart({required int vendorId, required List<CheckoutCartItem> items}) {
+  void setCart({
+    required int vendorId,
+    required List<CheckoutCartItem> items,
+    int? serviceId,
+  }) {
     this.vendorId.value = vendorId;
+    if (serviceId != null) {
+      this.serviceId.value = serviceId;
+    }
     this.items.assignAll(items);
     _recalculateCount();
   }
 
   void clear() {
     vendorId.value = null;
+    serviceId.value = null;
     items.clear();
     _recalculateCount();
   }
@@ -57,6 +66,7 @@ class AppCartService extends GetxService {
 
     final payload = <String, dynamic>{
       'vendorId': vId,
+      if (serviceId.value != null) 'serviceId': serviceId.value,
       'items': items.map(_itemToJson).toList(growable: false),
     };
 
@@ -78,6 +88,7 @@ class AppCartService extends GetxService {
 
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
     final vId = (decoded['vendorId'] as num?)?.toInt();
+    final savedServiceId = (decoded['serviceId'] as num?)?.toInt();
     final itemsRaw = decoded['items'];
     if (vId == null || itemsRaw is! List) return false;
 
@@ -90,8 +101,23 @@ class AppCartService extends GetxService {
 
     if (restoredItems.isEmpty) return false;
 
-    setCart(vendorId: vId, items: restoredItems);
+    setCart(
+      vendorId: vId,
+      items: restoredItems,
+      serviceId: savedServiceId,
+    );
     return true;
+  }
+
+  /// Loads in-memory cart from storage when memory is empty.
+  Future<bool> ensureCartLoaded({int? forVendorId}) async {
+    if (hasItems) {
+      if (forVendorId == null || vendorId.value == forVendorId) {
+        return true;
+      }
+      return false;
+    }
+    return restoreSavedCartIfAny(forVendorId: forVendorId);
   }
 
   /// Consume the saved-cart flag/snapshot (cart remains in memory).

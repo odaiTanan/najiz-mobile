@@ -16,6 +16,7 @@ import 'package:najiz_go_express/features/orders/views/order_tracking_screen.dar
 import 'package:najiz_go_express/core/peak_hour/widgets/peak_hour_price_notice.dart';
 import 'package:najiz_go_express/features/orders/widgets/coupon_picker_sheet.dart';
 import 'package:najiz_go_express/core/widgets/network_image_with_fallback.dart';
+import 'package:najiz_go_express/core/utils/currency_utils.dart';
 
 class OrderCheckoutScreen extends StatelessWidget {
   final String? token;
@@ -814,7 +815,7 @@ class _InvoiceCard extends StatelessWidget {
   }
 }
 
-String _price(double value) => '\$${value.toStringAsFixed(2)}';
+String _price(double value) => formatSypAmount(value);
 String _priceOrPlaceholder({
   required double value,
   required bool hasCalculatedPricing,

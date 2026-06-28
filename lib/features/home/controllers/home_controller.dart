@@ -388,7 +388,7 @@ class HomeController extends GetxController {
               Get.to(
                 () => CartScreen(
                   token: activeToken,
-                  serviceId: selectedServiceId.value,
+                  serviceId: cart.serviceId.value ?? selectedServiceId.value,
                 ),
               );
             },
