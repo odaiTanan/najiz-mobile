@@ -71,6 +71,8 @@ class HomeController extends GetxController {
 
   final isLoading = false.obs;
   final isVendorsLoading = false.obs;
+  final vendorsWaitingNetwork = false.obs;
+  final vendorsInitialLoadCompleted = false.obs;
   final isLoadingMoreVendors = false.obs;
   final vendorCurrentPage = 1.obs;
   final vendorLastPage = 1.obs;
@@ -88,6 +90,7 @@ class HomeController extends GetxController {
   final errorMessage = RxnString();
 
   bool _homeOfflineSnackShown = false;
+  bool _vendorsOfflineSnackShown = false;
   Future<void>? _homeLoadFuture;
 
   bool get isGuest => _authStateManager.isGuest;
@@ -144,6 +147,7 @@ class HomeController extends GetxController {
     );
     if (snapshot.vendors.isNotEmpty) {
       vendors.assignAll(snapshot.vendors);
+      vendorsInitialLoadCompleted.value = true;
     }
     if (snapshot.vendorServiceId != null) {
       restaurantServiceId.value = snapshot.vendorServiceId;
@@ -233,7 +237,7 @@ class HomeController extends GetxController {
       unawaited(
         _refreshVendorsInBackground(
           vendorServiceId,
-          propagateConnectivity: propagateConnectivity,
+          propagateConnectivity: false,
           forceRefresh: forceRefresh,
         ),
       );
@@ -436,61 +440,87 @@ class HomeController extends GetxController {
     selectedServiceId.value = serviceId;
     final hadVendors = vendors.isNotEmpty;
     if (!hadVendors) {
+      vendorsInitialLoadCompleted.value = false;
+    }
+    if (!hadVendors) {
       isVendorsLoading.value = true;
     }
-    try {
-      final result = await _restaurantRepository.getVendorsByService(
-        token: activeToken,
-        serviceId: serviceId,
-        forceRefresh: forceRefresh,
-      );
-      vendors.assignAll(result.items);
-      vendorCurrentPage.value = result.currentPage;
-      vendorLastPage.value = result.lastPage;
-      vendorActiveFilter.value = null;
-      vendorCuisineFilter.value = null;
-      unawaited(
-        RemoteImageCacheWarmer.warmUrls(
-          result.items.map((vendor) => vendor.image ?? vendor.logo),
-          maxCount: 12,
-        ),
-      );
-      if (persistCache) {
+    vendorsWaitingNetwork.value = false;
+    while (!isClosed) {
+      try {
+        final result = await _restaurantRepository.getVendorsByService(
+          token: activeToken,
+          serviceId: serviceId,
+          forceRefresh: forceRefresh,
+        );
+        vendors.assignAll(result.items);
+        vendorCurrentPage.value = result.currentPage;
+        vendorLastPage.value = result.lastPage;
+        vendorActiveFilter.value = null;
+        vendorCuisineFilter.value = null;
+        vendorsWaitingNetwork.value = false;
+        _vendorsOfflineSnackShown = false;
+        vendorsInitialLoadCompleted.value = true;
+        errorMessage.value = null;
         unawaited(
-          HomeBootstrapCache.save(
-            offers: offers.toList(growable: false),
-            services: services.toList(growable: false),
-            vendors: result.items,
-            vendorServiceId: serviceId,
+          RemoteImageCacheWarmer.warmUrls(
+            result.items.map((vendor) => vendor.image ?? vendor.logo),
+            maxCount: 12,
           ),
         );
-      }
-    } on RestaurantApiException catch (e) {
-      if (!hadVendors) vendors.clear();
-      if (propagateConnectivity && e.isConnectivityIssue) {
-        rethrow;
-      }
-      if (e.isConnectivityIssue) {
-        errorMessage.value = AppErrorMessages.noInternet;
-        if (showConnectivitySnackbar && !isClosed) {
-          AppSnackbar.show(
-            'offline.title'.tr,
-            'home.waitingForNetworkHint'.tr,
-            duration: const Duration(seconds: 3),
-            icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
+        if (persistCache) {
+          unawaited(
+            HomeBootstrapCache.save(
+              offers: offers.toList(growable: false),
+              services: services.toList(growable: false),
+              vendors: result.items,
+              vendorServiceId: serviceId,
+            ),
           );
         }
-      } else {
+        break;
+      } on RestaurantApiException catch (e) {
+        if (propagateConnectivity && e.isConnectivityIssue) {
+          rethrow;
+        }
+        if (e.isConnectivityIssue) {
+          vendorsWaitingNetwork.value = true;
+          if (showConnectivitySnackbar &&
+              !isClosed &&
+              !_vendorsOfflineSnackShown) {
+            _vendorsOfflineSnackShown = true;
+            AppSnackbar.show(
+              'offline.title'.tr,
+              'home.waitingForNetworkHint'.tr,
+              duration: const Duration(seconds: 3),
+              icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
+            );
+          }
+          if (!hadVendors) {
+            await Future<void>.delayed(const Duration(seconds: 2));
+            if (isClosed) return;
+            continue;
+          }
+          vendorsInitialLoadCompleted.value = true;
+          errorMessage.value = AppErrorMessages.noInternet;
+          break;
+        }
+        vendorsWaitingNetwork.value = false;
+        if (!hadVendors) vendors.clear();
+        vendorsInitialLoadCompleted.value = true;
         errorMessage.value = e.message;
+        break;
+      } catch (_) {
+        vendorsWaitingNetwork.value = false;
+        if (!hadVendors) {
+          errorMessage.value = 'home_ctrl.restaurantsFailed'.tr;
+          vendors.clear();
+        }
+        vendorsInitialLoadCompleted.value = true;
+        break;
       }
-    } catch (_) {
-      if (!hadVendors) {
-        errorMessage.value = 'home_ctrl.restaurantsFailed'.tr;
-        vendors.clear();
-      }
-    } finally {
-      isVendorsLoading.value = false;
     }
+    isVendorsLoading.value = false;
   }
 
   Future<void> loadMoreVendorsIfNeeded() async {

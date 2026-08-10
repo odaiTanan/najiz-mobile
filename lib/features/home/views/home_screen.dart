@@ -237,8 +237,24 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 if (controller.filteredVendors.isEmpty)
                   Obx(() {
-                    if (controller.isVendorsLoading.value) {
-                      return const _ShimmerRestaurantsRow();
+                    final loadingVendors = controller.isVendorsLoading.value;
+                    final waitingNetwork = controller.vendorsWaitingNetwork.value;
+                    final initialLoadCompleted =
+                        controller.vendorsInitialLoadCompleted.value;
+                    if (!initialLoadCompleted || loadingVendors || waitingNetwork) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _ShimmerRestaurantsRow(),
+                          if (waitingNetwork) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              'home.waitingForNetworkHint'.tr,
+                              style: TextStyle(color: context.uiSubtext),
+                            ),
+                          ],
+                        ],
+                      );
                     }
                     return Text(
                       'home.noRestaurants'.tr,

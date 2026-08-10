@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:najiz_go_express/core/routes/app_routes.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/features/home/controllers/home_controller.dart';
 import 'package:najiz_go_express/features/home/services/home_bootstrap_cache.dart';
 
-/// مدة دخول الشعار: قصيرة — لا تنتظر الشبكة.
-const _kLogoAnimDuration = Duration(milliseconds: 650);
+const _kMinSplashDuration = Duration(milliseconds: 1600);
+const _kAnimationWaitTimeout = Duration(seconds: 3);
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -18,7 +19,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  static const _navDelay = Duration(milliseconds: 120);
+  final Completer<void> _animationDone = Completer<void>();
 
   @override
   void initState() {
@@ -36,7 +37,10 @@ class _SplashScreenState extends State<SplashScreen> {
     controller.primeInstantShell();
     unawaited(controller.loadHomeData());
 
-    await Future<void>.delayed(_navDelay);
+    await Future.wait<void>([
+      Future<void>.delayed(_kMinSplashDuration),
+      _animationDone.future.timeout(_kAnimationWaitTimeout, onTimeout: () {}),
+    ]);
     _goHome();
   }
 
@@ -48,14 +52,42 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final pageBg = Theme.of(context).scaffoldBackgroundColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final logoAsset = isDark ? 'assets/logo_dark.png' : 'assets/logo_light.png';
+    final screenHeight = MediaQuery.sizeOf(context).height;
     return Scaffold(
       backgroundColor: pageBg,
       body: ColoredBox(
         color: pageBg,
         child: SafeArea(
-          child: Center(
-            child: _AnimatedLogo(
-              height: (MediaQuery.sizeOf(context).height * 0.22).clamp(96.0, 180.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Image.asset(
+                    logoAsset,
+                    height: (screenHeight * 0.11).clamp(56.0, 90.0),
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
+                const Spacer(),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _AnimatedLogo(
+                    height: (screenHeight * 0.28).clamp(170.0, 260.0),
+                    onCompleted: () {
+                      if (!_animationDone.isCompleted) {
+                        _animationDone.complete();
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -65,40 +97,55 @@ class _SplashScreenState extends State<SplashScreen> {
 }
 
 class _AnimatedLogo extends StatefulWidget {
-  const _AnimatedLogo({required this.height});
+  const _AnimatedLogo({required this.height, required this.onCompleted});
 
   final double height;
+  final VoidCallback onCompleted;
 
   @override
   State<_AnimatedLogo> createState() => _AnimatedLogoState();
 }
 
-class _AnimatedLogoState extends State<_AnimatedLogo> {
+class _AnimatedLogoState extends State<_AnimatedLogo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _didStart = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          widget.onCompleted();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final logoAsset = isDark ? 'assets/logo_dark.png' : 'assets/logo_light.png';
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: _kLogoAnimDuration,
-      curve: Curves.easeOutQuart,
-      builder: (context, t, child) {
-        final u = t.clamp(0.0, 1.0);
-        return Opacity(
-          opacity: u,
-          child: Transform.scale(
-            scale: 0.94 + 0.06 * u,
-            child: child,
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Image.asset(
-          logoAsset,
-          height: widget.height,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: SizedBox(
+        height: widget.height,
+        child: Lottie.asset(
+          'assets/lottie/yellow_delivery_guy.json',
+          controller: _controller,
+          repeat: false,
           fit: BoxFit.contain,
-          filterQuality: FilterQuality.medium,
+          onLoaded: (composition) {
+            _controller.duration = composition.duration;
+            if (!_didStart) {
+              _didStart = true;
+              _controller.forward(from: 0);
+            }
+          },
         ),
       ),
     );

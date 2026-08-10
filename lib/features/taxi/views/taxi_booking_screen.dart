@@ -178,26 +178,27 @@ class TaxiBookingScreen extends StatelessWidget {
                     else
                       Obx(() {
                         final selectedId = controller.selectedCategoryId.value;
-                        return ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 220),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: pricing.categories.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (_, index) {
-                              final category = pricing.categories[index];
-                              return _TaxiCategoryCard(
+                        return Column(
+                          children: List.generate(pricing.categories.length, (
+                            index,
+                          ) {
+                            final category = pricing.categories[index];
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index == pricing.categories.length - 1
+                                    ? 0
+                                    : 12,
+                              ),
+                              child: _TaxiCategoryCard(
                                 category: category,
                                 selected:
                                     selectedId == category.vehicleCategory.id,
                                 onTap: () => controller.selectCategory(
                                   category.vehicleCategory.id,
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          }),
                         );
                       }),
                     Obx(
