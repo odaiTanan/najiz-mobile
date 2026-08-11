@@ -12,6 +12,10 @@ class NetworkImageWithFallback extends StatelessWidget {
   final int? cacheWidth;
   final int? cacheHeight;
 
+  /// Optional widget for missing URL, loading, or load errors.
+  /// Defaults to [ImageLoadingPattern].
+  final Widget? fallback;
+
   const NetworkImageWithFallback({
     super.key,
     required this.url,
@@ -19,12 +23,13 @@ class NetworkImageWithFallback extends StatelessWidget {
     this.headers,
     this.cacheWidth,
     this.cacheHeight,
+    this.fallback,
   });
 
   @override
   Widget build(BuildContext context) {
     final resolved = MediaUrlResolver.resolve(url);
-    if (resolved == null) return _patternPlaceholder();
+    if (resolved == null) return _placeholder();
 
     final diskWidth = cacheWidth ?? 1024;
     final diskHeight = cacheHeight ?? 1024;
@@ -39,12 +44,12 @@ class NetworkImageWithFallback extends StatelessWidget {
       maxHeightDiskCache: diskHeight,
       fadeInDuration: const Duration(milliseconds: 220),
       fadeOutDuration: const Duration(milliseconds: 120),
-      placeholder: (_, _) => _patternPlaceholder(),
-      errorWidget: (_, _, _) => _patternPlaceholder(),
+      placeholder: (_, _) => _placeholder(),
+      errorWidget: (_, _, _) => _placeholder(),
     );
   }
 
-  Widget _patternPlaceholder() {
-    return ImageLoadingPattern(fit: fit);
+  Widget _placeholder() {
+    return fallback ?? ImageLoadingPattern(fit: fit);
   }
 }

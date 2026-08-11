@@ -55,7 +55,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String? get _activeToken {
     final auth = Get.find<AuthStateManager>();
-    return auth.token.value ?? widget.token;
+    final authToken = auth.token.value?.trim();
+    if (authToken != null && authToken.isNotEmpty) return authToken;
+    if (auth.isGuest) return null;
+    final legacy = widget.token?.trim();
+    if (legacy == null || legacy.isEmpty) return null;
+    return legacy;
   }
 
   bool get _isGuest => Get.find<AuthStateManager>().isGuest;

@@ -94,7 +94,15 @@ class HomeController extends GetxController {
   Future<void>? _homeLoadFuture;
 
   bool get isGuest => _authStateManager.isGuest;
-  String? get activeToken => _authStateManager.token.value ?? token;
+  String? get activeToken {
+    final authToken = _authStateManager.token.value?.trim();
+    if (authToken != null && authToken.isNotEmpty) return authToken;
+    // Never fall back to a constructor token after the session became Guest.
+    if (_authStateManager.isGuest) return null;
+    final legacy = token?.trim();
+    if (legacy == null || legacy.isEmpty) return null;
+    return legacy;
+  }
   RxInt get unreadNotifications => _pushNotificationService.unreadCount;
   UserOrder? get primaryActiveOrder =>
       activeOrders.isEmpty ? null : activeOrders.first;

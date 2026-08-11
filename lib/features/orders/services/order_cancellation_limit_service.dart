@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
-import 'package:najiz_go_express/core/routes/app_routes.dart';
 import 'package:najiz_go_express/core/services/app_cart_service.dart';
 import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/theme/theme_context.dart';
@@ -35,9 +34,9 @@ class OrderCancellationLimitService extends GetxService {
     if (Get.isRegistered<AppCartService>()) {
       Get.find<AppCartService>().clear();
     }
-    await Get.find<AuthStateManager>().markGuest();
+    await Get.find<AuthStateManager>()
+        .invalidateSessionAndOpenLogin(offAll: true);
     await _resetCount();
-    AppRoutes.openLogin(offAll: true);
     return true;
   }
 

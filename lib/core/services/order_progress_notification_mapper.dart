@@ -267,10 +267,10 @@ class OrderProgressNotificationMapper {
           case 'no_driver':
             return 0;
           case 'accepted':
-          case 'assigned':
           case 'preparing':
-            return 1;
           case 'ready':
+            return 1;
+          case 'assigned':
           case 'on_the_way_to_pickup':
           case 'picked_up':
             return 2;
@@ -299,13 +299,12 @@ class OrderProgressNotificationMapper {
         case 'no_driver':
           return 0;
         case 'accepted':
-        case 'assigned':
           return 1;
         case 'preparing':
         case 'ready':
           return 2;
+        case 'assigned':
         case 'on_the_way_to_pickup':
-          return 3;
         case 'picked_up':
           return 3;
         case 'on_way':
@@ -409,8 +408,14 @@ class OrderProgressNotificationMapper {
     switch (s) {
       case 'driver_assigned':
       case 'accepted_by_driver':
-      case 'dispatching':
         return 'assigned';
+      // "dispatching" means the backend is still searching — not that a driver
+      // has been assigned. Keep it distinct from assigned/accepted.
+      case 'dispatching':
+      case 'searching':
+      case 'searching_for_driver':
+      case 'looking_for_driver':
+        return 'pending';
       case 'preparing_food':
       case 'being_prepared':
         return 'preparing';

@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:najiz_go_express/core/constants/api_config.dart';
 import 'package:najiz_go_express/core/constants/app_error_messages.dart';
+import 'package:najiz_go_express/core/errors/error_sanitizer.dart';
 import 'package:najiz_go_express/core/errors/home_api_exception.dart';
 import 'package:najiz_go_express/core/network/connectivity_guard.dart';
+import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/data/api/api_get_cache.dart';
 import 'package:najiz_go_express/data/api/api_response.dart';
 import 'package:najiz_go_express/data/api/interceptors/api_interceptor.dart';
@@ -133,6 +136,7 @@ class ApiClient {
           );
         }
         ConnectivityGuard.markRequestSucceeded();
+        _maybeInvalidateAuthSession(token: token, response: response);
         return response;
       } on TimeoutException catch (e) {
         lastError = e;
@@ -367,6 +371,28 @@ class ApiClient {
     for (final interceptor in _interceptors) {
       interceptor.onError(method: method, uri: uri, error: error);
     }
+  }
+
+  void _maybeInvalidateAuthSession({
+    required String? token,
+    required http.Response response,
+  }) {
+    final sentToken = token?.trim() ?? '';
+    if (sentToken.isEmpty) return;
+    if (response.statusCode != 401 && response.statusCode != 403) return;
+
+    final body = ApiResponse.safeDecodeMap(response.body);
+    final message = ApiResponse.extractMessage(body);
+    if (!ErrorSanitizer.isSessionInvalidating(
+      rawMessage: message,
+      statusCode: response.statusCode,
+    )) {
+      return;
+    }
+    if (!Get.isRegistered<AuthStateManager>()) return;
+    unawaited(
+      Get.find<AuthStateManager>().invalidateSessionAndOpenLogin(offAll: true),
+    );
   }
 
   Future<http.Response> _send({

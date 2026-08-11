@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:najiz_go_express/features/favorites/controllers/favorites_list_controller.dart';
 import 'package:najiz_go_express/features/home/controllers/home_controller.dart';
+import 'package:najiz_go_express/features/notifications/controllers/notifications_controller.dart';
 import 'package:najiz_go_express/features/orders/controllers/my_orders_controller.dart';
 import 'package:najiz_go_express/features/profile/controllers/profile_controller.dart';
 import 'package:najiz_go_express/features/search/controllers/search_controller.dart';
@@ -13,6 +14,7 @@ class TabSessionCleanup {
   static const _profileTag = 'profile-controller';
   static const _ordersTag = 'my-orders';
   static const _searchTag = 'search-screen';
+  static const _notificationsTag = 'notifications';
   static const _favoritesTags = ['restaurants', 'meals', 'stores'];
 
   static void resetAfterAuthChange() {
@@ -21,6 +23,7 @@ class TabSessionCleanup {
     _deleteIfRegistered<ProfileController>(tag: _profileTag);
     _deleteIfRegistered<MyOrdersController>(tag: _ordersTag);
     _deleteIfRegistered<SearchController>(tag: _searchTag);
+    _deleteIfRegistered<NotificationsController>(tag: _notificationsTag);
     for (final tag in _favoritesTags) {
       _deleteIfRegistered<FavoritesListController>(tag: tag);
     }

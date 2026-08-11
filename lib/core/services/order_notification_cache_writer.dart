@@ -17,8 +17,7 @@ class OrderNotificationCacheWriter {
   }) async {
     if (orderId <= 0) return;
     try {
-      final cacheDir = await getTemporaryDirectory();
-      final orderDir = Directory('${cacheDir.path}/order_notif');
+      final orderDir = await _orderNotifDir();
       if (!await orderDir.exists()) {
         await orderDir.create(recursive: true);
       }
@@ -43,5 +42,22 @@ class OrderNotificationCacheWriter {
     } catch (_) {
       // Cache is best-effort for background delivery.
     }
+  }
+
+  /// Removes all cached order-notification assets for the previous session.
+  static Future<void> clearAll() async {
+    try {
+      final orderDir = await _orderNotifDir();
+      if (await orderDir.exists()) {
+        await orderDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Best-effort cleanup during session invalidation.
+    }
+  }
+
+  static Future<Directory> _orderNotifDir() async {
+    final cacheDir = await getTemporaryDirectory();
+    return Directory('${cacheDir.path}/order_notif');
   }
 }

@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
 import 'package:najiz_go_express/core/utils/delivery_eta_helper.dart';
-import 'package:najiz_go_express/core/utils/dispatch_timeout_config.dart';
 import 'package:najiz_go_express/features/orders/errors/orders_api_exception.dart';
 import 'package:najiz_go_express/features/orders/models/order_driver_info.dart';
 import 'package:najiz_go_express/core/services/push_notification_service.dart';
 import 'package:najiz_go_express/features/orders/repositories/orders_repository.dart';
 import 'package:najiz_go_express/features/orders/services/orders_dependencies.dart';
 import 'package:najiz_go_express/core/services/order_websocket_service.dart';
+import 'package:najiz_go_express/core/services/order_progress_notification_mapper.dart';
 import 'package:najiz_go_express/core/utils/order_dispatch_utils.dart';
 import 'package:najiz_go_express/core/utils/vendor_order_rejection.dart';
 
@@ -41,15 +41,15 @@ class OrderTrackingController extends GetxController {
   final noDriverDetected = false.obs;
   final isCancellingDueToNoDriver = false.obs;
   final vendorRejectionDetected = false.obs;
+  /// True only when backend provided a concrete driver identity for this order.
+  final hasAssignedDriver = false.obs;
 
   final OrdersRepository _repository = resolveOrdersRepository();
-  final PushNotificationService _pushService = Get.find<PushNotificationService>();
+  final PushNotificationService _pushService =
+      Get.find<PushNotificationService>();
 
   OrderWebSocketService? _wsService;
   Timer? _driverPollTimer;
-  Timer? _dispatchTimeoutTimer;
-  DateTime? _dispatchTimeoutStartedAt;
-  Duration _dispatchTimeoutDuration = DispatchTimeoutConfig.defaultTimeout;
   bool _cancelledDueToNoDriver = false;
   double? _destinationLat;
   double? _destinationLng;
@@ -65,20 +65,17 @@ class OrderTrackingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    currentStatus.value = initialStatus;
-    currentDispatchStatus.value = initialDispatchStatus;
-    _rememberActiveStatus(initialStatus);
-    _noDriverTracker.shouldHandleNoDriver(
+    _applyLifecycleSnapshot(
       status: initialStatus,
       dispatchStatus: initialDispatchStatus,
+    );
+    _noDriverTracker.shouldHandleNoDriver(
+      status: currentStatus.value,
+      dispatchStatus: currentDispatchStatus.value,
     );
     _checkVendorRejection(
-      status: initialStatus,
-      dispatchStatus: initialDispatchStatus,
-    );
-    _syncDispatchTimeoutWatcher(
-      status: initialStatus,
-      dispatchStatus: initialDispatchStatus,
+      status: currentStatus.value,
+      dispatchStatus: currentDispatchStatus.value,
     );
     _emitDriverArrivalNotificationsIfNeeded();
     _connect();
@@ -96,17 +93,54 @@ class OrderTrackingController extends GetxController {
       isLiveConnected.value = true;
     } catch (e) {
       isLiveConnected.value = false;
-      errorMessage.value = 'tracking.liveConnectFailed'.trParams({'error': e.toString()});
+      errorMessage.value =
+          'tracking.liveConnectFailed'.trParams({'error': e.toString()});
     }
   }
 
   void _onOrderUpdated(Map<String, dynamic> payload) {
+    final statusRaw =
+        payload['status']?.toString() ?? payload['order_status']?.toString();
+    final dispatchRaw = payload['dispatch_status']?.toString() ??
+        payload['driver_status']?.toString();
     if (kDebugMode) {
-      print('[TRACKING][UPDATE] status=${payload['status']} dispatch=${payload['dispatch_status']}');
+      print('[TRACKING][UPDATE] status=$statusRaw dispatch=$dispatchRaw');
     }
-    currentStatus.value = (payload['status'] ?? currentStatus.value).toString();
-    currentDispatchStatus.value =
-        (payload['dispatch_status'] ?? currentDispatchStatus.value).toString();
+    _applyLifecycleSnapshot(
+      status: statusRaw,
+      dispatchStatus: dispatchRaw,
+      payload: payload,
+    );
+  }
+
+  void _applyLifecycleSnapshot({
+    String? status,
+    String? dispatchStatus,
+    Map<String, dynamic>? payload,
+  }) {
+    final nextStatus = _resolveIncomingStatus(
+      statusRaw: status,
+      dispatchRaw: dispatchStatus,
+    );
+    final nextDispatch = _canonicalizeOrKeep(
+      dispatchStatus,
+      currentDispatchStatus.value,
+    );
+
+    if (nextStatus != null) {
+      currentStatus.value = nextStatus;
+      if (_isPostAssignmentOrderStatus(nextStatus)) {
+        hasAssignedDriver.value = true;
+      }
+    }
+    if (nextDispatch != null) {
+      currentDispatchStatus.value = nextDispatch;
+    }
+
+    if (payload != null) {
+      _captureDriverAssignmentEvidence(payload);
+    }
+
     _rememberActiveStatus(currentStatus.value);
     _checkVendorRejection(
       status: currentStatus.value,
@@ -116,18 +150,89 @@ class OrderTrackingController extends GetxController {
     if (vendorRejectionDetected.value) return;
     _checkNoDriver(currentStatus.value, currentDispatchStatus.value);
     if (noDriverDetected.value) return;
-    _syncDispatchTimeoutWatcher(
-      status: currentStatus.value,
-      dispatchStatus: currentDispatchStatus.value,
-      payload: payload,
-    );
-    if (noDriverDetected.value) return;
     _emitDriverArrivalNotificationsIfNeeded();
     _refreshDriverInfoIfNeeded();
   }
 
+  /// Definitive proof of driver assignment: a concrete driver id / delivery_man
+  /// entity on the order payload (not dispatch_status alone).
+  void _captureDriverAssignmentEvidence(Map<String, dynamic> payload) {
+    final driverId = _extractAssignedDriverId(payload);
+    if (driverId != null) {
+      hasAssignedDriver.value = true;
+    }
+
+    final deliveryMan = _asMap(payload['delivery_man'] ?? payload['deliveryMan']);
+    if (deliveryMan != null) {
+      final info = OrderDriverInfo.fromPayload(payload);
+      if (!info.isEmpty) {
+        hasAssignedDriver.value = true;
+        driverInfo.value = driverInfo.value?.mergedWith(info) ?? info;
+      }
+    }
+  }
+
+  int? _extractAssignedDriverId(Map<String, dynamic> payload) {
+    for (final key in [
+      'delivery_man_id',
+      'deliveryManId',
+      'driver_id',
+      'driverId',
+    ]) {
+      final id = int.tryParse(payload[key]?.toString() ?? '');
+      if (id != null && id > 0) return id;
+    }
+    final deliveryMan = _asMap(payload['delivery_man'] ?? payload['deliveryMan']);
+    if (deliveryMan != null) {
+      final id = int.tryParse(deliveryMan['id']?.toString() ?? '');
+      if (id != null && id > 0) return id;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), v));
+    }
+    return null;
+  }
+
+  /// Prefer explicit order status; promote dispatch terminal states when needed.
+  String? _resolveIncomingStatus({
+    String? statusRaw,
+    String? dispatchRaw,
+  }) {
+    final current = _canonical(currentStatus.value);
+    final incomingStatus = _canonical(statusRaw ?? '');
+    final incomingDispatch = _canonical(dispatchRaw ?? '');
+
+    String? resolved;
+    if (incomingStatus.isNotEmpty) {
+      resolved = incomingStatus;
+    } else if (_isDeliveredLike(incomingDispatch)) {
+      resolved = 'delivered';
+    }
+
+    if (resolved == null || resolved.isEmpty) return null;
+
+    // Never let stale WS/location snapshots regress past a terminal status.
+    if (_isTerminalLifecycle(current) && !_isTerminalLifecycle(resolved)) {
+      return null;
+    }
+    return resolved;
+  }
+
+  String? _canonicalizeOrKeep(String? raw, String fallback) {
+    final incoming = (raw ?? '').trim();
+    if (incoming.isEmpty) return null;
+    final canonical = _canonical(incoming);
+    return canonical.isEmpty ? fallback : canonical;
+  }
+
   void _checkNoDriver(String status, String dispatchStatus) {
     if (_handledNoDriver || vendorRejectionDetected.value) return;
+    // Only when backend explicitly reports no_driver (never from local timeouts).
     if (!_noDriverTracker.shouldHandleNoDriver(
       status: status,
       dispatchStatus: dispatchStatus,
@@ -135,81 +240,7 @@ class OrderTrackingController extends GetxController {
       return;
     }
     _handledNoDriver = true;
-    _stopDispatchTimeoutWatcher();
     noDriverDetected.value = true;
-  }
-
-  void _syncDispatchTimeoutWatcher({
-    required String status,
-    required String dispatchStatus,
-    Map<String, dynamic>? payload,
-  }) {
-    if (_handledNoDriver ||
-        vendorRejectionDetected.value ||
-        noDriverDetected.value) {
-      _stopDispatchTimeoutWatcher();
-      return;
-    }
-
-    if (payload != null && payload.isNotEmpty) {
-      _dispatchTimeoutDuration = DispatchTimeoutConfig.resolveFromPayload(payload);
-    }
-
-    if (!_shouldWatchDispatchTimeout(status, dispatchStatus)) {
-      _stopDispatchTimeoutWatcher();
-      return;
-    }
-
-    _dispatchTimeoutStartedAt ??=
-        DispatchTimeoutConfig.resolveDispatchStartedAt(payload) ??
-            DateTime.now();
-
-    final remaining = DispatchTimeoutConfig.remainingTimeout(
-      timeout: _dispatchTimeoutDuration,
-      startedAt: _dispatchTimeoutStartedAt!,
-    );
-    if (remaining <= Duration.zero) {
-      _checkNoDriver('no_driver', dispatchStatus);
-      return;
-    }
-
-    _dispatchTimeoutTimer ??= Timer(remaining, () {
-      if (_handledNoDriver || vendorRejectionDetected.value) return;
-      _checkNoDriver('no_driver', dispatchStatus);
-    });
-  }
-
-  bool _shouldWatchDispatchTimeout(String status, String dispatchStatus) {
-    if (OrderDispatchUtils.isNoDriver(
-      status: status,
-      dispatchStatus: dispatchStatus,
-    )) {
-      return false;
-    }
-    if (OrderDispatchUtils.isDriverAssigned(
-      kind: OrderDispatchServiceKind.delivery,
-      status: status,
-      dispatchStatus: dispatchStatus,
-    )) {
-      return false;
-    }
-
-    final normalizedStatus = _normalizeStatus(status);
-    if (normalizedStatus == 'pending' ||
-        normalizedStatus == 'cancelled' ||
-        normalizedStatus == 'canceled' ||
-        normalizedStatus == 'rejected' ||
-        normalizedStatus == 'delivered') {
-      return false;
-    }
-
-    return true;
-  }
-
-  void _stopDispatchTimeoutWatcher() {
-    _dispatchTimeoutTimer?.cancel();
-    _dispatchTimeoutTimer = null;
-    _dispatchTimeoutStartedAt = null;
   }
 
   Future<bool> cancelOrderDueToNoDriver() async {
@@ -233,7 +264,7 @@ class OrderTrackingController extends GetxController {
   }
 
   void _rememberActiveStatus(String status) {
-    final normalized = _normalizeStatus(status);
+    final normalized = _canonical(status);
     if (normalized == 'cancelled' ||
         normalized == 'canceled' ||
         normalized == 'rejected') {
@@ -270,25 +301,38 @@ class OrderTrackingController extends GetxController {
   }
 
   Future<void> _refreshDriverInfoIfNeeded() async {
-    if (!_shouldTrackDriverEta()) {
+    if (_isTerminalLifecycle(_canonical(currentStatus.value)) ||
+        noDriverDetected.value ||
+        vendorRejectionDetected.value) {
       deliveryEta.value = null;
-      driverInfo.value = null;
       return;
     }
     if (_isDriverPollInFlight) return;
     _isDriverPollInFlight = true;
     try {
       await _ensureDestinationCoordinates();
+      if (vendorRejectionDetected.value ||
+          noDriverDetected.value ||
+          isDelivered) {
+        return;
+      }
+
+      // While waiting for a driver (and after assignment), ask the backend
+      // whether a concrete driver entity exists. Empty != no_driver.
       final driver = await _repository.getOrderDriverByOrderId(
         token: token,
         orderId: orderId,
       );
       if (driver.isEmpty) return;
-      driverInfo.value = driver;
-      deliveryEta.value = driver.resolveEta(
-        destinationLat: _destinationLat,
-        destinationLng: _destinationLng,
-      );
+
+      hasAssignedDriver.value = true;
+      driverInfo.value = driverInfo.value?.mergedWith(driver) ?? driver;
+      if (_shouldShowDriverEta()) {
+        deliveryEta.value = driver.resolveEta(
+          destinationLat: _destinationLat,
+          destinationLng: _destinationLng,
+        );
+      }
     } catch (_) {
       // Driver info is best-effort and should not block live tracking.
     } finally {
@@ -297,45 +341,54 @@ class OrderTrackingController extends GetxController {
   }
 
   Future<void> _ensureDestinationCoordinates() async {
-    if (_destinationLat != null && _destinationLng != null) return;
+    final needsCoords = _destinationLat == null || _destinationLng == null;
+    final needsLifecycleSync =
+        !_isTerminalLifecycle(_canonical(currentStatus.value));
+    if (!needsCoords && !needsLifecycleSync) return;
+
     final order = await _repository.getOrderById(token: token, orderId: orderId);
     if (order.isEmpty) return;
-    final orderStatus = (order['status'] ?? '').toString();
-    final orderDispatch = (order['dispatch_status'] ?? '').toString();
-    _rememberActiveStatus(orderStatus);
+
+    final nextStatus = _resolveIncomingStatus(
+      statusRaw:
+          order['status']?.toString() ?? order['order_status']?.toString(),
+      dispatchRaw: order['dispatch_status']?.toString() ??
+          order['driver_status']?.toString(),
+    );
+    final nextDispatch = _canonicalizeOrKeep(
+      order['dispatch_status']?.toString() ?? order['driver_status']?.toString(),
+      currentDispatchStatus.value,
+    );
+    if (nextStatus != null) currentStatus.value = nextStatus;
+    if (nextDispatch != null) currentDispatchStatus.value = nextDispatch;
+    _captureDriverAssignmentEvidence(order);
+
+    _rememberActiveStatus(currentStatus.value);
     _checkVendorRejection(
-      status: orderStatus,
-      dispatchStatus: orderDispatch,
+      status: currentStatus.value,
+      dispatchStatus: currentDispatchStatus.value,
       payload: order,
     );
     if (vendorRejectionDetected.value) return;
-    _checkNoDriver(orderStatus, orderDispatch);
-    if (noDriverDetected.value) return;
-    _syncDispatchTimeoutWatcher(
-      status: orderStatus,
-      dispatchStatus: orderDispatch,
-      payload: order,
-    );
-    if (noDriverDetected.value) return;
-    _destinationLat = _asDouble(order['lat']);
-    _destinationLng = _asDouble(order['lng']);
+    _checkNoDriver(currentStatus.value, currentDispatchStatus.value);
+    if (noDriverDetected.value || isDelivered) return;
+
+    _destinationLat ??= _asDouble(order['lat']);
+    _destinationLng ??= _asDouble(order['lng']);
   }
 
-  bool _shouldTrackDriverEta() {
-    if (_isCompletedOrCancelled(_normalizeStatus(currentStatus.value))) {
-      return false;
-    }
-    final status = _normalizeStatus(currentStatus.value);
-    final dispatch = _normalizeStatus(currentDispatchStatus.value);
-    const trackStatuses = {
-      'on_way',
+  bool _shouldShowDriverEta() {
+    if (!hasAssignedDriver.value) return false;
+    if (_isTerminalLifecycle(_canonical(currentStatus.value))) return false;
+    final status = _canonical(currentStatus.value);
+    const etaStatuses = {
+      'assigned',
+      'on_the_way_to_pickup',
       'picked_up',
+      'on_way',
       'out_for_delivery',
-      'food_driver_assigned',
-      'driver_assigned',
     };
-    const trackDispatch = {'accepted', 'assigned', 'picked_up', 'on_way'};
-    return trackStatuses.contains(status) || trackDispatch.contains(dispatch);
+    return etaStatuses.contains(status);
   }
 
   double? _asDouble(dynamic value) {
@@ -344,17 +397,15 @@ class OrderTrackingController extends GetxController {
   }
 
   void _emitDriverArrivalNotificationsIfNeeded() {
-    final status = _normalizeStatus(currentStatus.value);
-    final dispatch = _normalizeStatus(currentDispatchStatus.value);
+    final status = _canonical(currentStatus.value);
+    final dispatch = _canonical(currentDispatchStatus.value);
 
-    if (_isCompletedOrCancelled(status)) return;
+    if (_isTerminalLifecycle(status)) return;
 
-    final isDriverNearAddress =
-        _nearAddressStatuses.contains(status) ||
+    final isDriverNearAddress = _nearAddressStatuses.contains(status) ||
         _nearAddressStatuses.contains(dispatch);
 
-    final isDriverArrivedWaiting =
-        _arrivedWaitingStatuses.contains(status) ||
+    final isDriverArrivedWaiting = _arrivedWaitingStatuses.contains(status) ||
         _arrivedWaitingStatuses.contains(dispatch);
 
     if (!_didNotifyNearAddress && isDriverNearAddress) {
@@ -378,15 +429,32 @@ class OrderTrackingController extends GetxController {
     }
   }
 
-  String _normalizeStatus(String raw) {
-    return raw.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+  String _canonical(String raw) {
+    return OrderProgressNotificationMapper.canonicalStatus(raw);
   }
 
-  bool _isCompletedOrCancelled(String status) {
-    return status == 'delivered' ||
+  bool _isDeliveredLike(String status) {
+    return status == 'delivered' || status == 'completed';
+  }
+
+  bool _isPostAssignmentOrderStatus(String orderStatus) {
+    const postAssignment = {
+      'assigned',
+      'on_the_way_to_pickup',
+      'heading_to_pickup',
+      'driver_heading_to_pickup',
+      'picked_up',
+      'on_way',
+    };
+    return postAssignment.contains(orderStatus);
+  }
+
+  bool _isTerminalLifecycle(String status) {
+    return _isDeliveredLike(status) ||
         status == 'cancelled' ||
         status == 'canceled' ||
-        status == 'rejected';
+        status == 'rejected' ||
+        status == 'no_driver';
   }
 
   static const Set<String> _nearAddressStatuses = {
@@ -437,10 +505,13 @@ class OrderTrackingController extends GetxController {
     showRatingButton.value = true;
   }
 
+  bool get isDelivered =>
+      _isDeliveredLike(_canonical(currentStatus.value)) ||
+      _isDeliveredLike(_canonical(currentDispatchStatus.value));
+
   @override
   void onClose() {
     _driverPollTimer?.cancel();
-    _stopDispatchTimeoutWatcher();
     _wsService?.disconnect();
     super.onClose();
   }

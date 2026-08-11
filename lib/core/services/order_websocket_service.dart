@@ -107,10 +107,11 @@ class OrderWebSocketService {
     if (rawData == null) return;
     final decoded = _decodeJsonMap(rawData);
     if (decoded.isEmpty) return;
-    final nestedOrder = _decodeJsonMap(decoded['order']);
-    final orderData = nestedOrder.isNotEmpty ? nestedOrder : decoded;
-    final hasStatus = orderData.containsKey('status');
-    final hasDispatch = orderData.containsKey('dispatch_status');
+    final orderData = _extractOrderPayload(decoded);
+    final hasStatus = orderData.containsKey('status') ||
+        orderData.containsKey('order_status');
+    final hasDispatch = orderData.containsKey('dispatch_status') ||
+        orderData.containsKey('driver_status');
     final hasLatLng = orderData.containsKey('lat') && orderData.containsKey('lng');
     if (!hasStatus && !hasDispatch && !(allowLocationOnly && hasLatLng)) return;
     onOrderUpdated(orderData);
@@ -172,6 +173,26 @@ class OrderWebSocketService {
   bool _resolveWsUseTls() {
     return _wsUseTls;
   }
+}
+
+Map<String, dynamic> _extractOrderPayload(Map<String, dynamic> decoded) {
+  final nestedOrder = _decodeJsonMap(decoded['order']);
+  if (_looksLikeOrderPayload(nestedOrder)) return nestedOrder;
+
+  final nestedData = _decodeJsonMap(decoded['data']);
+  if (_looksLikeOrderPayload(nestedData)) return nestedData;
+
+  return decoded;
+}
+
+bool _looksLikeOrderPayload(Map<String, dynamic> map) {
+  if (map.isEmpty) return false;
+  return map.containsKey('status') ||
+      map.containsKey('dispatch_status') ||
+      map.containsKey('order_status') ||
+      map.containsKey('driver_status') ||
+      (map.containsKey('id') &&
+          (map.containsKey('lat') || map.containsKey('lng')));
 }
 
 Map<String, dynamic> _decodeJsonMap(dynamic raw) {

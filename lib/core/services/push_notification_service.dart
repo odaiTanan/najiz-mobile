@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+    show TargetPlatform, defaultTargetPlatform, kIsWeb, visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_strings.dart';
 import 'package:najiz_go_express/core/di/network_dependencies.dart';
 import 'package:najiz_go_express/data/api/api_client.dart';
+import 'package:najiz_go_express/core/services/order_notification_cache_writer.dart';
 import 'package:najiz_go_express/core/services/order_notification_stepper.dart';
 import 'package:najiz_go_express/core/services/order_progress_notification_mapper.dart';
 import 'package:najiz_go_express/core/services/order_progress_notification_presenter.dart';
@@ -40,6 +41,12 @@ class PushNotificationService extends GetxService {
   bool _initialized = false;
   bool _localInitialized = false;
   String? _pendingSubscribeToken;
+  /// When false, user-specific notification history must not be written.
+  /// Cleared during session teardown and re-enabled after a new login.
+  bool _acceptUserNotifications = false;
+  /// Bumped on session cleanup so in-flight preference writes cannot restore
+  /// another user's notification history after [clearLocalHistory].
+  int _historyEpoch = 0;
 
   Future<void> initialize({String? token}) async {
     if (_initialized) return;
@@ -47,6 +54,13 @@ class PushNotificationService extends GetxService {
 
     await _loadFromStorage();
     await _loadNotificationIdMappings();
+    final hasAuthToken = token != null && token.trim().isNotEmpty;
+    // Guest / cold-start without a token must never keep another user's history.
+    if (!hasAuthToken) {
+      await clearLocalHistory();
+    } else {
+      _acceptUserNotifications = true;
+    }
     await _initLocalNotifications();
     OneSignal.initialize(_oneSignalAppId);
     await OneSignal.Notifications.requestPermission(true);
@@ -66,6 +80,12 @@ class PushNotificationService extends GetxService {
       final notification = event.notification;
       final merged = mergeOneSignalNotificationData(notification);
       final type = merged['type']?.toString().trim().toLowerCase();
+
+      // Guest / post-logout: do not mutate local history, but do not disable
+      // OneSignal delivery (no preventDefault here).
+      if (!_canAcceptUserNotifications()) {
+        return;
+      }
 
       if (type == 'order_status') {
         event.preventDefault();
@@ -90,6 +110,9 @@ class PushNotificationService extends GetxService {
     });
 
     OneSignal.Notifications.addClickListener((event) {
+      // Preserve click delivery; persistence/handlers no-op while Guest.
+      if (!_canAcceptUserNotifications()) return;
+
       final notification = event.notification;
       final merged = mergeOneSignalNotificationData(notification);
       final type = merged['type']?.toString().trim().toLowerCase();
@@ -123,10 +146,39 @@ class PushNotificationService extends GetxService {
       );
     });
 
-    if (token != null && token.trim().isNotEmpty) {
+    if (hasAuthToken) {
       _pendingSubscribeToken = token.trim();
       await subscribeDevice(token);
     }
+  }
+
+  bool _isAuthenticatedSession() {
+    if (!Get.isRegistered<AuthStateManager>()) return false;
+    return Get.find<AuthStateManager>().isAuthenticated;
+  }
+
+  bool _canAcceptUserNotifications() {
+    return _acceptUserNotifications && _isAuthenticatedSession();
+  }
+
+  /// Re-enable user notification persistence after a successful login.
+  void resumeUserNotifications() {
+    _acceptUserNotifications = true;
+  }
+
+  @visibleForTesting
+  int get debugHistoryEpoch => _historyEpoch;
+
+  @visibleForTesting
+  bool get debugAcceptUserNotifications => _acceptUserNotifications;
+
+  @visibleForTesting
+  String? get debugPendingSubscribeToken => _pendingSubscribeToken;
+
+  /// Test helper: attempt a preference write with a captured epoch.
+  @visibleForTesting
+  Future<void> debugSaveToStorage({required int expectedEpoch}) {
+    return _saveToStorage(expectedEpoch: expectedEpoch);
   }
 
   Future<void> _initLocalNotifications() async {
@@ -198,19 +250,25 @@ class PushNotificationService extends GetxService {
     }
   }
 
-  Future<void> _saveNotificationIdMappings() async {
+  Future<void> _saveNotificationIdMappings({int? expectedEpoch}) async {
+    final epoch = expectedEpoch ?? _historyEpoch;
+    if (epoch != _historyEpoch) return;
+    final ordersSnapshot = Map<String, int>.from(_orderNotificationIds);
+    final chatsSnapshot = Map<String, int>.from(_chatNotificationIds);
     final prefs = await SharedPreferences.getInstance();
+    if (epoch != _historyEpoch) return;
     await prefs.setString(
       _orderNotificationIdsKey,
-      jsonEncode(_orderNotificationIds),
+      jsonEncode(ordersSnapshot),
     );
     await prefs.setString(
       _chatNotificationIdsKey,
-      jsonEncode(_chatNotificationIds),
+      jsonEncode(chatsSnapshot),
     );
   }
 
   Future<void> _handleLocalProgressNotification(Map<String, dynamic>? data) async {
+    if (!_canAcceptUserNotifications()) return;
     if (data == null || !_localInitialized) return;
     final type = data['type']?.toString().trim().toLowerCase();
     if (type == 'order_status') {
@@ -227,6 +285,7 @@ class PushNotificationService extends GetxService {
     String? title,
     String? body,
   }) async {
+    if (!_canAcceptUserNotifications()) return;
     if (TaxiOrderState.shouldIgnorePayload(merged, bodyOverride: body)) return;
 
     await _upsertOrderProgressNotification(
@@ -246,6 +305,7 @@ class PushNotificationService extends GetxService {
     String? title,
     String? body,
   }) async {
+    if (!_canAcceptUserNotifications()) return;
     final id = _orderStatusInAppId(merged);
     final resolvedTitle = OrderProgressNotificationMapper.resolveDisplayTitle(
       merged,
@@ -268,6 +328,7 @@ class PushNotificationService extends GetxService {
       return;
     }
 
+    final epoch = _historyEpoch;
     final index = notifications.indexWhere((item) => item.id == id);
     final item = AppNotificationItem(
       id: id,
@@ -283,7 +344,7 @@ class PushNotificationService extends GetxService {
       notifications.insert(0, item);
     }
     _recalculateUnread();
-    await _saveToStorage();
+    await _saveToStorage(expectedEpoch: epoch);
   }
 
   String _orderStatusInAppId(Map<String, dynamic>? data) {
@@ -298,6 +359,7 @@ class PushNotificationService extends GetxService {
     String? titleOverride,
     String? bodyOverride,
   }) async {
+    if (!_canAcceptUserNotifications()) return;
     if (!_localInitialized || _orderProgressPresenter == null) return;
 
     final rawOrderId = data['order_id'];
@@ -311,11 +373,12 @@ class PushNotificationService extends GetxService {
     final explicitNotificationId =
         _asInt(data['android_notification_id']) ?? _asInt(data['order_id']);
     if (explicitNotificationId == null) {
+      final epoch = _historyEpoch;
       _resolveNotificationId(
         key: orderKey,
         store: _orderNotificationIds,
       );
-      await _saveNotificationIdMappings();
+      await _saveNotificationIdMappings(expectedEpoch: epoch);
     }
 
     await _orderProgressPresenter!.showOrUpdate(
@@ -326,14 +389,16 @@ class PushNotificationService extends GetxService {
   }
 
   Future<void> _upsertChatNotification(Map<String, dynamic> data) async {
+    if (!_canAcceptUserNotifications()) return;
     final conversationId = data['conversation_id']?.toString().trim();
     if (conversationId == null || conversationId.isEmpty) return;
     final key = 'chat_$conversationId';
+    final epoch = _historyEpoch;
     final notificationId = _resolveNotificationId(
       key: key,
       store: _chatNotificationIds,
     );
-    await _saveNotificationIdMappings();
+    await _saveNotificationIdMappings(expectedEpoch: epoch);
 
     final sender = data['sender_name']?.toString().trim();
     final message = data['message']?.toString().trim();
@@ -384,6 +449,7 @@ class PushNotificationService extends GetxService {
   }
 
   Future<void> _handleOrderStatusMilestones(Map<String, dynamic>? data) async {
+    if (!_canAcceptUserNotifications()) return;
     if (data == null) return;
     final type = data['type']?.toString().trim().toLowerCase();
     if (type == 'order_status') return;
@@ -490,6 +556,7 @@ class PushNotificationService extends GetxService {
   }
 
   Future<void> unsubscribeDevice(String userToken) async {
+    _pendingSubscribeToken = null;
     final playerId = OneSignal.User.pushSubscription.id;
     if (playerId == null || playerId.trim().isEmpty) return;
 
@@ -507,12 +574,17 @@ class PushNotificationService extends GetxService {
   }
 
   Future<void> markAllRead() async {
+    if (notifications.isEmpty) {
+      unreadCount.value = 0;
+      return;
+    }
+    final epoch = _historyEpoch;
     final updated = notifications
         .map((item) => item.copyWith(isRead: true))
         .toList(growable: false);
     notifications.assignAll(updated);
     _recalculateUnread();
-    await _saveToStorage();
+    await _saveToStorage(expectedEpoch: epoch);
   }
 
   Future<void> markAsRead(String id) async {
@@ -520,21 +592,42 @@ class PushNotificationService extends GetxService {
     if (index < 0) return;
     final target = notifications[index];
     if (target.isRead) return;
+    final epoch = _historyEpoch;
     notifications[index] = target.copyWith(isRead: true);
     _recalculateUnread();
-    await _saveToStorage();
+    await _saveToStorage(expectedEpoch: epoch);
   }
 
+  /// Clears in-memory and persisted notification state for the previous user.
+  ///
+  /// Called from [AuthStateManager.markGuest] on logout / session invalidation.
   Future<void> clearLocalHistory() async {
+    _acceptUserNotifications = false;
+    _historyEpoch++;
+    final epoch = _historyEpoch;
+    _pendingSubscribeToken = null;
     notifications.clear();
     unreadCount.value = 0;
     _recentLocalKeys.clear();
     _orderNotificationIds.clear();
     _chatNotificationIds.clear();
-    await _saveToStorage();
-    await _saveNotificationIdMappings();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (epoch != _historyEpoch) return;
+      await prefs.remove(_storageKey);
+      await prefs.remove(_orderNotificationIdsKey);
+      await prefs.remove(_chatNotificationIdsKey);
+    } catch (_) {
+      // Session cleanup must continue even if prefs wipe fails.
+    }
+
+    unawaited(OrderNotificationCacheWriter.clearAll());
+
     if (_localInitialized) {
-      await _localNotifications.cancelAll();
+      try {
+        await _localNotifications.cancelAll();
+      } catch (_) {}
     }
   }
 
@@ -546,6 +639,8 @@ class PushNotificationService extends GetxService {
     Duration dedupeWindow = const Duration(minutes: 20),
     bool showSnack = true,
   }) async {
+    if (!_canAcceptUserNotifications()) return;
+
     final key = dedupeKey?.trim();
     if (key != null && key.isNotEmpty) {
       final now = DateTime.now();
@@ -580,6 +675,8 @@ class PushNotificationService extends GetxService {
     String? externalId,
     Map<String, dynamic>? data,
   }) async {
+    if (!_canAcceptUserNotifications()) return;
+
     final id = (externalId != null && externalId.trim().isNotEmpty)
         ? externalId
         : DateTime.now().microsecondsSinceEpoch.toString();
@@ -587,6 +684,7 @@ class PushNotificationService extends GetxService {
     final alreadyExists = notifications.any((item) => item.id == id);
     if (alreadyExists) return;
 
+    final epoch = _historyEpoch;
     final item = AppNotificationItem(
       id: id,
       title: title,
@@ -597,7 +695,7 @@ class PushNotificationService extends GetxService {
     );
     notifications.insert(0, item);
     _recalculateUnread();
-    await _saveToStorage();
+    await _saveToStorage(expectedEpoch: epoch);
   }
 
   Future<void> _loadFromStorage() async {
@@ -631,12 +729,13 @@ class PushNotificationService extends GetxService {
     _recalculateUnread();
   }
 
-  Future<void> _saveToStorage() async {
+  Future<void> _saveToStorage({required int expectedEpoch}) async {
+    if (expectedEpoch != _historyEpoch) return;
+    final snapshot =
+        notifications.map((item) => item.toJson()).toList(growable: false);
     final prefs = await SharedPreferences.getInstance();
-    final payload = jsonEncode(
-      notifications.map((item) => item.toJson()).toList(growable: false),
-    );
-    await prefs.setString(_storageKey, payload);
+    if (expectedEpoch != _historyEpoch) return;
+    await prefs.setString(_storageKey, jsonEncode(snapshot));
   }
 
   void _recalculateUnread() {

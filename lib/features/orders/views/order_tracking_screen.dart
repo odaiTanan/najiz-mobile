@@ -113,7 +113,10 @@ class OrderTrackingScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     _StatusCard(
                       title: 'tracking.dispatchStatus'.tr,
-                      value: _dispatchLabel(controller.currentDispatchStatus.value),
+                      value: _dispatchLabel(
+                        controller.currentDispatchStatus.value,
+                        hasAssignedDriver: controller.hasAssignedDriver.value,
+                      ),
                     ),
                     if (controller.driverInfo.value?.hasDisplayableData == true) ...[
                       const SizedBox(height: 10),
@@ -130,6 +133,7 @@ class OrderTrackingScreen extends StatelessWidget {
                     _TimelineCard(
                       status: controller.currentStatus.value,
                       dispatchStatus: controller.currentDispatchStatus.value,
+                      hasAssignedDriver: controller.hasAssignedDriver.value,
                       isStoreOrder: isStoreOrder,
                     ),
                   ],
@@ -267,7 +271,7 @@ class _DeliveredRatingListenerState extends State<_DeliveredRatingListener>
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final delivered = widget.controller.currentStatus.value == 'delivered';
+      final delivered = widget.controller.isDelivered;
       if (!delivered ||
           widget.controller.ratingSubmitted.value) {
         return const SizedBox.shrink();
@@ -839,11 +843,13 @@ class _StatusCard extends StatelessWidget {
 class _TimelineCard extends StatelessWidget {
   final String status;
   final String dispatchStatus;
+  final bool hasAssignedDriver;
   final bool isStoreOrder;
 
   const _TimelineCard({
     required this.status,
     required this.dispatchStatus,
+    required this.hasAssignedDriver,
     required this.isStoreOrder,
   });
 
@@ -868,6 +874,7 @@ class _TimelineCard extends StatelessWidget {
     final currentIndex = _foodTimelineIndex(
       status: status,
       dispatchStatus: dispatchStatus,
+      hasAssignedDriver: hasAssignedDriver,
       isStoreOrder: isStoreOrder,
     );
 
@@ -1020,24 +1027,20 @@ class _TimelineStepTile extends StatelessWidget {
 }
 
 String _statusLabel(String status, {bool isStoreOrder = false}) {
-  final normalized = status.trim().toLowerCase();
+  final raw = status.trim().toLowerCase();
+  if (raw == 'food_accepted') return 'tracking.foodAccepted'.tr;
+  if (raw == 'food_preparing') return 'tracking.foodPreparing'.tr;
+  if (raw == 'food_driver_assigned') return 'tracking.foodDriverAssigned'.tr;
+  if (raw == 'food_picked_up') return 'tracking.pickedUp'.tr;
+  if (raw == 'food_on_way') return 'tracking.foodOnWay'.tr;
+  if (raw == 'food_delivered') return 'tracking.foodDelivered'.tr;
+
+  final normalized = OrderProgressNotificationMapper.canonicalStatus(status);
   if (isStoreOrder && normalized == 'preparing') {
     return 'tracking.foodAccepted'.tr;
   }
 
-  switch (status) {
-    case 'food_accepted':
-      return 'tracking.foodAccepted'.tr;
-    case 'food_preparing':
-      return 'tracking.foodPreparing'.tr;
-    case 'food_driver_assigned':
-      return 'tracking.foodDriverAssigned'.tr;
-    case 'food_picked_up':
-      return 'tracking.pickedUp'.tr;
-    case 'food_on_way':
-      return 'tracking.foodOnWay'.tr;
-    case 'food_delivered':
-      return 'tracking.foodDelivered'.tr;
+  switch (normalized) {
     case 'pending':
       return 'tracking.pending'.tr;
     case 'accepted':
@@ -1051,51 +1054,76 @@ String _statusLabel(String status, {bool isStoreOrder = false}) {
     case 'on_way':
       return 'tracking.onWay'.tr;
     case 'delivered':
+    case 'completed':
       return 'tracking.delivered'.tr;
     case 'cancelled':
+    case 'canceled':
+    case 'rejected':
       return 'tracking.cancelled'.tr;
+    case 'no_driver':
+      return 'dispatch.noDriverTitle'.tr;
     default:
-      return status;
+      return OrderProgressNotificationMapper.defaultStatusLabel(
+        normalized,
+        isStore: isStoreOrder,
+      );
   }
 }
 
 int _foodTimelineIndex({
   required String status,
   required String dispatchStatus,
+  required bool hasAssignedDriver,
   bool isStoreOrder = false,
 }) {
-  final s = status.trim().toLowerCase();
-  final d = dispatchStatus.trim().toLowerCase();
+  final s = OrderProgressNotificationMapper.canonicalStatus(status);
+  final d = OrderProgressNotificationMapper.canonicalStatus(dispatchStatus);
 
   if (s == 'pending' || s == 'no_driver' || s.isEmpty) {
     return -1;
   }
 
+  if (s == 'delivered' ||
+      s == 'completed' ||
+      d == 'delivered' ||
+      d == 'completed') {
+    return 4;
+  }
+
+  // Driver Assigned requires confirmed driver identity OR a post-assignment
+  // order status that can only exist after a driver was attached.
+  // dispatch_status=accepted / dispatching alone is NOT enough.
+  final driverAssigned = hasAssignedDriver ||
+      _isPostAssignmentOrderStatus(s);
+
   if (isStoreOrder) {
-    if (s == 'delivered') return 4;
     if (s == 'on_way') return 3;
     if (s == 'picked_up' || d == 'picked_up') return 2;
-    if (d == 'assigned' ||
-        d == 'accepted' ||
-        s == 'ready' ||
-        s == 'on_the_way_to_pickup') {
-      return 1;
-    }
-    if (s == 'preparing' || s == 'accepted') return 0;
+    if (driverAssigned || s == 'on_the_way_to_pickup') return 1;
+    if (s == 'preparing' || s == 'accepted' || s == 'ready') return 0;
     return -1;
   }
 
-  if (s == 'delivered') return 4;
   if (s == 'on_way') return 3;
-  if (d == 'assigned' ||
-      d == 'accepted' ||
-      s == 'ready' ||
-      s == 'picked_up') {
+  if (driverAssigned || s == 'picked_up' || s == 'on_the_way_to_pickup') {
     return 2;
   }
-  if (s == 'preparing') return 1;
+  if (s == 'preparing' || s == 'ready') return 1;
   if (s == 'accepted') return 0;
   return -1;
+}
+
+/// Order statuses that can only occur after a concrete driver is on the job.
+bool _isPostAssignmentOrderStatus(String orderStatus) {
+  const postAssignment = {
+    'assigned', // status driver_assigned / food_driver_assigned
+    'on_the_way_to_pickup',
+    'heading_to_pickup',
+    'driver_heading_to_pickup',
+    'picked_up',
+    'on_way',
+  };
+  return postAssignment.contains(orderStatus);
 }
 
 IconData _foodStageIcon(String stage) {
@@ -1117,15 +1145,22 @@ IconData _foodStageIcon(String stage) {
   }
 }
 
-String _dispatchLabel(String status) {
+String _dispatchLabel(
+  String status, {
+  bool hasAssignedDriver = false,
+}) {
   final normalized = OrderProgressNotificationMapper.canonicalStatus(status);
   switch (normalized) {
     case 'pending':
       return 'tracking.dispatching'.tr;
     case 'assigned':
-    case 'accepted':
     case 'driver_assigned':
       return 'tracking.driverAccepted'.tr;
+    case 'accepted':
+      // For food/store tracking, "accepted" alone is not proof a driver exists.
+      return hasAssignedDriver
+          ? 'tracking.driverAccepted'.tr
+          : 'tracking.dispatching'.tr;
     case 'on_the_way_to_pickup':
       return 'orders.driverToPickup'.tr;
     case 'near_destination':
@@ -1149,6 +1184,7 @@ String _dispatchLabel(String status) {
     case 'waiting_at_destination':
     case 'waiting_at_pickup':
     case 'delivered':
+    case 'completed':
       return 'tracking.handoverDelivered'.tr;
     case 'cancelled':
     case 'canceled':

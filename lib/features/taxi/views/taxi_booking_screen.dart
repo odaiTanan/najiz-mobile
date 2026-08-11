@@ -21,6 +21,7 @@ import 'package:najiz_go_express/features/orders/services/orders_dependencies.da
 import 'package:najiz_go_express/core/services/order_dispatch_watcher.dart';
 import 'package:najiz_go_express/core/utils/currency_utils.dart';
 import 'package:najiz_go_express/core/utils/order_dispatch_utils.dart';
+import 'package:najiz_go_express/core/widgets/network_image_with_fallback.dart';
 import 'package:najiz_go_express/core/widgets/no_driver_assigned_dialog.dart';
 import 'package:najiz_go_express/core/peak_hour/widgets/peak_hour_price_notice.dart';
 
@@ -1302,14 +1303,22 @@ class _TaxiCategoryCard extends StatelessWidget {
             Container(
               width: 42,
               height: 42,
+              alignment: Alignment.center,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                Icons.local_taxi_outlined,
-                color: cs.onSurfaceVariant,
-                size: 20,
+              child: NetworkImageWithFallback(
+                url: category.vehicleCategory.icon,
+                fit: BoxFit.contain,
+                cacheWidth: 84,
+                cacheHeight: 84,
+                fallback: Icon(
+                  Icons.local_taxi_outlined,
+                  color: cs.onSurfaceVariant,
+                  size: 20,
+                ),
               ),
             ),
             const SizedBox(width: 12),

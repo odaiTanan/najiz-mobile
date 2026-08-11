@@ -49,7 +49,14 @@ class SearchController extends GetxController {
   final locationLabel = RxString('search.myLocation'.tr);
   final searchInputText = ''.obs;
 
-  String? get activeToken => _auth.token.value ?? initialToken;
+  String? get activeToken {
+    final authToken = _auth.token.value?.trim();
+    if (authToken != null && authToken.isNotEmpty) return authToken;
+    if (_auth.isGuest) return null;
+    final legacy = initialToken?.trim();
+    if (legacy == null || legacy.isEmpty) return null;
+    return legacy;
+  }
   bool get isGuest => _auth.isGuest;
 
   @override
