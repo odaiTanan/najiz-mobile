@@ -684,6 +684,10 @@
   "offers": {
     "noOffers": "No offers available",
     "orderNow": "Order now",
+    "shopNow": "Shop now",
+    "bookNow": "Book now",
+    "orderShipping": "Request shipping",
+    "viewDetails": "View details",
     "limitedOffer": "Limited offer",
     "enjoyBestOffers": "Enjoy the best offers now"
   },

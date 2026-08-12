@@ -224,8 +224,9 @@ class OrdersRepository {
         body: payload,
       );
       final data = ApiResponse.safeDecodeMap(response.body);
-      final ok = data['status'] == true || data['success'] == true;
-      if (response.statusCode >= 200 && response.statusCode < 300 && ok) {
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          ApiResponse.isSuccess(data)) {
         return;
       }
       throw OrdersApiException.fromServer(

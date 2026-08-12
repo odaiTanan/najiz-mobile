@@ -276,7 +276,9 @@ class _HomeOfferSlide extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'offers.orderNow'.tr,
+                                (offer?.ctaLocalizationKey ??
+                                        'offers.viewDetails')
+                                    .tr,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: cs.onSurface,

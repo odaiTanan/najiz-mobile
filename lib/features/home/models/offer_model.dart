@@ -1,3 +1,6 @@
+import 'package:najiz_go_express/features/home/config/local_service_catalog.dart';
+import 'package:najiz_go_express/features/home/models/service_kind.dart';
+
 class OfferModel {
   final int id;
   final int? vendorId;
@@ -18,6 +21,35 @@ class OfferModel {
     this.isActive = false,
     this.vendor,
   });
+
+  /// Single source of truth for CTA and navigation.
+  /// Priority: offer.serviceId → vendor.serviceId → service/service_type/type → unknown.
+  ServiceKind get serviceKind {
+    final fromOfferId = _kindFromServiceId(serviceId);
+    if (fromOfferId != ServiceKind.unknown) return fromOfferId;
+
+    final fromVendorId = _kindFromServiceId(vendor?.serviceId);
+    if (fromVendorId != ServiceKind.unknown) return fromVendorId;
+
+    return _kindFromServiceLabel(service);
+  }
+
+  /// Localization key for the offer CTA button.
+  String get ctaLocalizationKey {
+    switch (serviceKind) {
+      case ServiceKind.restaurant:
+        return 'offers.orderNow';
+      case ServiceKind.store:
+        return 'offers.shopNow';
+      case ServiceKind.taxi:
+        return 'offers.bookNow';
+      case ServiceKind.shipping:
+        return 'offers.orderShipping';
+      case ServiceKind.supermarket:
+      case ServiceKind.unknown:
+        return 'offers.viewDetails';
+    }
+  }
 
   factory OfferModel.fromJson(Map<String, dynamic> json) {
     final vendorRaw = json['vendor'];
@@ -46,20 +78,50 @@ class OfferModel {
     );
   }
 
-  static OfferServiceKind resolveServiceKind(String? raw) {
-    final normalized = (raw ?? '').trim().toLowerCase();
-    if (normalized.contains('ship') ||
-        normalized.contains('شحن') ||
-        normalized == 'shipping') {
-      return OfferServiceKind.shipping;
-    }
-    return OfferServiceKind.taxi;
+  static ServiceKind _kindFromServiceId(int? id) {
+    if (id == null || id <= 0) return ServiceKind.unknown;
+    return LocalServiceCatalog.find(id)?.kind ?? ServiceKind.unknown;
   }
-}
 
-enum OfferServiceKind {
-  taxi,
-  shipping,
+  static ServiceKind _kindFromServiceLabel(String? raw) {
+    final normalized = (raw ?? '').trim().toLowerCase();
+    if (normalized.isEmpty) return ServiceKind.unknown;
+
+    switch (normalized) {
+      case 'restaurant':
+      case 'restaurants':
+        return ServiceKind.restaurant;
+      case 'store':
+      case 'stores':
+      case 'shop':
+      case 'shops':
+      case 'market':
+        return ServiceKind.store;
+      case 'taxi':
+        return ServiceKind.taxi;
+      case 'shipping':
+      case 'shipment':
+        return ServiceKind.shipping;
+    }
+
+    if (normalized.contains('restaurant') || normalized.contains('مطعم')) {
+      return ServiceKind.restaurant;
+    }
+    if (normalized.contains('store') ||
+        normalized.contains('shop') ||
+        normalized.contains('market') ||
+        normalized.contains('متجر')) {
+      return ServiceKind.store;
+    }
+    if (normalized.contains('taxi') || normalized.contains('تاكسي')) {
+      return ServiceKind.taxi;
+    }
+    if (normalized.contains('ship') || normalized.contains('شحن')) {
+      return ServiceKind.shipping;
+    }
+
+    return ServiceKind.unknown;
+  }
 }
 
 class OfferVendorModel {

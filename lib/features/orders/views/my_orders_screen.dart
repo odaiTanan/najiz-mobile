@@ -1013,7 +1013,7 @@ class _EmptyCard extends StatelessWidget {
 }
 
 String _dateHint(String value) {
-  final dt = DateTime.tryParse(value);
+  final dt = DateTime.tryParse(value)?.toLocal();
   if (dt == null) return value;
   final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
   final m = dt.minute.toString().padLeft(2, '0');

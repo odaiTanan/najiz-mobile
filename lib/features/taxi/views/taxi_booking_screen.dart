@@ -10,6 +10,7 @@ import 'package:najiz_go_express/core/widgets/app_popup_dialog.dart';
 import 'package:najiz_go_express/core/widgets/disconnect_dialog.dart';
 import 'package:najiz_go_express/core/services/auth_guard_service.dart';
 import 'package:najiz_go_express/features/taxi/models/taxi_pricing_model.dart';
+import 'package:najiz_go_express/features/orders/errors/orders_api_exception.dart';
 import 'package:najiz_go_express/features/orders/repositories/orders_repository.dart';
 import 'package:najiz_go_express/features/taxi/controllers/taxi_booking_controller.dart';
 import 'package:najiz_go_express/core/routes/app_routes.dart';
@@ -24,14 +25,85 @@ import 'package:najiz_go_express/core/utils/order_dispatch_utils.dart';
 import 'package:najiz_go_express/core/widgets/network_image_with_fallback.dart';
 import 'package:najiz_go_express/core/widgets/no_driver_assigned_dialog.dart';
 import 'package:najiz_go_express/core/peak_hour/widgets/peak_hour_price_notice.dart';
+import 'package:najiz_go_express/features/taxi/services/taxi_cold_start_restorer.dart';
 
-class TaxiBookingScreen extends StatelessWidget {
+class TaxiBookingScreen extends StatefulWidget {
   final String? token;
+  /// Cold-start only: reopen Finding Driver for an existing searching order.
+  final TaxiSearchingResumeOrder? resumeSearchingOrder;
+  /// Cold-start only: show existing [showNoDriverAssignedDialog] (no Finding Driver).
+  final bool resumeNoDriverDialog;
 
-  const TaxiBookingScreen({super.key, required this.token});
+  const TaxiBookingScreen({
+    super.key,
+    required this.token,
+    this.resumeSearchingOrder,
+    this.resumeNoDriverDialog = false,
+  });
+
+  @override
+  State<TaxiBookingScreen> createState() => _TaxiBookingScreenState();
+}
+
+class _TaxiBookingScreenState extends State<TaxiBookingScreen> {
+  bool _didResumeFindingDriver = false;
+  bool _didResumeNoDriverDialog = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final resume = widget.resumeSearchingOrder;
+    if (resume != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resumeFindingDriverIfNeeded(resume);
+      });
+    } else if (widget.resumeNoDriverDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resumeNoDriverDialogIfNeeded();
+      });
+    }
+  }
+
+  void _resumeFindingDriverIfNeeded(TaxiSearchingResumeOrder resume) {
+    if (!mounted || _didResumeFindingDriver) return;
+    final token = widget.token?.trim() ?? '';
+    if (token.isEmpty) return;
+    _didResumeFindingDriver = true;
+    _showFindingDriverPopup(
+      context: context,
+      token: token,
+      orderId: resume.orderId,
+      initialStatus: resume.status,
+      initialDispatchStatus: resume.dispatchStatus,
+      onTrackNow: () {
+        Get.to(
+          () => TransportOrderTrackingScreen(
+            token: token,
+            orderId: resume.orderId,
+            orderNumber: resume.orderNumber,
+            orderType: 'taxi',
+            initialStatus: resume.status,
+            initialDispatchStatus: resume.dispatchStatus,
+            pickupLat: resume.lat,
+            pickupLng: resume.lng,
+            destinationLat: resume.lat,
+            destinationLng: resume.lng,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _resumeNoDriverDialogIfNeeded() async {
+    if (!mounted || _didResumeNoDriverDialog) return;
+    _didResumeNoDriverDialog = true;
+    // Exact same helper used by Finding Driver _handleNoDriver.
+    await showNoDriverAssignedDialog(context);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final token = widget.token;
     final cs = Theme.of(context).colorScheme;
     final controller = Get.put(
       TaxiBookingController(token: token),
@@ -1432,6 +1504,11 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
   bool _isAssigned = false;
   bool _isCancelling = false;
   bool _handledNoDriver = false;
+  /// Guards a single pop of this finding-driver dialog (cancel / terminal / no-driver).
+  bool _findingDialogClosed = false;
+  /// Server closed the order (cancelled / no_driver) while the cancel sheet is open.
+  bool _endedDuringCancel = false;
+  bool _endedAsNoDriver = false;
   final OrderDispatchTransitionTracker _noDriverTracker =
       OrderDispatchTransitionTracker();
   DateTime? _lastTimeoutPopupAt;
@@ -1459,6 +1536,30 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     return null;
   }
 
+  bool _isCancelledStatus(String status) {
+    final normalized = OrderDispatchUtils.normalizeRaw(status);
+    return normalized == 'cancelled' || normalized == 'canceled';
+  }
+
+  Future<void> _disposeDispatchWatcher() async {
+    final watcher = _dispatchWatcher;
+    _dispatchWatcher = null;
+    if (watcher != null) {
+      await watcher.dispose();
+    }
+  }
+
+  /// Closes this dialog at most once. Uses the local [Navigator] that owns the
+  /// [showDialog] route — never pops an unrelated GetX route.
+  bool _closeFindingDialogOnce() {
+    if (_findingDialogClosed || !mounted) return false;
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return false;
+    _findingDialogClosed = true;
+    navigator.pop();
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1476,12 +1577,12 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
 
   @override
   void dispose() {
-    unawaited(_dispatchWatcher?.dispose());
+    unawaited(_disposeDispatchWatcher());
     super.dispose();
   }
 
   void _startWatching() {
-    _dispatchWatcher?.dispose();
+    unawaited(_disposeDispatchWatcher());
     _dispatchWatcher = OrderDispatchWatcher(
       token: widget.token,
       orderId: widget.orderId,
@@ -1492,14 +1593,46 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     unawaited(_dispatchWatcher!.start());
   }
 
+  void _showTaxiCancelledSnackbar() {
+    AppSnackbar.show(
+      'تم الإلغاء',
+      'تم إلغاء طلب التاكسي بنجاح',
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
   Future<void> _handleNoDriver() async {
-    if (!mounted || _handledNoDriver) return;
+    if (!mounted || _handledNoDriver || _findingDialogClosed) return;
+    // User cancel flow owns the UI; do not steal the finding dialog / sheet.
+    if (_isCancelling) {
+      _endedDuringCancel = true;
+      _endedAsNoDriver = true;
+      _handledNoDriver = true;
+      await _disposeDispatchWatcher();
+      return;
+    }
     _handledNoDriver = true;
-    await _dispatchWatcher?.dispose();
-    _dispatchWatcher = null;
+    await _disposeDispatchWatcher();
     if (!mounted) return;
-    Get.back();
+    if (!_closeFindingDialogOnce()) return;
     await showNoDriverAssignedDialog(context);
+  }
+
+  Future<void> _handleCancelledTerminal() async {
+    // User-initiated cancel owns close + success UI; only stop watcher churn.
+    if (_isCancelling) {
+      _endedDuringCancel = true;
+      _endedAsNoDriver = false;
+      await _disposeDispatchWatcher();
+      return;
+    }
+    if (!mounted || _findingDialogClosed || _handledNoDriver) return;
+    await _disposeDispatchWatcher();
+    if (!mounted || _findingDialogClosed) return;
+    // Server-side cancel (e.g. no drivers for category) must not silently dismiss.
+    if (!_closeFindingDialogOnce()) return;
+    _showTaxiCancelledSnackbar();
   }
 
   Future<void> _handleDispatchUpdate(
@@ -1507,7 +1640,12 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     String dispatchStatus,
     Map<String, dynamic> payload,
   ) async {
-    if (!mounted || _handledNoDriver) return;
+    if (!mounted || _handledNoDriver || _findingDialogClosed) return;
+
+    if (_isCancelledStatus(status)) {
+      await _handleCancelledTerminal();
+      return;
+    }
 
     if (_noDriverTracker.shouldHandleNoDriver(
       status: status,
@@ -1516,6 +1654,9 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
       await _handleNoDriver();
       return;
     }
+
+    // While the cancel reason sheet is open, ignore non-terminal churn.
+    if (_isCancelling) return;
 
     final accepted = OrderDispatchUtils.isDriverAssigned(
       kind: OrderDispatchServiceKind.taxi,
@@ -1529,7 +1670,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
             token: widget.token,
             orderId: widget.orderId,
           );
-    if (!mounted || latest.isEmpty) return;
+    if (!mounted || _findingDialogClosed || latest.isEmpty) return;
 
     final deliveryMan = _asMap(latest['delivery_man'] ?? latest['deliveryMan']);
       if (deliveryMan != null) {
@@ -1588,6 +1729,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
               (_driverPlate ?? '').isEmpty)) {
         await _loadDriverDetailsFromDriverEndpoint();
       }
+      if (!mounted || _findingDialogClosed) return;
 
       if (accepted && !_isAssigned) {
         _isAssigned = true;
@@ -1600,13 +1742,13 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
   }
 
   Future<void> _refreshAfterTimeout() async {
-    if (!mounted || _handledNoDriver) return;
+    if (!mounted || _handledNoDriver || _findingDialogClosed) return;
     try {
       final latest = await _repository.getOrderById(
         token: widget.token,
         orderId: widget.orderId,
       );
-      if (!mounted || latest.isEmpty) return;
+      if (!mounted || latest.isEmpty || _findingDialogClosed) return;
       final status = (latest['status'] ?? '').toString();
       final dispatchStatus = (latest['dispatch_status'] ?? '').toString();
       await _handleDispatchUpdate(status, dispatchStatus, latest);
@@ -1655,13 +1797,61 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     }
   }
 
+  Future<void> _completeUserCancelSuccessUi() async {
+    if (!mounted) return;
+    final restricted = await resolveOrderCancellationLimitService()
+        .onOrderCancelledSuccessfully(context);
+    if (restricted || !mounted) return;
+    _closeFindingDialogOnce();
+    _showTaxiCancelledSnackbar();
+  }
+
+  bool _isAlreadyCancelledError(OrdersApiException e) {
+    final normalized = e.message.trim().toLowerCase();
+    return normalized.contains('already cancel') ||
+        normalized.contains('already canceled') ||
+        normalized.contains('already been cancel') ||
+        normalized.contains('سبق') ||
+        normalized.contains('ملغي مسبقا') ||
+        normalized.contains('ملغى مسبقا') ||
+        normalized.contains('تم إلغاء') ||
+        normalized.contains('تم الغاء');
+  }
+
   Future<void> _cancelOrder() async {
-    if (_isCancelling) return;
+    if (_isCancelling || _findingDialogClosed) return;
+
+    // Claim cancel UI before the reason sheet so an immediate poll/WS
+    // cancelled|no_driver update cannot silently dismiss this dialog.
+    setState(() => _isCancelling = true);
     final reason = await _showTaxiCancelReasonSheet(context);
-    if (reason == null) return;
+
+    if (reason == null) {
+      if (!mounted) return;
+      if (_endedDuringCancel) {
+        if (_endedAsNoDriver) {
+          if (!_closeFindingDialogOnce()) return;
+          await showNoDriverAssignedDialog(context);
+        } else {
+          if (!_closeFindingDialogOnce()) return;
+          _showTaxiCancelledSnackbar();
+        }
+        return;
+      }
+      if (mounted) setState(() => _isCancelling = false);
+      return;
+    }
+
     if (!mounted) return;
 
-    setState(() => _isCancelling = true);
+    // Order already ended by the server while the sheet was open.
+    if (_endedDuringCancel) {
+      await _completeUserCancelSuccessUi();
+      return;
+    }
+
+    if (_findingDialogClosed) return;
+
     try {
       await _repository.cancelOrder(
         token: widget.token,
@@ -1669,35 +1859,51 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
         cancellationReason: reason,
       );
       if (!mounted) return;
-      final restricted = await resolveOrderCancellationLimitService()
-          .onOrderCancelledSuccessfully(context);
-      if (restricted || !mounted) return;
-      Get.back();
-      AppSnackbar.show(
-        'تم الإلغاء',
-        'تم إلغاء طلب التاكسي بنجاح',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-      );
-    } on TaxiApiException catch (e) {
+
+      // Stop WS/poll before any further UI so cancelled updates cannot race.
+      await _disposeDispatchWatcher();
       if (!mounted) return;
+
+      await _completeUserCancelSuccessUi();
+    } on OrdersApiException catch (e) {
+      if (!mounted) return;
+      // Race: backend already cancelled/no_driver between sheet confirm and POST.
+      if (_endedDuringCancel || _isAlreadyCancelledError(e)) {
+        await _completeUserCancelSuccessUi();
+        return;
+      }
+      if (_findingDialogClosed) return;
+      if (mounted) setState(() => _isCancelling = false);
       AppSnackbar.show('خطأ', e.message, snackPosition: SnackPosition.BOTTOM);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || _findingDialogClosed) return;
+      if (mounted) setState(() => _isCancelling = false);
       AppSnackbar.show(
         'خطأ',
         'تعذر إلغاء الطلب حالياً',
         snackPosition: SnackPosition.BOTTOM,
       );
-    } finally {
-      if (mounted) setState(() => _isCancelling = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return AlertDialog(
+    return PopScope(
+      // System Back must not reveal Taxi creation (order already exists).
+      // Imperative pops (Cancel / Track / no-driver) still work.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _findingDialogClosed) return;
+        unawaited(
+          MainBottomNav.onTap(
+            index: 0,
+            currentIndex: -1,
+            token: widget.token,
+          ),
+        );
+      },
+      child: AlertDialog(
       backgroundColor: cs.surface,
       surfaceTintColor: Colors.transparent,
       contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
@@ -1822,7 +2028,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
                   child: FilledButton(
                     onPressed: _isAssigned
                         ? () {
-                            Get.back();
+                            if (!_closeFindingDialogOnce()) return;
                             widget.onTrackNow();
                           }
                         : null,
@@ -1841,6 +2047,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
           ],
         ),
       ),
+    ),
     );
   }
 

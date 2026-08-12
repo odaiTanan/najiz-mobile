@@ -175,15 +175,6 @@ class HomeRestaurantCard extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   children: [
                     Text(
-                      'services.freeDelivery'.tr,
-                      style: const TextStyle(
-                        color: Color(0xFF7EB17B),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
                       rating?.toStringAsFixed(1) ?? '0.0',
                       style: TextStyle(
                         color: cs.onSurface,

@@ -684,6 +684,10 @@
   "offers": {
     "noOffers": "لا توجد عروض حالياً",
     "orderNow": "اطلب الآن",
+    "shopNow": "تسوق الآن",
+    "bookNow": "احجز الآن",
+    "orderShipping": "اطلب شحن",
+    "viewDetails": "عرض التفاصيل",
     "limitedOffer": "عرض محدود",
     "enjoyBestOffers": "استمتع بأفضل العروض الآن"
   },
