@@ -1499,6 +1499,8 @@ class _FindingDriverDialog extends StatefulWidget {
 }
 
 class _FindingDriverDialogState extends State<_FindingDriverDialog> {
+  static const Duration _minFindingDriverVisible = Duration(seconds: 3);
+
   final OrdersRepository _repository = OrdersRepository();
   OrderDispatchWatcher? _dispatchWatcher;
   bool _isAssigned = false;
@@ -1508,10 +1510,12 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
   bool _findingDialogClosed = false;
   /// Server closed the order (cancelled / no_driver) while the cancel sheet is open.
   bool _endedDuringCancel = false;
-  bool _endedAsNoDriver = false;
   final OrderDispatchTransitionTracker _noDriverTracker =
       OrderDispatchTransitionTracker();
   DateTime? _lastTimeoutPopupAt;
+  /// When Finding Driver opened; used only for no_driver / backend-cancelled min hold.
+  late final DateTime _findingOpenedAt;
+  Timer? _noDriverMinHoldTimer;
 
   String? _driverName;
   String? _driverVehicleType;
@@ -1563,6 +1567,7 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
   @override
   void initState() {
     super.initState();
+    _findingOpenedAt = DateTime.now();
     _isAssigned = OrderDispatchUtils.isDriverAssigned(
       kind: OrderDispatchServiceKind.taxi,
       status: widget.initialStatus,
@@ -1577,8 +1582,25 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
 
   @override
   void dispose() {
+    _noDriverMinHoldTimer?.cancel();
+    _noDriverMinHoldTimer = null;
     unawaited(_disposeDispatchWatcher());
     super.dispose();
+  }
+
+  /// Keeps Finding Driver visible ~3s before no-driver UI. Does not delay
+  /// [accepted] / assigned transitions (those never call this).
+  Future<void> _holdForMinFindingDriverVisible() async {
+    final remaining =
+        _minFindingDriverVisible - DateTime.now().difference(_findingOpenedAt);
+    if (remaining <= Duration.zero) return;
+
+    final done = Completer<void>();
+    _noDriverMinHoldTimer?.cancel();
+    _noDriverMinHoldTimer = Timer(remaining, () {
+      if (!done.isCompleted) done.complete();
+    });
+    await done.future;
   }
 
   void _startWatching() {
@@ -1607,7 +1629,6 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     // User cancel flow owns the UI; do not steal the finding dialog / sheet.
     if (_isCancelling) {
       _endedDuringCancel = true;
-      _endedAsNoDriver = true;
       _handledNoDriver = true;
       await _disposeDispatchWatcher();
       return;
@@ -1615,24 +1636,27 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
     _handledNoDriver = true;
     await _disposeDispatchWatcher();
     if (!mounted) return;
+
+    // Backend may return no_driver/cancelled in ~1s; keep Finding Driver visible
+    // for the remaining time of the ~3s minimum before switching to the popup.
+    await _holdForMinFindingDriverVisible();
+    if (!mounted || _findingDialogClosed) return;
+
+    // User started cancelling during the hold — defer to the cancel flow.
+    if (_isCancelling) {
+      _endedDuringCancel = true;
+      return;
+    }
+
     if (!_closeFindingDialogOnce()) return;
     await showNoDriverAssignedDialog(context);
   }
 
   Future<void> _handleCancelledTerminal() async {
-    // User-initiated cancel owns close + success UI; only stop watcher churn.
-    if (_isCancelling) {
-      _endedDuringCancel = true;
-      _endedAsNoDriver = false;
-      await _disposeDispatchWatcher();
-      return;
-    }
-    if (!mounted || _findingDialogClosed || _handledNoDriver) return;
-    await _disposeDispatchWatcher();
-    if (!mounted || _findingDialogClosed) return;
-    // Server-side cancel (e.g. no drivers for category) must not silently dismiss.
-    if (!_closeFindingDialogOnce()) return;
-    _showTaxiCancelledSnackbar();
+    // Backend cancelled because no drivers are available → same UI as no_driver.
+    // User-initiated cancel is gated by [_isCancelling] inside [_handleNoDriver].
+    // Never show cancellation-success Snackbar for this path.
+    await _handleNoDriver();
   }
 
   Future<void> _handleDispatchUpdate(
@@ -1828,14 +1852,12 @@ class _FindingDriverDialogState extends State<_FindingDriverDialog> {
 
     if (reason == null) {
       if (!mounted) return;
+      // Sheet dismissed without confirming: if the server already ended the order
+      // (no_driver / backend cancelled), show the existing no_driver popup — never
+      // a cancellation-success message (user did not complete cancel).
       if (_endedDuringCancel) {
-        if (_endedAsNoDriver) {
-          if (!_closeFindingDialogOnce()) return;
-          await showNoDriverAssignedDialog(context);
-        } else {
-          if (!_closeFindingDialogOnce()) return;
-          _showTaxiCancelledSnackbar();
-        }
+        if (!_closeFindingDialogOnce()) return;
+        await showNoDriverAssignedDialog(context);
         return;
       }
       if (mounted) setState(() => _isCancelling = false);

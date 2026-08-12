@@ -385,6 +385,7 @@ Future<void> _showDeliveryCompletedChoiceDialog(
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
                       controller.postponeRating();
+                      AppRoutes.openHome(token: controller.token);
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
