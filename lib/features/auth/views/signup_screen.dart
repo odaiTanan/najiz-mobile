@@ -44,14 +44,7 @@ class SignupScreen extends StatelessWidget {
                   prefixIcon: const Icon(Icons.person_outline),
                 ),
                 const SizedBox(height: 14),
-                AuthTextField(
-                  label: 'auth.emailLabel'.tr,
-                  hintText: 'auth.emailHint'.tr,
-                  controller: controller.emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: Validators.email,
-                  prefixIcon: const Icon(Icons.email_outlined),
-                ),
+                
                 const SizedBox(height: 14),
                 Text(
                   'auth.phoneLabel'.tr,
@@ -185,7 +178,7 @@ class SignupScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                AuthTextField(
+AuthTextField(                	
                   label: 'auth.referralCodeLabel'.tr,
                   hintText: 'auth.referralCodeHint'.tr,
                   controller: controller.referralCodeController,

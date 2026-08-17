@@ -19,7 +19,6 @@ class SignupController extends GetxController {
   static const String fixedCountryCode = '+963';
 
   final nameController = TextEditingController();
-  final emailController = TextEditingController();
   final countryCodeController = TextEditingController(text: fixedCountryCode);
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
@@ -90,7 +89,6 @@ class SignupController extends GetxController {
     final result = await _authRepository.register(
       name: nameController.text.trim(),
       phone: fullPhoneNumber,
-      email: emailController.text.trim(),
       password: passwordController.text,
       referralCode: referralCodeController.text.trim(),
     );
@@ -98,7 +96,6 @@ class SignupController extends GetxController {
     await SessionService.saveUserIdentity(
       name: nameController.text.trim(),
       phone: fullPhoneNumber,
-      email: emailController.text.trim(),
       referralCode: referralCodeController.text.trim(),
     );
 
@@ -113,7 +110,6 @@ class SignupController extends GetxController {
   @override
   void onClose() {
     nameController.dispose();
-    emailController.dispose();
     countryCodeController.dispose();
     phoneController.dispose();
     passwordController.dispose();
