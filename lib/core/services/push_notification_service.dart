@@ -88,7 +88,12 @@ class PushNotificationService extends GetxService {
       }
 
       if (type == 'order_status') {
-        event.preventDefault();
+        // On Android the local progress-bar notification replaces the OS banner,
+        // so we suppress the default display. On iOS we let the OS banner show
+        // because iOS has no equivalent progress-bar local notification.
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          event.preventDefault();
+        }
         unawaited(
           _handleOrderStatusPayload(
             merged,
@@ -186,7 +191,19 @@ class PushNotificationService extends GetxService {
     const android = AndroidInitializationSettings(
       '@drawable/ic_launcher_foreground',
     );
-    const settings = InitializationSettings(android: android);
+    const darwin = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+      defaultPresentAlert: true,
+      defaultPresentBadge: false,
+      defaultPresentSound: false,
+    );
+    const settings = InitializationSettings(
+      android: android,
+      iOS: darwin,
+      macOS: darwin,
+    );
     await _localNotifications.initialize(settings);
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
@@ -409,6 +426,11 @@ class PushNotificationService extends GetxService {
         ? message
         : 'notifications.newMessageInChat'.tr;
 
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: false,
+      presentSound: false,
+    );
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _chatChannelId,
@@ -419,6 +441,8 @@ class PushNotificationService extends GetxService {
         onlyAlertOnce: true,
         styleInformation: BigTextStyleInformation(body),
       ),
+      iOS: iosDetails,
+      macOS: iosDetails,
     );
     await _localNotifications.show(notificationId, title, body, details);
   }

@@ -13,6 +13,10 @@ import UIKit
       GMSServices.provideAPIKey(apiKey)
     }
     GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    if let controller = window?.rootViewController as? FlutterViewController {
+      OrderStatusBridge.shared.attach(controller: controller)
+    }
+    return result
   }
 }

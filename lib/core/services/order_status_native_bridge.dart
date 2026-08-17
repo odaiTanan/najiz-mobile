@@ -7,7 +7,9 @@ typedef OrderStatusNativeHandler = Future<void> Function(
   String? body,
 });
 
-/// Receives order_status payloads from Android when the app process is alive.
+/// Receives order_status payloads from native code (Android & iOS) when the
+/// app process is alive. On Android this is called by
+/// OrderStatusNotificationExtension; on iOS by OrderStatusBridge in AppDelegate.
 class OrderStatusNativeBridge {
   OrderStatusNativeBridge._();
 
