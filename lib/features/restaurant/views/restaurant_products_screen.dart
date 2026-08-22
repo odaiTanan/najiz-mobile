@@ -91,124 +91,128 @@ class RestaurantProductsScreen extends StatelessWidget {
               return false;
             },
             child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
-            children: [
-              Obx(
-                () => _MiniTopCard(
-                  deliveryAddress: controller.deliveryAddressLabel,
-                  hasSavedAddresses: controller.savedAddresses.isNotEmpty,
-                  unreadNotifications: pushService.unreadCount.value,
-                  onAddressTap: () => _showAddressChooser(
-                    context: context,
-                    controller: controller,
-                  ),
-                  onNotificationsTap: AppRoutes.openNotifications,
-                  cartCount: cartService.totalCount.value,
-                  onCartTap: () async {
-                    if (!cartService.hasItems) {
-                      await cartService.ensureCartLoaded();
-                    }
-                    final vendorId = cartService.vendorId.value;
-                    if (vendorId == null || !cartService.hasItems) {
-                      AppSnackbar.show(
-                        'services.cart'.tr,
-                        'services.emptyCart'.tr,
-                      );
-                      return;
-                    }
-                    Get.to(
-                      () => CartScreen(
-                        token: token,
-                        serviceId: cartService.serviceId.value ?? serviceId,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  hintText: searchHint,
-                  hintStyle: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                  prefixIcon: const Icon(Icons.search, size: 16),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  filled: true,
-                  fillColor: cs.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.inputBorder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.inputBorder),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Classifications tabs (from /services/{serviceId}/classifications)
-              if (controller.classifications.isNotEmpty)
-                SizedBox(
-                  height: 58,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: controller.classifications.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, index) {
-                      if (index == 0) {
-                        final selected =
-                            controller.selectedClassificationId.value == null;
-                        return _ClassificationIconItem(
-                          label: 'services.all'.tr,
-                          icon: Icons.clear_rounded,
-                          selected: selected,
-                          onTap: () => controller.selectClassification(null),
-                        );
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
+              children: [
+                Obx(
+                  () => _MiniTopCard(
+                    deliveryAddress: controller.deliveryAddressLabel,
+                    hasSavedAddresses: controller.savedAddresses.isNotEmpty,
+                    unreadNotifications: pushService.unreadCount.value,
+                    onAddressTap: () => _showAddressChooser(
+                      context: context,
+                      controller: controller,
+                    ),
+                    onNotificationsTap: AppRoutes.openNotifications,
+                    cartCount: cartService.totalCount.value,
+                    onCartTap: () async {
+                      if (!cartService.hasItems) {
+                        await cartService.ensureCartLoaded();
                       }
-
-                      final c = controller.classifications[index - 1];
-                      final selected =
-                          controller.selectedClassificationId.value == c.id;
-                      return _ClassificationIconItem(
-                        label: c.name,
-                        icon: _classificationIcon(
-                          name: c.name,
-                          isStoresService: isStoresService,
+                      final vendorId = cartService.vendorId.value;
+                      if (vendorId == null || !cartService.hasItems) {
+                        AppSnackbar.show(
+                          'services.cart'.tr,
+                          'services.emptyCart'.tr,
+                        );
+                        return;
+                      }
+                      Get.to(
+                        () => CartScreen(
+                          token: token,
+                          serviceId: cartService.serviceId.value ?? serviceId,
                         ),
-                        backendIconUrl: c.icon,
-                        selected: selected,
-                        onTap: () => controller.selectClassification(c.id),
                       );
                     },
                   ),
                 ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Text(
-                    featuredTitle,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
+                const SizedBox(height: 10),
+                TextField(
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    hintText: searchHint,
+                    hintStyle: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    prefixIcon: const Icon(Icons.search, size: 16),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    filled: true,
+                    fillColor: cs.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppColors.inputBorder,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppColors.inputBorder,
+                      ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (controller.vendors.isEmpty)
-                Text(
-                  isStoresService
-                      ? 'services.noStores'.tr
-                      : 'services.noRestaurants'.tr,
-                  style: TextStyle(color: cs.onSurfaceVariant),
-                )
-              else
-                ...controller.vendors.map(
-                  (vendor) {
+                ),
+                const SizedBox(height: 12),
+                // Classifications tabs (from /services/{serviceId}/classifications)
+                if (controller.classifications.isNotEmpty)
+                  SizedBox(
+                    height: 101,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: controller.classifications.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (_, index) {
+                        if (index == 0) {
+                          final selected =
+                              controller.selectedClassificationId.value == null;
+                          return _ClassificationIconItem(
+                            label: 'services.all'.tr,
+                            icon: Icons.grid_view_rounded,
+                            selected: selected,
+                            onTap: () => controller.selectClassification(null),
+                          );
+                        }
+
+                        final c = controller.classifications[index - 1];
+                        final selected =
+                            controller.selectedClassificationId.value == c.id;
+                        return _ClassificationIconItem(
+                          label: c.name,
+                          icon: _classificationIcon(
+                            name: c.name,
+                            isStoresService: isStoresService,
+                          ),
+                          imageUrl: c.image,
+                          backendIconUrl: c.icon,
+                          selected: selected,
+                          onTap: () => controller.selectClassification(c.id),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Text(
+                      featuredTitle,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (controller.vendors.isEmpty)
+                  Text(
+                    isStoresService
+                        ? 'services.noStores'.tr
+                        : 'services.noRestaurants'.tr,
+                    style: TextStyle(color: cs.onSurfaceVariant),
+                  )
+                else
+                  ...controller.vendors.map((vendor) {
                     final statusMsg = VendorOrderStatus.blockingBannerMessage(
                       vendor.vendorStatus,
                       isStore: isStoresService,
@@ -241,19 +245,41 @@ class RestaurantProductsScreen extends StatelessWidget {
                                       Positioned.fill(
                                         child: vendor.isOpened
                                             ? NetworkImageWithFallback(
-                                                url: vendor.image ?? vendor.logo,
+                                                url:
+                                                    vendor.image ?? vendor.logo,
                                                 fit: BoxFit.cover,
                                                 headers: authHeaders,
                                               )
                                             : ColorFiltered(
-                                                colorFilter: const ColorFilter.matrix(<double>[
-                                                  0.2126, 0.7152, 0.0722, 0, 0,
-                                                  0.2126, 0.7152, 0.0722, 0, 0,
-                                                  0.2126, 0.7152, 0.0722, 0, 0,
-                                                  0, 0, 0, 1, 0,
-                                                ]),
+                                                colorFilter:
+                                                    const ColorFilter.matrix(
+                                                      <double>[
+                                                        0.2126,
+                                                        0.7152,
+                                                        0.0722,
+                                                        0,
+                                                        0,
+                                                        0.2126,
+                                                        0.7152,
+                                                        0.0722,
+                                                        0,
+                                                        0,
+                                                        0.2126,
+                                                        0.7152,
+                                                        0.0722,
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        1,
+                                                        0,
+                                                      ],
+                                                    ),
                                                 child: NetworkImageWithFallback(
-                                                  url: vendor.image ?? vendor.logo,
+                                                  url:
+                                                      vendor.image ??
+                                                      vendor.logo,
                                                   fit: BoxFit.cover,
                                                   headers: authHeaders,
                                                 ),
@@ -270,8 +296,9 @@ class RestaurantProductsScreen extends StatelessWidget {
                                               horizontal: 10,
                                               vertical: 8,
                                             ),
-                                            color: Colors.black
-                                                .withValues(alpha: 0.62),
+                                            color: Colors.black.withValues(
+                                              alpha: 0.62,
+                                            ),
                                             child: Text(
                                               statusMsg,
                                               textAlign: TextAlign.center,
@@ -309,61 +336,70 @@ class RestaurantProductsScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      vendor.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: cs.onSurface,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  8,
+                                  10,
+                                  4,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        vendor.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: cs.onSurface,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  VendorOrderStatusPill(
-                                    vendorStatus: vendor.vendorStatus,
-                                    isActive: vendor.isActive,
-                                    isOpened: vendor.isOpened,
-                                    isStore: isStoresService,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.schedule,
-                                    size: 12,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'يفتح ${vendor.openingTime ?? '--'} • يغلق ${vendor.closingTime ?? '--'}',
-                                    style: TextStyle(
-                                      color: cs.onSurfaceVariant,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
+                                    const SizedBox(width: 8),
+                                    VendorOrderStatusPill(
+                                      vendorStatus: vendor.vendorStatus,
+                                      isActive: vendor.isActive,
+                                      isOpened: vendor.isOpened,
+                                      isStore: isStoresService,
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  0,
+                                  10,
+                                  8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.schedule,
+                                      size: 12,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'يفتح ${vendor.openingTime ?? '--'} • يغلق ${vendor.closingTime ?? '--'}',
+                                      style: TextStyle(
+                                        color: cs.onSurfaceVariant,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
                     );
                   }),
-              Obx(
-                () {
+                Obx(() {
                   if (!controller.isLoadingMore.value) {
                     return const SizedBox.shrink();
                   }
@@ -371,9 +407,8 @@ class RestaurantProductsScreen extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 16),
                     child: Center(child: CircularProgressIndicator()),
                   );
-                },
-              ),
-            ],
+                }),
+              ],
             ),
           );
         }),
@@ -631,6 +666,7 @@ class _MiniTopCard extends StatelessWidget {
 class _ClassificationIconItem extends StatelessWidget {
   final String label;
   final IconData icon;
+  final String? imageUrl;
   final String? backendIconUrl;
   final bool selected;
   final VoidCallback onTap;
@@ -638,6 +674,7 @@ class _ClassificationIconItem extends StatelessWidget {
   const _ClassificationIconItem({
     required this.label,
     required this.icon,
+    this.imageUrl,
     this.backendIconUrl,
     required this.selected,
     required this.onTap,
@@ -646,45 +683,84 @@ class _ClassificationIconItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final bg = selected ? AppColors.primary : cs.surface;
-    final fg = selected ? Colors.white : cs.onSurfaceVariant;
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 56,
+        width: 82,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 28,
-              height: 28,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 76,
+              height: 68,
               decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: cs.outlineVariant),
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? AppColors.primary : cs.outlineVariant,
+                  width: selected ? 2.2 : 1,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.14),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
-              child: (backendIconUrl != null && backendIconUrl!.trim().isNotEmpty)
-                  ? _BackendClassificationIcon(
-                      iconUrl: backendIconUrl!,
-                      color: fg,
-                      fallbackIcon: icon,
-                    )
-                  : Icon(icon, size: 14, color: fg),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: hasImage
+                    ? Image.network(
+                        imageUrl!,
+                        width: 76,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _classificationFallback(context),
+                      )
+                    : _classificationFallback(context),
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 7),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 color: selected ? AppColors.primary : cs.onSurfaceVariant,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _classificationFallback(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final fg = selected ? AppColors.primary : cs.onSurfaceVariant;
+
+    return Container(
+      color: selected
+          ? AppColors.primary.withValues(alpha: 0.08)
+          : cs.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: backendIconUrl != null && backendIconUrl!.trim().isNotEmpty
+          ? _BackendClassificationIcon(
+              iconUrl: backendIconUrl!,
+              color: fg,
+              fallbackIcon: icon,
+            )
+          : Icon(icon, size: 30, color: fg),
     );
   }
 }
@@ -776,4 +852,3 @@ IconData _classificationIcon({
   if (isStoresService) return Icons.shopping_basket_outlined;
   return Icons.restaurant_menu_outlined;
 }
-
