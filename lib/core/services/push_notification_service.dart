@@ -23,8 +23,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PushNotificationService extends GetxService {
   static const String _oneSignalAppId = 'dfd556c5-45f5-42f4-b810-bd4e2b7b352e';
   static const String _storageKey = 'app_notifications_history';
-  static const String _orderNotificationIdsKey = 'order_progress_notification_ids';
-  static const String _chatNotificationIdsKey = 'chat_progress_notification_ids';
+  static const String _orderNotificationIdsKey =
+      'order_progress_notification_ids';
+  static const String _chatNotificationIdsKey =
+      'chat_progress_notification_ids';
   static const String _ordersChannelId = 'orders_progress_channel';
   static const String _chatChannelId = 'chat_updates_channel';
 
@@ -41,9 +43,11 @@ class PushNotificationService extends GetxService {
   bool _initialized = false;
   bool _localInitialized = false;
   String? _pendingSubscribeToken;
+
   /// When false, user-specific notification history must not be written.
   /// Cleared during session teardown and re-enabled after a new login.
   bool _acceptUserNotifications = false;
+
   /// Bumped on session cleanup so in-flight preference writes cannot restore
   /// another user's notification history after [clearLocalHistory].
   int _historyEpoch = 0;
@@ -63,12 +67,14 @@ class PushNotificationService extends GetxService {
     }
     await _initLocalNotifications();
     OneSignal.initialize(_oneSignalAppId);
+
     await OneSignal.Notifications.requestPermission(true);
 
     OneSignal.User.pushSubscription.addObserver((state) {
       final playerId = state.current.id;
       if (playerId == null || playerId.trim().isEmpty) return;
-      final authToken = _pendingSubscribeToken ??
+      final authToken =
+          _pendingSubscribeToken ??
           (Get.isRegistered<AuthStateManager>()
               ? Get.find<AuthStateManager>().token.value
               : null);
@@ -139,11 +145,7 @@ class PushNotificationService extends GetxService {
     });
 
     OrderStatusNativeBridge.register((payload, {title, body}) async {
-      await _handleOrderStatusPayload(
-        payload,
-        title: title,
-        body: body,
-      );
+      await _handleOrderStatusPayload(payload, title: title, body: body);
     });
 
     if (hasAuthToken) {
@@ -186,13 +188,26 @@ class PushNotificationService extends GetxService {
     const android = AndroidInitializationSettings(
       '@drawable/ic_launcher_foreground',
     );
-    const settings = InitializationSettings(android: android);
+
+    const darwin = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+
+    const settings = InitializationSettings(
+      android: android,
+      iOS: darwin,
+      macOS: darwin,
+    );
+
     await _localNotifications.initialize(settings);
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await androidPlugin?.createNotificationChannel(
         AndroidNotificationChannel(
           _ordersChannelId,
@@ -223,10 +238,12 @@ class PushNotificationService extends GetxService {
           _orderNotificationIds
             ..clear()
             ..addAll(
-              decoded.map((key, value) => MapEntry(
-                    key.toString(),
-                    int.tryParse(value.toString()) ?? _stableInt(key.toString()),
-                  )),
+              decoded.map(
+                (key, value) => MapEntry(
+                  key.toString(),
+                  int.tryParse(value.toString()) ?? _stableInt(key.toString()),
+                ),
+              ),
             );
         }
       } catch (_) {}
@@ -240,10 +257,12 @@ class PushNotificationService extends GetxService {
           _chatNotificationIds
             ..clear()
             ..addAll(
-              decoded.map((key, value) => MapEntry(
-                    key.toString(),
-                    int.tryParse(value.toString()) ?? _stableInt(key.toString()),
-                  )),
+              decoded.map(
+                (key, value) => MapEntry(
+                  key.toString(),
+                  int.tryParse(value.toString()) ?? _stableInt(key.toString()),
+                ),
+              ),
             );
         }
       } catch (_) {}
@@ -257,17 +276,13 @@ class PushNotificationService extends GetxService {
     final chatsSnapshot = Map<String, int>.from(_chatNotificationIds);
     final prefs = await SharedPreferences.getInstance();
     if (epoch != _historyEpoch) return;
-    await prefs.setString(
-      _orderNotificationIdsKey,
-      jsonEncode(ordersSnapshot),
-    );
-    await prefs.setString(
-      _chatNotificationIdsKey,
-      jsonEncode(chatsSnapshot),
-    );
+    await prefs.setString(_orderNotificationIdsKey, jsonEncode(ordersSnapshot));
+    await prefs.setString(_chatNotificationIdsKey, jsonEncode(chatsSnapshot));
   }
 
-  Future<void> _handleLocalProgressNotification(Map<String, dynamic>? data) async {
+  Future<void> _handleLocalProgressNotification(
+    Map<String, dynamic>? data,
+  ) async {
     if (!_canAcceptUserNotifications()) return;
     if (data == null || !_localInitialized) return;
     final type = data['type']?.toString().trim().toLowerCase();
@@ -293,11 +308,7 @@ class PushNotificationService extends GetxService {
       titleOverride: title,
       bodyOverride: body,
     );
-    await _upsertOrderInAppCenter(
-      merged,
-      title: title,
-      body: body,
-    );
+    await _upsertOrderInAppCenter(merged, title: title, body: body);
   }
 
   Future<void> _upsertOrderInAppCenter(
@@ -315,7 +326,8 @@ class PushNotificationService extends GetxService {
     final resolvedBody = OrderProgressNotificationMapper.resolveDisplayBody(
       merged,
       bodyOverride: body,
-      orderType: merged['order_type']?.toString() ??
+      orderType:
+          merged['order_type']?.toString() ??
           merged['service_type']?.toString(),
     );
     if (TaxiOrderState.isTaxiOrderType(
@@ -374,10 +386,7 @@ class PushNotificationService extends GetxService {
         _asInt(data['android_notification_id']) ?? _asInt(data['order_id']);
     if (explicitNotificationId == null) {
       final epoch = _historyEpoch;
-      _resolveNotificationId(
-        key: orderKey,
-        store: _orderNotificationIds,
-      );
+      _resolveNotificationId(key: orderKey, store: _orderNotificationIds);
       await _saveNotificationIdMappings(expectedEpoch: epoch);
     }
 
@@ -454,8 +463,8 @@ class PushNotificationService extends GetxService {
     final type = data['type']?.toString().trim().toLowerCase();
     if (type == 'order_status') return;
 
-    final orderType =
-        (data['order_type'] ?? data['service_type'] ?? '').toString();
+    final orderType = (data['order_type'] ?? data['service_type'] ?? '')
+        .toString();
     if (TaxiOrderState.isTaxiOrderType(orderType)) return;
 
     final orderId = data['order_id']?.toString();
@@ -473,10 +482,12 @@ class PushNotificationService extends GetxService {
         _prePickupAssignmentStatuses.contains(status) ||
         _prePickupAssignmentStatuses.contains(dispatchStatus);
 
-    final isNearAddress = !isPrePickupAssignment &&
+    final isNearAddress =
+        !isPrePickupAssignment &&
         (_nearAddressStatuses.contains(status) ||
             _nearAddressStatuses.contains(dispatchStatus));
-    final isArrivedWaiting = !isPrePickupAssignment &&
+    final isArrivedWaiting =
+        !isPrePickupAssignment &&
         (_arrivedWaitingStatuses.contains(status) ||
             _arrivedWaitingStatuses.contains(dispatchStatus));
 
@@ -485,10 +496,7 @@ class PushNotificationService extends GetxService {
         title: 'tracking.deliveryAlert'.tr,
         body: 'tracking.driverNearby'.tr,
         dedupeKey: 'onesignal-order-$orderId-near-address',
-        data: {
-          ...data,
-          'event': 'driver_near_address',
-        },
+        data: {...data, 'event': 'driver_near_address'},
       );
     }
 
@@ -497,10 +505,7 @@ class PushNotificationService extends GetxService {
         title: 'tracking.deliveryAlert'.tr,
         body: 'tracking.driverWaiting'.tr,
         dedupeKey: 'onesignal-order-$orderId-arrived-waiting',
-        data: {
-          ...data,
-          'event': 'driver_arrived_waiting',
-        },
+        data: {...data, 'event': 'driver_arrived_waiting'},
       );
     }
   }
@@ -731,8 +736,9 @@ class PushNotificationService extends GetxService {
 
   Future<void> _saveToStorage({required int expectedEpoch}) async {
     if (expectedEpoch != _historyEpoch) return;
-    final snapshot =
-        notifications.map((item) => item.toJson()).toList(growable: false);
+    final snapshot = notifications
+        .map((item) => item.toJson())
+        .toList(growable: false);
     final prefs = await SharedPreferences.getInstance();
     if (expectedEpoch != _historyEpoch) return;
     await prefs.setString(_storageKey, jsonEncode(snapshot));

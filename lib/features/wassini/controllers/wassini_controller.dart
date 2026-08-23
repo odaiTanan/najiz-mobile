@@ -115,7 +115,7 @@ class WassiniController extends GetxController {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        pickupAddress.value = 'تعذر الوصول إلى موقعك';
+        destinationAddress.value = 'تعذر الوصول إلى موقعك';
         return;
       }
 
@@ -130,7 +130,7 @@ class WassiniController extends GetxController {
         isPickup: false,
       );
     } catch (_) {
-      pickupAddress.value = 'تعذر تحديد الموقع';
+      destinationAddress.value = 'تعذر تحديد الموقع';
     } finally {
       isLoadingLocation.value = false;
     }
