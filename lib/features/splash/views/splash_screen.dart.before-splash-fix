@@ -11,9 +11,9 @@ import 'package:najiz_go_express/features/orders/views/transport_order_tracking_
 import 'package:najiz_go_express/features/taxi/services/taxi_cold_start_restorer.dart';
 import 'package:najiz_go_express/features/taxi/views/taxi_booking_screen.dart';
 
-const _kMinSplashDuration = Duration(milliseconds: 4000);
-const _kAnimationWaitTimeout = Duration(seconds: 5);
-const _kSplashAnimationDuration = Duration(milliseconds: 4000);
+const _kMinSplashDuration = Duration(milliseconds: 3000);
+const _kAnimationWaitTimeout = Duration(seconds: 4);
+const _kSplashAnimationDuration = Duration(milliseconds: 3000);
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -177,7 +177,7 @@ class _NajizSplashAnimationState extends State<_NajizSplashAnimation>
     Curve curve = Curves.easeOutCubic,
   }) {
     final t = ((value - begin) / (end - begin)).clamp(0.0, 1.0);
-    return curve.transform(t).clamp(0.0, 1.0).toDouble();
+    return curve.transform(t);
   }
 
   @override
@@ -190,25 +190,19 @@ class _NajizSplashAnimationState extends State<_NajizSplashAnimation>
       builder: (context, _) {
         final t = _controller.value;
 
-        final logoIn = _segment(t, 0.00, 0.14, curve: Curves.easeOutBack);
+        final logoIn = _segment(t, 0.00, 0.16, curve: Curves.easeOutBack);
+        final ringDraw = _segment(t, 0.10, 0.38);
+        final icon1 = _segment(t, 0.25, 0.36, curve: Curves.easeOutBack);
+        final icon2 = _segment(t, 0.31, 0.42, curve: Curves.easeOutBack);
+        final icon3 = _segment(t, 0.37, 0.48, curve: Curves.easeOutBack);
+        final icon4 = _segment(t, 0.43, 0.54, curve: Curves.easeOutBack);
 
-        // Draw clockwise, deliberately slower and smoother.
-        final ringDraw = _segment(t, 0.08, 0.54, curve: Curves.easeInOutCubic);
+        // Positive angle on Flutter canvas = visually clockwise.
+        final dotTurn = _segment(t, 0.43, 0.73, curve: Curves.easeInOutCubic);
 
-        final icon1 = _segment(t, 0.30, 0.40, curve: Curves.easeOutBack);
-        final icon2 = _segment(t, 0.38, 0.48, curve: Curves.easeOutBack);
-        final icon3 = _segment(t, 0.46, 0.56, curve: Curves.easeOutBack);
-        final icon4 = _segment(t, 0.54, 0.64, curve: Curves.easeOutBack);
-
-        // One bright clockwise lap after the icons appear.
-        final dotTurn = _segment(t, 0.57, 0.76, curve: Curves.easeInOutCubic);
-
-        // Text appears in two beats, not simultaneously.
-        final question = _segment(t, 0.67, 0.76);
-        final answer = _segment(t, 0.76, 0.86, curve: Curves.easeOutBack);
-
-        final road = _segment(t, 0.83, 0.97);
-        final finishGlow = _segment(t, 0.90, 1.00);
+        final slogan = _segment(t, 0.62, 0.79);
+        final road = _segment(t, 0.74, 0.94);
+        final finishGlow = _segment(t, 0.86, 1.00);
 
         return Stack(
           fit: StackFit.expand,
@@ -275,44 +269,22 @@ class _NajizSplashAnimationState extends State<_NajizSplashAnimation>
             ),
 
             Align(
-              alignment: const Alignment(0, 0.56),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Transform.translate(
-                    offset: Offset(0, 10 * (1 - question)),
-                    child: Opacity(
-                      opacity: question,
-                      child: const Text(
-                        'بدك شي؟',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _green,
-                          fontSize: 23,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
-                        ),
-                      ),
+              alignment: const Alignment(0, 0.55),
+              child: Transform.translate(
+                offset: Offset(0, 12 * (1 - slogan)),
+                child: Opacity(
+                  opacity: slogan,
+                  child: const Text(
+                    'بدك شي؟ صار ناجز.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _green,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Transform.translate(
-                    offset: Offset(0, 12 * (1 - answer)),
-                    child: Opacity(
-                      opacity: answer,
-                      child: const Text(
-                        'صار ناجز.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _orange,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:najiz_go_express/features/home/config/local_service_catalog.dart';
 import 'package:najiz_go_express/features/home/models/service_kind.dart';
 import 'package:najiz_go_express/features/home/models/service_model.dart';
@@ -9,20 +8,10 @@ class ServiceCatalogService {
   static const Set<int> hiddenServiceIds = {7};
 
   ServiceModel applyLocalPresentation(ServiceModel raw) {
-    if (_isWassini(raw)) {
-      return raw.copyWith(
-        kind: ServiceKind.wassini,
-        iconColor: const Color(0xFFF58220),
-        iconAsset: 'assets/services/wassini/wassini.png',
-      );
-    }
-
     final definition = LocalServiceCatalog.find(raw.id);
-
     if (definition == null) {
       return raw.copyWith(kind: ServiceKind.unknown);
     }
-
     return raw.copyWith(
       nameKey: definition.nameKey,
       kind: definition.kind,
@@ -41,38 +30,11 @@ class ServiceCatalogService {
 
   List<ServiceModel> sortForHome(List<ServiceModel> services) {
     final sorted = [...services];
-
-    int orderFor(ServiceModel service) {
-      switch (service.kind) {
-        case ServiceKind.taxi:
-          return 0;
-        case ServiceKind.restaurant:
-          return 1;
-        case ServiceKind.wassini:
-          return 2;
-        case ServiceKind.store:
-          return 3;
-        case ServiceKind.shipping:
-          return 4;
-        case ServiceKind.supermarket:
-          return 5;
-        case ServiceKind.unknown:
-          return 100 + LocalServiceCatalog.sortOrderFor(service.id);
-      }
-    }
-
-    sorted.sort((a, b) => orderFor(a).compareTo(orderFor(b)));
+    sorted.sort(
+      (a, b) => LocalServiceCatalog.sortOrderFor(a.id)
+          .compareTo(LocalServiceCatalog.sortOrderFor(b.id)),
+    );
     return sorted;
-  }
-
-  bool _isWassini(ServiceModel service) {
-    final name = service.name
-        .trim()
-        .toLowerCase()
-        .replaceAll('ّ', '')
-        .replaceAll('ـ', '');
-
-    return name == 'وصيني' || name == 'wassini' || name.contains('wassini');
   }
 
   bool isRestaurant(ServiceModel service) {
@@ -84,7 +46,6 @@ class ServiceCatalogService {
     final models = LocalServiceCatalog.byId.keys
         .map((id) => ServiceModel(id: id))
         .toList(growable: false);
-
     return sortForHome(applyAll(models));
   }
 }

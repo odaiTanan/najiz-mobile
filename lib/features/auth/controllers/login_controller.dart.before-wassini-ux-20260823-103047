@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/services/session_service.dart';
-import 'package:najiz_go_express/core/services/auth_state_manager.dart';
 import 'package:najiz_go_express/core/utils/error_mappers.dart';
 import 'package:najiz_go_express/features/auth/repositories/auth_repository.dart';
 import 'package:najiz_go_express/features/auth/models/otp_purpose.dart';
@@ -14,7 +13,7 @@ import 'package:najiz_go_express/core/routes/app_routes.dart';
 
 class LoginController extends GetxController {
   LoginController({AuthRepository? authRepository})
-    : _authRepository = resolveAuthRepository(authRepository);
+      : _authRepository = resolveAuthRepository(authRepository);
 
   final AuthRepository _authRepository;
 
@@ -73,11 +72,6 @@ class LoginController extends GetxController {
 
     token = result.token;
     final fallbackPhone = phoneOrEmailController.text.trim();
-
-    final authState = Get.find<AuthStateManager>();
-    final shouldResumePendingIntent =
-        token != null && token!.trim().isNotEmpty && authState.hasPendingIntent;
-
     if (token != null && token!.isNotEmpty) {
       await completeAuthenticatedSession(
         repository: _authRepository,
@@ -87,12 +81,8 @@ class LoginController extends GetxController {
     } else {
       await SessionService.saveUserIdentity(phone: fallbackPhone);
     }
-
     AppSnackbar.show('errors.success'.tr, result.message);
-
-    if (!shouldResumePendingIntent) {
-      AppRoutes.openHome(token: token);
-    }
+    AppRoutes.openHome(token: token);
   }
 
   @override

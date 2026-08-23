@@ -23,8 +23,6 @@ class AuthStateManager extends GetxService {
 
   bool get isGuest => !isAuthenticated;
 
-  bool get hasPendingIntent => _pendingIntent != null;
-
   Future<void> initialize({String? initialToken}) async {
     final resolved = initialToken ?? await SessionService.getToken();
     if (resolved != null && resolved.trim().isNotEmpty) {
@@ -39,8 +37,7 @@ class AuthStateManager extends GetxService {
   Future<void> markAuthenticated(String newToken) async {
     final previousToken = token.value?.trim();
     final normalized = newToken.trim();
-    final sessionChanged =
-        previousToken == null ||
+    final sessionChanged = previousToken == null ||
         previousToken.isEmpty ||
         previousToken != normalized;
     if (sessionChanged) {

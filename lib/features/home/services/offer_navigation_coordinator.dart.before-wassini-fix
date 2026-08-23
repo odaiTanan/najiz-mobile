@@ -7,15 +7,18 @@ import 'package:najiz_go_express/features/restaurant/views/restaurant_products_s
 import 'package:najiz_go_express/features/restaurant/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/shipping/views/shipping_screen.dart';
 import 'package:najiz_go_express/features/taxi/views/taxi_booking_screen.dart';
-import 'package:najiz_go_express/features/wassini/views/wassini_screen.dart';
 
 class OfferNavigationCoordinator {
-  OfferNavigationCoordinator({OfferNavigationService? navigationService})
-    : _navigationService = navigationService ?? const OfferNavigationService();
+  OfferNavigationCoordinator({
+    OfferNavigationService? navigationService,
+  }) : _navigationService = navigationService ?? const OfferNavigationService();
 
   final OfferNavigationService _navigationService;
 
-  void openOffer({required OfferModel offer, required String? token}) {
+  void openOffer({
+    required OfferModel offer,
+    required String? token,
+  }) {
     switch (_navigationService.resolveServiceKind(offer)) {
       case ServiceKind.restaurant:
       case ServiceKind.store:
@@ -27,10 +30,6 @@ class OfferNavigationCoordinator {
       case ServiceKind.taxi:
         Get.to(() => TaxiBookingScreen(token: token));
         return;
-      case ServiceKind.wassini:
-        Get.to(() => WassiniScreen(token: token));
-        return;
-
       case ServiceKind.supermarket:
       case ServiceKind.unknown:
         final title = offer.name.trim().isNotEmpty
@@ -41,7 +40,10 @@ class OfferNavigationCoordinator {
     }
   }
 
-  void _openVendorCatalog({required OfferModel offer, required String? token}) {
+  void _openVendorCatalog({
+    required OfferModel offer,
+    required String? token,
+  }) {
     final serviceId = _navigationService.resolveCatalogServiceId(offer);
     if (_navigationService.hasVendor(offer)) {
       Get.to(
@@ -54,6 +56,11 @@ class OfferNavigationCoordinator {
       return;
     }
 
-    Get.to(() => RestaurantProductsScreen(token: token, serviceId: serviceId));
+    Get.to(
+      () => RestaurantProductsScreen(
+        token: token,
+        serviceId: serviceId,
+      ),
+    );
   }
 }

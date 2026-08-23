@@ -68,10 +68,6 @@ class Endpoints {
   static const shippingCalculate = '/user/orders/shipping/calculate';
   static const shippingOrders = '/user/orders/shipping';
 
-  // ── Wassini ───────────────────────────────────────────────────────────────
-  static const wassiniCalculate = '/user/orders/wassini/calculate';
-  static const wassiniOrders = '/user/orders/wassini';
-
   // ── Coupons & referrals ───────────────────────────────────────────────────
   static const couponsValidate = '/user/coupons/validate';
   static const couponsMy = '/user/coupons/my';

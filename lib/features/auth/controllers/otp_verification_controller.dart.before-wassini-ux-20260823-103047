@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:najiz_go_express/core/widgets/app_snackbar.dart';
 import 'dart:async';
 import 'package:get/get.dart';
@@ -82,7 +82,12 @@ class OtpVerificationController extends GetxController {
         if (resetToken == null || resetToken.trim().isEmpty) {
           throw AuthApiException('auth.resetTokenError'.tr);
         }
-        Get.to(() => ResetPasswordScreen(phone: phone, resetToken: resetToken));
+        Get.to(
+          () => ResetPasswordScreen(
+            phone: phone,
+            resetToken: resetToken,
+          ),
+        );
         return;
       }
 

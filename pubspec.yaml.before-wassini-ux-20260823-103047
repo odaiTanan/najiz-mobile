@@ -92,7 +92,6 @@ flutter:
     - assets/i18n/ar.json
     - assets/i18n/en.json
     - assets/services/
-    - assets/services/wassini/
     - assets/splash/
   fonts:
     - family: Cairo

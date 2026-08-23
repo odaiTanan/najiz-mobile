@@ -36,7 +36,6 @@ import 'package:najiz_go_express/features/orders/views/cart_screen.dart';
 import 'package:najiz_go_express/features/restaurant/views/restaurant_products_screen.dart';
 import 'package:najiz_go_express/features/restaurant/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/shipping/views/shipping_screen.dart';
-import 'package:najiz_go_express/features/wassini/views/wassini_screen.dart';
 import 'package:najiz_go_express/features/taxi/views/taxi_booking_screen.dart';
 import 'package:najiz_go_express/features/orders/views/my_orders_screen.dart';
 import 'package:najiz_go_express/features/orders/views/transport_order_tracking_screen.dart';
@@ -50,15 +49,15 @@ class HomeController extends GetxController {
     AuthRepository? authRepository,
     OfferNavigationCoordinator? offerNavigationCoordinator,
     ServiceCatalogService? serviceCatalogService,
-  }) : _repository = repository ?? resolveHomeRepository(),
-       _restaurantRepository =
-           restaurantRepository ?? resolveRestaurantRepository(),
-       _ordersRepository = ordersRepository ?? resolveOrdersRepository(),
-       _authRepository = authRepository ?? resolveAuthRepository(),
-       _offerNavigationCoordinator =
-           offerNavigationCoordinator ?? resolveOfferNavigationCoordinator(),
-       _serviceCatalogService =
-           serviceCatalogService ?? resolveServiceCatalogService();
+  })  : _repository = repository ?? resolveHomeRepository(),
+        _restaurantRepository =
+            restaurantRepository ?? resolveRestaurantRepository(),
+        _ordersRepository = ordersRepository ?? resolveOrdersRepository(),
+        _authRepository = authRepository ?? resolveAuthRepository(),
+        _offerNavigationCoordinator =
+            offerNavigationCoordinator ?? resolveOfferNavigationCoordinator(),
+        _serviceCatalogService =
+            serviceCatalogService ?? resolveServiceCatalogService();
 
   final String? token;
   final HomeRepository _repository;
@@ -77,7 +76,6 @@ class HomeController extends GetxController {
   final isLoadingMoreVendors = false.obs;
   final vendorCurrentPage = 1.obs;
   final vendorLastPage = 1.obs;
-
   /// أثناء إعادة المحاولة بسبب الشبكة على الصفحة الرئيسية (شيمر + شريط تنبيه).
   final homeWaitingNetwork = false.obs;
   final offers = <OfferModel>[].obs;
@@ -105,27 +103,22 @@ class HomeController extends GetxController {
     if (legacy == null || legacy.isEmpty) return null;
     return legacy;
   }
-
   RxInt get unreadNotifications => _pushNotificationService.unreadCount;
   UserOrder? get primaryActiveOrder =>
       activeOrders.isEmpty ? null : activeOrders.first;
   bool get hasMoreActiveOrders => activeOrders.length > 1;
   bool get hasMoreVendors => vendorCurrentPage.value < vendorLastPage.value;
   List<VendorModel> get filteredVendors {
-    return vendors
-        .where((vendor) {
-          final activeOk = vendorActiveFilter.value == null
-              ? true
-              : (vendorActiveFilter.value!
-                    ? vendor.isOpened
-                    : !vendor.isOpened);
-          final cuisine = vendorCuisineFilter.value;
-          final cuisineOk = cuisine == null
-              ? true
-              : _vendorMatchesCuisine(vendor: vendor, cuisine: cuisine);
-          return activeOk && cuisineOk;
-        })
-        .toList(growable: false);
+    return vendors.where((vendor) {
+      final activeOk = vendorActiveFilter.value == null
+          ? true
+          : (vendorActiveFilter.value! ? vendor.isOpened : !vendor.isOpened);
+      final cuisine = vendorCuisineFilter.value;
+      final cuisineOk = cuisine == null
+          ? true
+          : _vendorMatchesCuisine(vendor: vendor, cuisine: cuisine);
+      return activeOk && cuisineOk;
+    }).toList(growable: false);
   }
 
   @override
@@ -157,7 +150,9 @@ class HomeController extends GetxController {
 
   void _applySnapshot(HomeBootstrapSnapshot snapshot) {
     offers.assignAll(snapshot.offers);
-    services.assignAll(_serviceCatalogService.applyAll(snapshot.services));
+    services.assignAll(
+      _serviceCatalogService.applyAll(snapshot.services),
+    );
     if (snapshot.vendors.isNotEmpty) {
       vendors.assignAll(snapshot.vendors);
       vendorsInitialLoadCompleted.value = true;
@@ -323,10 +318,9 @@ class HomeController extends GetxController {
     if (forceRefresh) {
       return _loadHomeDataImpl(forceRefresh: true);
     }
-    return _homeLoadFuture ??= _loadHomeDataImpl(forceRefresh: false)
-        .whenComplete(() {
-          _homeLoadFuture = null;
-        });
+    return _homeLoadFuture ??= _loadHomeDataImpl(forceRefresh: false).whenComplete(() {
+      _homeLoadFuture = null;
+    });
   }
 
   Future<void> refreshHomeData() => loadHomeData(forceRefresh: true);
@@ -355,10 +349,7 @@ class HomeController extends GetxController {
                 'offline.title'.tr,
                 'home.waitingForNetworkHint'.tr,
                 duration: const Duration(seconds: 4),
-                icon: const Icon(
-                  Icons.wifi_off_rounded,
-                  color: AppColors.primary,
-                ),
+                icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
               );
             }
             await Future<void>.delayed(const Duration(seconds: 2));
@@ -398,10 +389,7 @@ class HomeController extends GetxController {
           backgroundColor: Colors.white,
           content: Text(
             'home_ctrl.savedCart'.tr,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
           ),
           duration: const Duration(milliseconds: 500),
           action: SnackBarAction(
@@ -513,10 +501,7 @@ class HomeController extends GetxController {
               'offline.title'.tr,
               'home.waitingForNetworkHint'.tr,
               duration: const Duration(seconds: 3),
-              icon: const Icon(
-                Icons.wifi_off_rounded,
-                color: AppColors.primary,
-              ),
+              icon: const Icon(Icons.wifi_off_rounded, color: AppColors.primary),
             );
           }
           if (!hadVendors) {
@@ -548,7 +533,8 @@ class HomeController extends GetxController {
 
   Future<void> loadMoreVendorsIfNeeded() async {
     if (isLoadingMoreVendors.value || !hasMoreVendors) return;
-    final serviceId = restaurantServiceId.value ?? selectedServiceId.value;
+    final serviceId =
+        restaurantServiceId.value ?? selectedServiceId.value;
     if (serviceId == null) return;
 
     isLoadingMoreVendors.value = true;
@@ -572,9 +558,6 @@ class HomeController extends GetxController {
     switch (service.kind) {
       case ServiceKind.shipping:
         Get.to(() => ShippingScreen(token: activeToken));
-        return;
-      case ServiceKind.wassini:
-        Get.to(() => WassiniScreen(token: activeToken));
         return;
       case ServiceKind.taxi:
         Get.to(() => TaxiBookingScreen(token: activeToken));
@@ -623,7 +606,10 @@ class HomeController extends GetxController {
   }
 
   void onOfferTap(OfferModel offer) {
-    _offerNavigationCoordinator.openOffer(offer: offer, token: activeToken);
+    _offerNavigationCoordinator.openOffer(
+      offer: offer,
+      token: activeToken,
+    );
   }
 
   void openNotifications() {
@@ -707,15 +693,11 @@ class HomeController extends GetxController {
   }
 
   void toggleVendorActiveFilter(bool active) {
-    vendorActiveFilter.value = vendorActiveFilter.value == active
-        ? null
-        : active;
+    vendorActiveFilter.value = vendorActiveFilter.value == active ? null : active;
   }
 
   void toggleVendorCuisineFilter(String cuisine) {
-    vendorCuisineFilter.value = vendorCuisineFilter.value == cuisine
-        ? null
-        : cuisine;
+    vendorCuisineFilter.value = vendorCuisineFilter.value == cuisine ? null : cuisine;
   }
 
   bool _vendorMatchesCuisine({

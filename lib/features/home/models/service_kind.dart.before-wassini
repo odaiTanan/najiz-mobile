@@ -3,7 +3,6 @@ enum ServiceKind {
   restaurant,
   store,
   shipping,
-  wassini,
   supermarket,
   unknown,
 }

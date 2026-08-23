@@ -45,9 +45,6 @@ class OfferModel {
         return 'offers.bookNow';
       case ServiceKind.shipping:
         return 'offers.orderShipping';
-      case ServiceKind.wassini:
-        return 'offers.orderNow';
-
       case ServiceKind.supermarket:
       case ServiceKind.unknown:
         return 'offers.viewDetails';

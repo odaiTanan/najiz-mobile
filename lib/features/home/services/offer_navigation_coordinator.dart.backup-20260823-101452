@@ -7,7 +7,6 @@ import 'package:najiz_go_express/features/restaurant/views/restaurant_products_s
 import 'package:najiz_go_express/features/restaurant/views/restaurant_vendor_products_screen.dart';
 import 'package:najiz_go_express/features/shipping/views/shipping_screen.dart';
 import 'package:najiz_go_express/features/taxi/views/taxi_booking_screen.dart';
-import 'package:najiz_go_express/features/wassini/views/wassini_screen.dart';
 
 class OfferNavigationCoordinator {
   OfferNavigationCoordinator({OfferNavigationService? navigationService})
@@ -27,10 +26,6 @@ class OfferNavigationCoordinator {
       case ServiceKind.taxi:
         Get.to(() => TaxiBookingScreen(token: token));
         return;
-      case ServiceKind.wassini:
-        Get.to(() => WassiniScreen(token: token));
-        return;
-
       case ServiceKind.supermarket:
       case ServiceKind.unknown:
         final title = offer.name.trim().isNotEmpty
