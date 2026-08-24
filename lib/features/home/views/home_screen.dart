@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:najiz_go_express/core/constants/app_colors.dart';
 import 'package:najiz_go_express/core/theme/theme_context.dart';
@@ -15,7 +15,7 @@ import 'package:najiz_go_express/features/home/widgets/home_service_grid.dart';
 import 'package:najiz_go_express/core/navigation/main_bottom_nav.dart';
 import 'package:najiz_go_express/features/home/views/all_services_screen.dart';
 import 'package:najiz_go_express/features/restaurant/views/restaurant_products_screen.dart';
-import 'package:najiz_go_express/features/support/widgets/support_chat_floating_bubble.dart';
+import 'package:najiz_go_express/features/support/widgets/whatsapp_support_floating_button.dart';
 import 'package:shimmer/shimmer.dart';
 
 const _serviceCatalog = ServiceCatalogService();
@@ -61,259 +61,271 @@ class HomeScreen extends StatelessWidget {
         children: [
           SafeArea(
             child: Obx(() {
-          final loading = controller.isLoading.value;
-          final waitingNet = controller.homeWaitingNetwork.value;
-          final showBootstrapShimmer =
-              loading && controller.services.isEmpty;
-          if (showBootstrapShimmer) {
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const _HomeShimmerSkeleton(),
-                if (waitingNet)
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 8,
-                    child: Material(
-                      elevation: 8,
-                      borderRadius: BorderRadius.circular(16),
-                      color: Theme.of(context).colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.wifi_off_rounded,
-                              color: AppColors.primary,
-                              size: 24,
+              final loading = controller.isLoading.value;
+              final waitingNet = controller.homeWaitingNetwork.value;
+              final showBootstrapShimmer =
+                  loading && controller.services.isEmpty;
+              if (showBootstrapShimmer) {
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const _HomeShimmerSkeleton(),
+                    if (waitingNet)
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 8,
+                        child: Material(
+                          elevation: 8,
+                          borderRadius: BorderRadius.circular(16),
+                          color: Theme.of(context).colorScheme.surface,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'home.waitingForNetworkHint'.tr,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  height: 1.35,
-                                  color: context.uiText,
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.wifi_off_rounded,
+                                  color: AppColors.primary,
+                                  size: 24,
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: controller.refreshHomeData,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              children: [
-                _TopGreetingRow(
-                  displayName: controller.displayName.value,
-                  onProfileTap: () => MainBottomNav.onTap(
-                    index: 4,
-                    currentIndex: 0,
-                    token: controller.activeToken,
-                  ),
-                  onNotificationsTap: controller.openNotifications,
-                  unreadNotifications: controller.unreadNotifications.value,
-                ),
-                const SizedBox(height: 14),
-                Obx(
-                  () => authState.isGuest
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cs.primaryContainer,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: cs.outlineVariant),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'home.guestBrowsing'.tr,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w700,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'home.waitingForNetworkHint'.tr,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      height: 1.35,
+                                      color: context.uiText,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                const SizedBox(height: 12),
-                if (controller.errorMessage.value != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      controller.errorMessage.value!,
-                      style: TextStyle(color: cs.error),
+                        ),
+                      ),
+                  ],
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: controller.refreshHomeData,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  children: [
+                    _TopGreetingRow(
+                      displayName: controller.displayName.value,
+                      onProfileTap: () => MainBottomNav.onTap(
+                        index: 4,
+                        currentIndex: 0,
+                        token: controller.activeToken,
+                      ),
+                      onNotificationsTap: controller.openNotifications,
+                      unreadNotifications: controller.unreadNotifications.value,
                     ),
-                  ),
-                Obx(() {
-                  final offers = controller.offers.toList(growable: false);
-                  return HomeOfferSlider(
-                    offers: offers,
-                    onTap: controller.onOfferTap,
-                  );
-                }),
-                if (controller.primaryActiveOrder != null) ...[
-                  const SizedBox(height: 14),
-                  _ActiveOrderHomeCard(
-                    order: controller.primaryActiveOrder!,
-                    onTap: controller.openPrimaryActiveOrder,
-                    hasMore: controller.hasMoreActiveOrders,
-                    onMoreTap: () => MainBottomNav.onTap(
-                      index: 1,
-                      currentIndex: 0,
-                      token: controller.activeToken,
+                    const SizedBox(height: 14),
+                    Obx(
+                      () => authState.isGuest
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cs.primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: cs.outlineVariant),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.person_outline,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'home.guestBrowsing'.tr,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                _SectionHeader(
-                  title: 'home.services'.tr,
-                  actionText: 'home.showAll'.tr,
-                  onActionTap: () => _openAllServicesPage(controller),
-                ),
-                const SizedBox(height: 10),
-                if (controller.services.isEmpty)
-                  Text(
-                    'home.noServices'.tr,
-                    style: TextStyle(color: cs.onSurfaceVariant),
-                  )
-                else
-                  Builder(
-                    builder: (_) {
-                      final orderedServices = _serviceCatalog.sortForHome(
-                        controller.services,
+                    const SizedBox(height: 12),
+                    if (controller.errorMessage.value != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          controller.errorMessage.value!,
+                          style: TextStyle(color: cs.error),
+                        ),
+                      ),
+                    Obx(() {
+                      final offers = controller.offers.toList(growable: false);
+                      return HomeOfferSlider(
+                        offers: offers,
+                        onTap: controller.onOfferTap,
                       );
-                      return HomeServiceGrid(
-                        services: orderedServices,
-                        onTap: controller.onServiceTap,
-                      );
-                    },
-                  ),
-                const SizedBox(height: 18),
-                _SectionHeader(
-                  title: 'home.mostOrderedRestaurants'.tr,
-                  actionText: 'home.showAll'.tr,
-                  onActionTap: () {
-                    final serviceId =
-                        controller.restaurantServiceId.value ??
+                    }),
+                    if (controller.primaryActiveOrder != null) ...[
+                      const SizedBox(height: 14),
+                      _ActiveOrderHomeCard(
+                        order: controller.primaryActiveOrder!,
+                        onTap: controller.openPrimaryActiveOrder,
+                        hasMore: controller.hasMoreActiveOrders,
+                        onMoreTap: () => MainBottomNav.onTap(
+                          index: 1,
+                          currentIndex: 0,
+                          token: controller.activeToken,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    _SectionHeader(
+                      title: 'home.services'.tr,
+                      actionText: 'home.showAll'.tr,
+                      onActionTap: () => _openAllServicesPage(controller),
+                    ),
+                    const SizedBox(height: 10),
+                    if (controller.services.isEmpty)
+                      Text(
+                        'home.noServices'.tr,
+                        style: TextStyle(color: cs.onSurfaceVariant),
+                      )
+                    else
+                      Builder(
+                        builder: (_) {
+                          final orderedServices = _serviceCatalog.sortForHome(
+                            controller.services,
+                          );
+                          return HomeServiceGrid(
+                            services: orderedServices,
+                            onTap: controller.onServiceTap,
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 18),
+                    _SectionHeader(
+                      title: 'home.mostOrderedRestaurants'.tr,
+                      actionText: 'home.showAll'.tr,
+                      onActionTap: () {
+                        final serviceId =
+                            controller.restaurantServiceId.value ??
                             controller.selectedServiceId.value ??
                             3;
-                    Get.to(
-                      () => RestaurantProductsScreen(
-                        token: controller.activeToken,
-                        serviceId: serviceId,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                if (controller.filteredVendors.isEmpty)
-                  Obx(() {
-                    final loadingVendors = controller.isVendorsLoading.value;
-                    final waitingNetwork = controller.vendorsWaitingNetwork.value;
-                    final initialLoadCompleted =
-                        controller.vendorsInitialLoadCompleted.value;
-                    if (!initialLoadCompleted || loadingVendors || waitingNetwork) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _ShimmerRestaurantsRow(),
-                          if (waitingNetwork) ...[
-                            const SizedBox(height: 10),
-                            Text(
-                              'home.waitingForNetworkHint'.tr,
-                              style: TextStyle(color: context.uiSubtext),
-                            ),
-                          ],
-                        ],
-                      );
-                    }
-                    return Text(
-                      'home.noRestaurants'.tr,
-                      style: TextStyle(color: context.uiSubtext),
-                    );
-                  })
-                else
-                  SizedBox(
-                    height: 188,
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        if (notification.metrics.pixels >=
-                            notification.metrics.maxScrollExtent - 80) {
-                          controller.loadMoreVendorsIfNeeded();
-                        }
-                        return false;
-                      },
-                      child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: controller.filteredVendors.length +
-                          (controller.isLoadingMoreVendors.value ? 1 : 0),
-                      separatorBuilder: (_, unusedIndex) =>
-                          const SizedBox(width: 12),
-                      itemBuilder: (_, index) {
-                        if (index >= controller.filteredVendors.length) {
-                          return const SizedBox(
-                            width: 48,
-                            child: Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          );
-                        }
-                        final vendor = controller.filteredVendors[index];
-                        return HomeRestaurantCard(
-                          name: vendor.name,
-                          imageUrl: vendor.image ?? vendor.logo,
-                          rating: vendor.rating,
-                          subtitle: vendor.description,
-                          vendorId: vendor.id,
-                          vendorStatus: vendor.vendorStatus,
-                          isOpened: vendor.isOpened,
-                          isStore: (vendor.serviceId ?? controller.selectedServiceId.value) == 3,
-                          etaMinutesText: vendor.estimatedDeliveryMinutesText,
-                          onTap: () => controller.onRestaurantCardTap(vendor),
+                        Get.to(
+                          () => RestaurantProductsScreen(
+                            token: controller.activeToken,
+                            serviceId: serviceId,
+                          ),
                         );
                       },
                     ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }),
+                    const SizedBox(height: 10),
+                    if (controller.filteredVendors.isEmpty)
+                      Obx(() {
+                        final loadingVendors =
+                            controller.isVendorsLoading.value;
+                        final waitingNetwork =
+                            controller.vendorsWaitingNetwork.value;
+                        final initialLoadCompleted =
+                            controller.vendorsInitialLoadCompleted.value;
+                        if (!initialLoadCompleted ||
+                            loadingVendors ||
+                            waitingNetwork) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const _ShimmerRestaurantsRow(),
+                              if (waitingNetwork) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  'home.waitingForNetworkHint'.tr,
+                                  style: TextStyle(color: context.uiSubtext),
+                                ),
+                              ],
+                            ],
+                          );
+                        }
+                        return Text(
+                          'home.noRestaurants'.tr,
+                          style: TextStyle(color: context.uiSubtext),
+                        );
+                      })
+                    else
+                      SizedBox(
+                        height: 188,
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification.metrics.pixels >=
+                                notification.metrics.maxScrollExtent - 80) {
+                              controller.loadMoreVendorsIfNeeded();
+                            }
+                            return false;
+                          },
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount:
+                                controller.filteredVendors.length +
+                                (controller.isLoadingMoreVendors.value ? 1 : 0),
+                            separatorBuilder: (_, unusedIndex) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (_, index) {
+                              if (index >= controller.filteredVendors.length) {
+                                return const SizedBox(
+                                  width: 48,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              final vendor = controller.filteredVendors[index];
+                              return HomeRestaurantCard(
+                                name: vendor.name,
+                                imageUrl: vendor.image ?? vendor.logo,
+                                rating: vendor.rating,
+                                subtitle: vendor.description,
+                                vendorId: vendor.id,
+                                vendorStatus: vendor.vendorStatus,
+                                isOpened: vendor.isOpened,
+                                isStore:
+                                    (vendor.serviceId ??
+                                        controller.selectedServiceId.value) ==
+                                    3,
+                                etaMinutesText:
+                                    vendor.estimatedDeliveryMinutesText,
+                                onTap: () =>
+                                    controller.onRestaurantCardTap(vendor),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
           ),
-          const SupportChatFloatingBubble(),
+          const WhatsAppSupportFloatingButton(),
         ],
       ),
     );
@@ -395,9 +407,7 @@ class _OrderTrackingStepsRow extends StatelessWidget {
                         child: Icon(
                           icons[index],
                           size: 15,
-                          color: isActive
-                              ? Colors.white
-                              : cs.onSurfaceVariant,
+                          color: isActive ? Colors.white : cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -436,7 +446,10 @@ class _OrderTrackingStepsRow extends StatelessWidget {
 String _stripDecorativeOrderNumberPrefix(String raw) {
   var s = raw.trim();
   s = s.replaceAll(
-    RegExp(r'^(?:ط±ظ‚ظ…\s*ط§ظ„ط·ظ„ط¨|Order\s*Number)\s*:?\s*', caseSensitive: false),
+    RegExp(
+      r'^(?:ط±ظ‚ظ…\s*ط§ظ„ط·ظ„ط¨|Order\s*Number)\s*:?\s*',
+      caseSensitive: false,
+    ),
     '',
   );
   return s.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -539,10 +552,7 @@ class _ActiveOrderHomeCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                labels[currentStep.clamp(
-                                  0,
-                                  labels.length - 1,
-                                )],
+                                labels[currentStep.clamp(0, labels.length - 1)],
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   color: cs.onSurfaceVariant,
@@ -610,7 +620,8 @@ class _ActiveOrderHomeCard extends StatelessWidget {
     final dispatch = order.dispatchStatus.toLowerCase();
     if (status == 'delivered' || status == 'completed') return 3;
     if (status == 'on_way' || status == 'picked_up') return 1;
-    if (status == 'on_the_way_to_pickup' || status == 'near_destination') return 2;
+    if (status == 'on_the_way_to_pickup' || status == 'near_destination')
+      return 2;
     if (dispatch == 'accepted' || dispatch == 'assigned') return 0;
     if (status == 'accepted') return 0;
     return -1;
@@ -763,11 +774,7 @@ class _ShimmerSectionHeaderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _ShimmerBox(
-          height: 22,
-          width: shortTitle ? 72 : 160,
-          radius: 8,
-        ),
+        _ShimmerBox(height: 22, width: shortTitle ? 72 : 160, radius: 8),
         const Spacer(),
         const _ShimmerBox(height: 16, width: 56, radius: 6),
       ],
@@ -815,7 +822,9 @@ class _TopGreetingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final name = displayName.trim().isEmpty ? 'home.greetingDefault'.tr : displayName.trim();
+    final name = displayName.trim().isEmpty
+        ? 'home.greetingDefault'.tr
+        : displayName.trim();
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Row(
@@ -898,7 +907,6 @@ class _TopGreetingRow extends StatelessWidget {
   }
 }
 
-
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
@@ -959,10 +967,8 @@ class _ShimmerRestaurantsRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         itemCount: 4,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, _) => const SizedBox(
-          width: 132,
-          child: _ShimmerBox(radius: 12),
-        ),
+        itemBuilder: (_, _) =>
+            const SizedBox(width: 132, child: _ShimmerBox(radius: 12)),
       ),
     );
   }

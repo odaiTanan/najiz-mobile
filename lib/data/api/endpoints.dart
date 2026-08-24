@@ -31,6 +31,9 @@ class Endpoints {
   static const peakHourStatus = '/peak-hour-status';
   static String cmsPage(String slug) => '/pages/$slug';
   static const faq = '/pages/faq';
+
+  // ── Public app settings ───────────────────────────────────────────────────
+  static const supportSettings = '/app-settings/support';
   static String serviceClassifications(int serviceId) =>
       '/services/$serviceId/classifications';
   static String classificationVendors(int classificationId) =>
